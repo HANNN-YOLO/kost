@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-class LoginPage extends StatelessWidget {
-  static const routeName = "/login";
+class RegisterPage extends StatelessWidget {
+  static const routeName = "/register";
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +47,7 @@ class LoginPage extends StatelessWidget {
           width: lebarLayar,
           // color: const Color.fromARGB(255, 6, 22, 72),
           padding:
-              const EdgeInsets.only(top: 250, left: 30, right: 30, bottom: 60),
+              const EdgeInsets.only(top: 200, left: 30, right: 30, bottom: 60),
           // child: Container(
           //   height: 200,
           //   width: 200.0,
@@ -60,7 +60,7 @@ class LoginPage extends StatelessWidget {
               children: [
                 // Judul
                 Text(
-                  "Masuk",
+                  "Daftar",
                   style: TextStyle(
                     fontSize: fontUkuranJudul,
                     fontWeight: FontWeight.bold,
@@ -74,42 +74,13 @@ class LoginPage extends StatelessWidget {
                   style: TextStyle(color: Colors.grey, fontSize: 14),
                 ),
                 const SizedBox(height: 20),
-
-                // TextField Email
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const TextField(
-                    decoration: InputDecoration(
-                      hintText: "Email",
-                      prefixIcon: Icon(Icons.email_outlined),
-                      border: InputBorder.none,
-                      contentPadding:
-                          EdgeInsets.symmetric(vertical: 18, horizontal: 10),
-                    ),
-                  ),
-                ),
+                TextInput(hintText: "Nama", prefixIcon: Icons.person_outline),
                 const SizedBox(height: 20),
-
+                // TextField Email
+                TextInput(hintText: "Email", prefixIcon: Icons.email_outlined),
+                const SizedBox(height: 20),
                 // TextField Sandi
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const TextField(
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      hintText: "Sandi",
-                      prefixIcon: Icon(Icons.lock_outline),
-                      border: InputBorder.none,
-                      contentPadding:
-                          EdgeInsets.symmetric(vertical: 18, horizontal: 10),
-                    ),
-                  ),
-                ),
+                TextInput(hintText: "Sandi", prefixIcon: Icons.lock_outline),
                 const SizedBox(height: 30),
 
                 // Tombol Masuk
@@ -139,7 +110,7 @@ class LoginPage extends StatelessWidget {
                 Center(
                   child: RichText(
                     text: const TextSpan(
-                      text: "Belum Punya akun? ",
+                      text: "Sudah Punya Akun? ",
                       style: TextStyle(color: Colors.grey),
                       children: [
                         TextSpan(
@@ -156,6 +127,36 @@ class LoginPage extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class TextInput extends StatelessWidget {
+  final String hintText;
+  final IconData prefixIcon;
+
+  const TextInput({
+    super.key,
+    required this.hintText,
+    required this.prefixIcon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: TextField(
+        obscureText: true,
+        decoration: InputDecoration(
+          hintText: hintText,
+          prefixIcon: Icon(prefixIcon),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(vertical: 18, horizontal: 10),
         ),
       ),
     );

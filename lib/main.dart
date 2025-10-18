@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:kost_saw/screens/auth/Register.dart';
+import 'package:kost_saw/screens/main/user/Home.dart';
 
 import 'test.dart';
 import 'screens/auth/Login.dart';
@@ -18,6 +20,8 @@ class App extends StatelessWidget {
       routes: {
         "/test": (_) => Test(),
         "/login": (_) => LoginPage(),
+        "/register": (_) => RegisterPage(),
+        "/kost_home": (_) => KostHomePage(),
       },
       initialRoute: "/login",
     );
