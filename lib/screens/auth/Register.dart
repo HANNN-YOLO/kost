@@ -80,7 +80,12 @@ class RegisterPage extends StatelessWidget {
                 TextInput(hintText: "Email", prefixIcon: Icons.email_outlined),
                 const SizedBox(height: 20),
                 // TextField Sandi
-                TextInput(hintText: "Sandi", prefixIcon: Icons.lock_outline),
+                TextInput(hintText: "Sandi", prefixIcon: Icons.email_outlined),
+                const SizedBox(height: 20),
+                // TextField Konfirmasi Sandi
+                TextInput(
+                    hintText: "Konfirmasi Sandi",
+                    prefixIcon: Icons.lock_outline),
                 const SizedBox(height: 30),
 
                 // Tombol Masuk

@@ -23,7 +23,7 @@ class App extends StatelessWidget {
         "/register": (_) => RegisterPage(),
         "/kost_home": (_) => KostHomePage(),
       },
-      initialRoute: "/login",
+      initialRoute: "/register",
     );
   }
 }
