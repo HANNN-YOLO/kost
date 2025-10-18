@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'test.dart';
+import 'screens/auth/Login.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,8 +17,9 @@ class App extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       routes: {
         "/test": (_) => Test(),
+        "/login": (_) => LoginPage(),
       },
-      initialRoute: "/test",
+      initialRoute: "/login",
     );
   }
 }
