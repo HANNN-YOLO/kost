@@ -48,4 +48,4 @@ app.*.map.json
 .env
 
 # Ignore configs folder
-lib/configs/
+configs/
