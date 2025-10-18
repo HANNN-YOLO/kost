@@ -45,7 +45,6 @@ app.*.map.json
 /android/app/release
 
 # Ignore environment file
-.env
+
 
 # Ignore configs folder
-configs/
