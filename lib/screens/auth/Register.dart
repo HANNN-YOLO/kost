@@ -1,10 +1,25 @@
 import 'package:flutter/material.dart';
+import '../custom/showdialog_eror.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 
-class RegisterPage extends StatelessWidget {
+class RegisterPage extends StatefulWidget {
   static const routeName = "/register";
 
   @override
+  State<RegisterPage> createState() => _RegisterPageState();
+}
+
+class _RegisterPageState extends State<RegisterPage> {
+  final TextEditingController user = TextEditingController();
+  final TextEditingController email = TextEditingController();
+  final TextEditingController pas1 = TextEditingController();
+  final TextEditingController pas2 = TextEditingController();
+
+  @override
   Widget build(BuildContext context) {
+    final penghubung = Provider.of<AuthProvider>(context, listen: false);
+
     final tinggiLayar = MediaQuery.of(context).size.height;
     final lebarLayar = MediaQuery.of(context).size.width;
 
@@ -40,14 +55,13 @@ class RegisterPage extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFEFF0F3),
+      backgroundColor: Color(0xFFEFF0F3),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Container(
             height: tinggiLayar,
             width: lebarLayar,
-            padding: const EdgeInsets.only(
-                top: 200, left: 30, right: 30, bottom: 60),
+            padding: EdgeInsets.only(top: 200, left: 30, right: 30, bottom: 60),
             child: Container(
               // color: Colors.red,
               child: Column(
@@ -63,42 +77,90 @@ class RegisterPage extends StatelessWidget {
                       // fontStyle: f
                     ),
                   ),
-                  // const SizedBox(height: 4),
-                  const Text(
-                    "Tolong masukkan akun anda",
+                  //  SizedBox(height: 4),
+                  Text(
+                    "Tolong Isikan data anda",
                     style: TextStyle(color: Colors.grey, fontSize: 14),
                   ),
-                  const SizedBox(height: 20),
-                  TextInput(hintText: "Nama", prefixIcon: Icons.person_outline),
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20),
+                  TextInput(
+                    hintText: "Nama",
+                    prefixIcon: Icons.person_outline,
+                    isinya: user,
+                    kelihatan: false,
+                  ),
+                  SizedBox(height: 20),
                   // TextField Email
                   TextInput(
-                      hintText: "Email", prefixIcon: Icons.email_outlined),
-                  const SizedBox(height: 20),
+                    hintText: "Email",
+                    prefixIcon: Icons.email_outlined,
+                    isinya: email,
+                    kelihatan: false,
+                  ),
+                  SizedBox(height: 20),
                   // TextField Sandi
-                  TextInput(
-                      hintText: "Sandi", prefixIcon: Icons.email_outlined),
-                  const SizedBox(height: 20),
+                  Consumer<AuthProvider>(
+                    builder: (context, value, child) {
+                      return TextInput(
+                        hintText: "Sandi",
+                        prefixIcon: Icons.lock_outline,
+                        isinya: pas1,
+                        kelihatan: value.kelihatan,
+                        custom: value.kelihatan
+                            ? Icon(Icons.visibility_off)
+                            : Icon(Icons.visibility),
+                        fungsi: () {
+                          value.keadaan();
+                        },
+                      );
+                    },
+                  ),
+                  SizedBox(height: 20),
                   // TextField Konfirmasi Sandi
-                  TextInput(
-                      hintText: "Konfirmasi Sandi",
-                      prefixIcon: Icons.lock_outline),
-                  const SizedBox(height: 30),
+                  Consumer<AuthProvider>(
+                    builder: (context, value, child) {
+                      return TextInput(
+                        hintText: "Konfirmasi Sandi",
+                        prefixIcon: Icons.lock_outline,
+                        isinya: pas2,
+                        kelihatan: value.kelihatan,
+                        custom: value.kelihatan
+                            ? Icon(Icons.visibility_off)
+                            : Icon(Icons.visibility),
+                        fungsi: () {
+                          value.keadaan();
+                        },
+                      );
+                    },
+                  ),
+                  SizedBox(height: 30),
 
                   // Tombol Masuk
                   Align(
                     alignment: Alignment.centerRight,
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () async {
+                        try {
+                          await penghubung.register(user.text, email.text,
+                              pas1.text, pas2.text, penghubung.role);
+                        } catch (e) {
+                          showDialog(
+                            context: context,
+                            builder: (context) {
+                              return ShowdialogEror(label: "${e.toString()}");
+                            },
+                          );
+                        }
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 40, vertical: 14),
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 40, vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30),
                         ),
                       ),
-                      child: const Text(
+                      child: Text(
                         "Masuk",
                         style: TextStyle(
                             color: Colors.white, fontWeight: FontWeight.bold),
@@ -106,23 +168,28 @@ class RegisterPage extends StatelessWidget {
                     ),
                   ),
 
-                  const Spacer(),
+                  Spacer(),
 
                   // Teks daftar
                   Center(
-                    child: RichText(
-                      text: const TextSpan(
-                        text: "Sudah Punya Akun? ",
-                        style: TextStyle(color: Colors.grey),
-                        children: [
-                          TextSpan(
-                            text: "Daftar",
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          )
-                        ],
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.of(context).pushReplacementNamed("/login");
+                      },
+                      child: RichText(
+                        text: TextSpan(
+                          text: "Sudah Punya Akun? ",
+                          style: TextStyle(color: Colors.grey),
+                          children: [
+                            TextSpan(
+                              text: "Login",
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -139,12 +206,19 @@ class RegisterPage extends StatelessWidget {
 class TextInput extends StatelessWidget {
   final String hintText;
   final IconData prefixIcon;
+  final bool? kelihatan;
+  final TextEditingController isinya;
+  final Icon? custom;
+  final VoidCallback? fungsi;
 
-  const TextInput({
-    super.key,
-    required this.hintText,
-    required this.prefixIcon,
-  });
+  const TextInput(
+      {super.key,
+      required this.hintText,
+      required this.prefixIcon,
+      this.kelihatan,
+      required this.isinya,
+      this.custom,
+      this.fungsi});
 
   @override
   Widget build(BuildContext context) {
@@ -154,10 +228,13 @@ class TextInput extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: TextField(
-        obscureText: true,
+        controller: isinya,
+        obscureText: kelihatan!,
+        onTap: fungsi,
         decoration: InputDecoration(
           hintText: hintText,
           prefixIcon: Icon(prefixIcon),
+          suffixIcon: custom,
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(vertical: 18, horizontal: 10),
         ),
