@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:kost_saw/screens/auth/Register.dart';
-import 'package:kost_saw/screens/main/user/Home.dart';
 
 import 'test.dart';
 import 'screens/auth/Login.dart';
+import 'screens/main/admin/dashboard.dart';
+import 'package:kost_saw/screens/auth/Register.dart';
+import 'package:kost_saw/screens/main/user/Home.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,8 +23,9 @@ class App extends StatelessWidget {
         "/login": (_) => LoginPage(),
         "/register": (_) => RegisterPage(),
         "/kost_home": (_) => KostHomePage(),
+        "/dashboard": (_) => Dashboard()
       },
-      initialRoute: "/register",
+      initialRoute: "/login",
     );
   }
 }
