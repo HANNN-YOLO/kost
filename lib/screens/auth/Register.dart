@@ -161,7 +161,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                       ),
                       child: Text(
-                        "Masuk",
+                        "Daftar",
                         style: TextStyle(
                             color: Colors.white, fontWeight: FontWeight.bold),
                       ),

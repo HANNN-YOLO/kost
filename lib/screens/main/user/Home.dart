@@ -143,21 +143,26 @@ class KostHomePage extends StatelessWidget {
         ),
       ),
       // Bottom navigation sederhana (floating style)
-      bottomNavigationBar: SizedBox(
-        height: 70,
-        child: BottomAppBar(
-          color: Color.fromARGB(255, 255, 255, 255),
-          elevation: 6,
-          shape: const CircularNotchedRectangle(),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              SizedBox(width: 24),
-              Icon(Icons.home_outlined),
-            ],
-          ),
-        ),
-      ),
+      // bottomNavigationBar: SizedBox(
+      //   height: 70,
+      //   child: BottomAppBar(
+      //     color: Color.fromARGB(255, 255, 255, 255),
+      //     elevation: 6,
+      //     padding: const EdgeInsets.only(left: 30, right: 30),
+      //     shape: const CircularNotchedRectangle(),
+      //     child: Row(
+      //       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      //       children: const [
+      //         // SizedBox(width: 24),
+      //         Icon(Icons.home_outlined),
+      //         // SizedBox(width: 24),
+      //         Icon(Icons.home_outlined),
+      //         // SizedBox(width: 24),x
+      //         Icon(Icons.home_outlined),
+      //       ],
+      //     ),
+      //   ),
+      // ),
     );
   }
 }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:kost_saw/widgets/main_navigation.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
-
 import 'test.dart';
 import 'screens/auth/Login.dart';
 import 'screens/auth/Register.dart';
@@ -65,7 +65,7 @@ class App extends StatelessWidget {
               if (cek.role == "Admin") {
                 menuju = Dashboard();
               } else if (cek.role == "User") {
-                menuju = KostHomePage();
+                menuju = MainNavigation();
               } else {
                 menuju = RegisterPage();
               }
@@ -80,8 +80,8 @@ class App extends StatelessWidget {
                 "/test": (_) => Test(),
                 "/login": (_) => LoginPage(),
                 "/register": (_) => RegisterPage(),
-                "/kost_home": (_) => KostHomePage(),
-                "/dashboard": (_) => Dashboard()
+                "/mainavigation": (_) => MainNavigation(),
+                // "/dashboard": (_) => Dashboard()
               },
               // initialRoute: "/login",
               // home: value.token ? KostHomePage() : LoginPage(),
