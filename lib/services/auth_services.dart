@@ -24,7 +24,11 @@ class AuthServices {
       return data;
     } else {
       print("error ${pengisian.body}");
-      throw "error ${pengisian.body}";
+      // throw "error ${pengisian.body}";
+      final ambil = json.decode(pengisian.body);
+      if (ambil['error_code'] == "invalid_credentials") {
+        throw "Email atau Sandi salah";
+      }
     }
   }
 
@@ -47,7 +51,11 @@ class AuthServices {
       return data;
     } else {
       print("error ${pengisian.body}");
-      throw "error ${pengisian.body}";
+      // throw "error ${pengisian.body}";
+      final data = json.decode(pengisian.body);
+      if (data["error_code"] == "validation_failed") {
+        throw "Masukkan Sandi Anda";
+      }
     }
   }
 

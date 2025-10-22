@@ -16,6 +16,14 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  bool _lihat = false;
+  bool get lihat => _lihat;
+
+  void konfirmasi() {
+    _lihat = !_lihat;
+    notifyListeners();
+  }
+
   // UI set Role
   final role = "User";
 
@@ -64,24 +72,27 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> register(String username, String email, String pas1, String pas2,
-      String role) async {
+      String role, BuildContext context) async {
     try {
       if (pas1 == pas2) {
         final data = await _ref.register(email: email, pass: pas1);
         if (data != null) {
-          _accesstoken = data['access_token'];
-          _email = email;
-          _expiresIn = DateTime.now().add(Duration(
-            seconds: data['expires_in'],
-          ));
+          // _accesstoken = data['access_token'];
+          // _email = email;
+          // _expiresIn = DateTime.now().add(Duration(
+          //   seconds: data['expires_in'],
+          // ));
 
           await _ref.createuser(
-              _accesstoken!, data['user']['id'], username, email, role);
+              data['access_token'], data['user']['id'], username, email, role);
+
+          await Navigator.of(context).pushReplacementNamed("/login");
         }
       } else {
-        throw "Sandi tidak sama pada saat di input";
+        throw "Sandi tidak sama dengan Konfirmasi Sandi pada saat di input";
       }
     } catch (e) {
+      print(e);
       throw e;
     }
     await readrole();
@@ -111,6 +122,9 @@ class AuthProvider with ChangeNotifier {
 
       waktunya?.cancel();
       waktunya = null;
+
+      final bersihkan = await SharedPreferences.getInstance();
+      bersihkan.clear();
     } else {
       throw "Failed to logout";
     }

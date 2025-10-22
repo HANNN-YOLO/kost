@@ -16,6 +16,8 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController pas1 = TextEditingController();
   final TextEditingController pas2 = TextEditingController();
 
+  String? message;
+
   @override
   Widget build(BuildContext context) {
     final penghubung = Provider.of<AuthProvider>(context, listen: false);
@@ -123,16 +125,28 @@ class _RegisterPageState extends State<RegisterPage> {
                         hintText: "Konfirmasi Sandi",
                         prefixIcon: Icons.lock_outline,
                         isinya: pas2,
-                        kelihatan: value.kelihatan,
-                        custom: value.kelihatan
+                        kelihatan: value.lihat,
+                        custom: value.lihat
                             ? Icon(Icons.visibility_off)
                             : Icon(Icons.visibility),
                         fungsi: () {
-                          value.keadaan();
+                          value.konfirmasi();
                         },
                       );
                     },
                   ),
+
+                  if (message != null) ...[
+                    SizedBox(
+                      height: 10,
+                    ),
+                    Center(
+                      child: Text(
+                        message!,
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    )
+                  ],
                   SizedBox(height: 30),
 
                   // Tombol Masuk
@@ -142,14 +156,20 @@ class _RegisterPageState extends State<RegisterPage> {
                       onPressed: () async {
                         try {
                           await penghubung.register(user.text, email.text,
-                              pas1.text, pas2.text, penghubung.role);
+                              pas1.text, pas2.text, penghubung.role, context);
+                          setState(() {
+                            message = null;
+                          });
                         } catch (e) {
-                          showDialog(
-                            context: context,
-                            builder: (context) {
-                              return ShowdialogEror(label: "${e.toString()}");
-                            },
-                          );
+                          // showDialog(
+                          //   context: context,
+                          //   builder: (context) {
+                          //     return ShowdialogEror(label: "${e.toString()}");
+                          //   },
+                          // );
+                          setState(() {
+                            message = e.toString();
+                          });
                         }
                       },
                       style: ElevatedButton.styleFrom(

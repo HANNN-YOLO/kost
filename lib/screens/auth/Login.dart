@@ -14,6 +14,8 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController email = TextEditingController();
   final TextEditingController pass = TextEditingController();
 
+  String? mesaage;
+
   @override
   Widget build(BuildContext context) {
     final penghubung = Provider.of<AuthProvider>(context, listen: false);
@@ -133,6 +135,18 @@ class _LoginPageState extends State<LoginPage> {
                       );
                     },
                   ),
+
+                  if (mesaage != null) ...[
+                    SizedBox(
+                      height: 10,
+                    ),
+                    Center(
+                      child: Text(
+                        mesaage!,
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    )
+                  ],
                   SizedBox(height: 30),
 
                   // Tombol Masuk
@@ -142,13 +156,19 @@ class _LoginPageState extends State<LoginPage> {
                       onPressed: () async {
                         try {
                           await penghubung.login(email.text, pass.text);
+                          setState(() {
+                            mesaage = null;
+                          });
                         } catch (e) {
-                          showDialog(
-                            context: context,
-                            builder: (context) {
-                              return ShowdialogEror(label: "${e.toString()}");
-                            },
-                          );
+                          // showDialog(
+                          //   context: context,
+                          //   builder: (context) {
+                          //     return ShowdialogEror(label: "${e.toString()}");
+                          //   },
+                          // );
+                          setState(() {
+                            mesaage = e.toString();
+                          });
                         }
                       },
                       style: ElevatedButton.styleFrom(

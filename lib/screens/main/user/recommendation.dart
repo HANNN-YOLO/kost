@@ -50,7 +50,7 @@ class _UserRecommendationPageState extends State<UserRecommendationPage> {
         elevation: 0,
         automaticallyImplyLeading: false,
         title: const Text(
-          'Rekomendasi Indekos',
+          'Rekomendasi Indekos SAW',
           style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.bold,

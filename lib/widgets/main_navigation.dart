@@ -11,8 +11,8 @@ class MainNavigation extends StatefulWidget {
 }
 
 class _MainNavigationState extends State<MainNavigation> {
-  int _selectedIndex = 0;
-  final List<int> _history = [0]; // menyimpan urutan tab terakhir
+  int _selectedIndex = 1;
+  final List<int> _history = [1]; // menyimpan urutan tab terakhir
 
   // Fungsi untuk menampilkan halaman sesuai index
   Widget _getPage(int index) {

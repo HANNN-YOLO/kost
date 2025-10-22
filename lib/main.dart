@@ -66,8 +66,9 @@ class App extends StatelessWidget {
                 menuju = Dashboard();
               } else if (cek.role == "User") {
                 menuju = MainNavigation();
+                // KostHomePage();
               } else {
-                menuju = RegisterPage();
+                menuju = LoginPage();
               }
             } else {
               menuju = LoginPage();

@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import '../../custom/showdialog_eror.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/auth_provider.dart';
 
 class UserProfilePage extends StatelessWidget {
   const UserProfilePage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final penghubung = Provider.of<AuthProvider>(context);
     final TextEditingController namaController = TextEditingController();
     final TextEditingController tglLahirController = TextEditingController();
     final TextEditingController jenisKelaminController =
@@ -64,8 +68,17 @@ class UserProfilePage extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: ElevatedButton(
-                onPressed: () {
-                  // aksi logout di sini
+                onPressed: () async {
+                  try {
+                    await penghubung.logout();
+                  } catch (e) {
+                    showDialog(
+                      context: context,
+                      builder: (context) {
+                        return ShowdialogEror(label: "${e.toString()}");
+                      },
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
