@@ -15,12 +15,13 @@ class KostHomePage extends StatelessWidget {
     final AppBar appBar = AppBar(
       elevation: 0,
       toolbarHeight: 100,
-      backgroundColor: Color(0xFFF4F4F4),
+      backgroundColor: const Color(0xFFF4F4F4),
       foregroundColor: Colors.black,
       centerTitle: false,
       titleSpacing: 0,
       title: Padding(
-        padding: const EdgeInsets.only(left: 30, top: 30, right: 30),
+        padding:
+            const EdgeInsets.only(left: 20, right: 20, bottom: 20, top: 20),
         child: const Text(
           "Temukan Kost\nPilihan anda",
           style: TextStyle(
@@ -33,11 +34,13 @@ class KostHomePage extends StatelessWidget {
       ),
       actions: [
         Padding(
-          padding: const EdgeInsets.only(right: 12.0),
+          padding: const EdgeInsets.only(right: 5),
           child: IconButton(
             onPressed: () {},
             icon: const Icon(Icons.notifications_none),
             color: Colors.black,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
           ),
         ),
       ],
@@ -92,8 +95,8 @@ class KostHomePage extends StatelessWidget {
       ),
       body: Padding(
         padding: EdgeInsets.only(
-          left: 30,
-          right: 30,
+          left: 20,
+          right: 20,
           top: 0,
           bottom: 0,
         ),
