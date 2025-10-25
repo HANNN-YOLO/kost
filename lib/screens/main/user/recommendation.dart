@@ -8,6 +8,7 @@ void main() {
 }
 
 class UserRecommendationPage extends StatefulWidget {
+  static const arah = "/recomended-user";
   const UserRecommendationPage({super.key});
 
   @override

@@ -4,6 +4,7 @@ import '../models/auth_model.dart';
 import 'package:http/http.dart' as htpp;
 
 class AuthServices {
+  // modul auth
   Future<Map<String, dynamic>?> login(
       {required String email, required String pass}) async {
     var url = Uri.parse(
@@ -24,10 +25,11 @@ class AuthServices {
       return data;
     } else {
       print("error ${pengisian.body}");
-      // throw "error ${pengisian.body}";
       final ambil = json.decode(pengisian.body);
       if (ambil['error_code'] == "invalid_credentials") {
         throw "Email atau Sandi salah";
+      } else if (ambil["error_code"] == "anonymous_provider_disabled") {
+        throw "Masukkan Email dan Sandi Anda";
       }
     }
   }
@@ -59,6 +61,7 @@ class AuthServices {
     }
   }
 
+  // modul realtime
   Future<void> createuser(String token, String UID, String username,
       String Email, String role) async {
     var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/auth");

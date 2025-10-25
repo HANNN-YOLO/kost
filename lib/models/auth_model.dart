@@ -50,7 +50,7 @@ class AuthModel {
     return AuthModel(
       id_auth: json['id_auth'],
       UID: json['UID'],
-      username: json['useername'],
+      username: json['username'],
       Email: json['Email'],
       password: json['password'],
       role: json['role'],

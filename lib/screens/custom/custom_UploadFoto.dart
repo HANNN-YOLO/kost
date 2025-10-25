@@ -3,14 +3,16 @@ import 'package:flutter/material.dart';
 
 class CustomUploadfoto extends StatelessWidget {
   final double tinggi;
-  final double radius;
+  final double panjang;
+  final double? radius;
   final VoidCallback fungsi;
   final String? path;
 
   const CustomUploadfoto({
     Key? key,
     required this.tinggi,
-    required this.radius,
+    required this.panjang,
+    this.radius,
     required this.fungsi,
     required this.path,
   }) : super(key: key);
@@ -22,26 +24,44 @@ class CustomUploadfoto extends StatelessWidget {
       onTap: fungsi,
       child: Container(
         height: tinggi,
-        width: double.infinity,
+        width: panjang,
         decoration: BoxDecoration(
+          shape: BoxShape.circle,
           border: Border.all(color: Colors.grey),
-          borderRadius: BorderRadius.circular(radius),
+          // borderRadius: BorderRadius.circular(radius),
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(radius),
-          child:
-              path != null
-                  ? Image.file(
-                    File(path!),
-                    fit: BoxFit.cover, // ✅ foto menyesuaikan container
-                  )
-                  : Center(
-                    child: Icon(
-                      Icons.add_a_photo,
-                      size: 40,
-                      color: Colors.grey[700],
-                    ),
+        child:
+            // kotak
+            // ClipRRect(
+            //   // borderRadius: BorderRadius.circular(radius),
+            //   child: path != null
+            //       ? Image.file(
+            //           File(path!),
+            //           fit: BoxFit.cover, // ✅ foto menyesuaikan container
+            //         )
+            //       : Center(
+            //           child: Icon(
+            //             Icons.add_a_photo,
+            //             size: 40,
+            //             color: Colors.grey[700],
+            //           ),
+            //         ),
+            // ),
+
+            // lingkaran
+            ClipOval(
+          child: path != null
+              ? Image.file(
+                  File(path!),
+                  fit: BoxFit.cover,
+                )
+              : Center(
+                  child: Icon(
+                    Icons.add_a_photo,
+                    size: 40,
+                    color: Colors.grey[700],
                   ),
+                ),
         ),
       ),
     );

@@ -5,6 +5,7 @@ import 'package:kost_saw/screens/main/user/Profile.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({Key? key}) : super(key: key);
+  static const arah = "/mainavigation";
 
   @override
   _MainNavigationState createState() => _MainNavigationState();
@@ -18,13 +19,13 @@ class _MainNavigationState extends State<MainNavigation> {
   Widget _getPage(int index) {
     switch (index) {
       case 0:
-        return const UserRecommendationPage();
+        return UserRecommendationPage();
       case 1:
-        return const KostHomePage();
+        return KostHomePage();
       case 2:
-        return const UserProfilePage();
+        return UserProfilePage();
       default:
-        return const KostHomePage();
+        return KostHomePage();
     }
   }
 

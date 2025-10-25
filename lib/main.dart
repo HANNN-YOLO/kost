@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
+
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:kost_saw/widgets/main_navigation.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
+import 'providers/profil_provider.dart';
+
 import 'test.dart';
 import 'screens/auth/Login.dart';
 import 'screens/auth/Register.dart';
+import 'package:kost_saw/widgets/main_navigation.dart';
+
 import 'screens/main/admin/dashboard.dart';
+
 import 'screens/main/user/Home.dart';
+import 'screens/main/user/Profile.dart';
+import 'screens/main/user/recommendation.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,7 +22,19 @@ void main() async {
   runApp(MultiProvider(
     providers: [
       ChangeNotifierProvider(create: (context) => AuthProvider()),
-      //
+      ChangeNotifierProxyProvider<AuthProvider, ProfilProvider>(
+        create: (context) => ProfilProvider(),
+        update: (context, value, previous) {
+          previous ?? ProfilProvider();
+          if (value.accesstoken != null &&
+              value.email != null &&
+              value.id_auth != null) {
+            previous?.terisi(value.accesstoken!, value.email!, value.id_auth!);
+            // return previous!;
+          }
+          return previous!;
+        },
+      ),
     ],
     builder: (context, child) {
       return App();
@@ -79,10 +98,19 @@ class App extends StatelessWidget {
               debugShowCheckedModeBanner: false,
               routes: {
                 "/test": (_) => Test(),
+
+                // state halaman
                 "/login": (_) => LoginPage(),
                 "/register": (_) => RegisterPage(),
                 "/mainavigation": (_) => MainNavigation(),
-                // "/dashboard": (_) => Dashboard()
+
+                // state user
+                "/kost-home": (_) => KostHomePage(),
+                "/profil-user": (_) => UserProfilePage(),
+                "/recomended-user": (_) => UserRecommendationPage(),
+
+                // state Admin
+                "/dashboard": (_) => Dashboard(),
               },
               // initialRoute: "/login",
               // home: value.token ? KostHomePage() : LoginPage(),

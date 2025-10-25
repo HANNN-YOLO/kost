@@ -7,6 +7,9 @@ import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthProvider with ChangeNotifier {
+  // state relasi
+  int? id_auth;
+
   // UI state password
   bool _kelihatan = false;
   bool get kelihatan => _kelihatan;
@@ -77,16 +80,12 @@ class AuthProvider with ChangeNotifier {
       if (pas1 == pas2) {
         final data = await _ref.register(email: email, pass: pas1);
         if (data != null) {
-          // _accesstoken = data['access_token'];
-          // _email = email;
-          // _expiresIn = DateTime.now().add(Duration(
-          //   seconds: data['expires_in'],
-          // ));
-
           await _ref.createuser(
               data['access_token'], data['user']['id'], username, email, role);
 
           await Navigator.of(context).pushReplacementNamed("/login");
+        } else {
+          throw "Masukkan Email dan Sandi Anda";
         }
       } else {
         throw "Sandi tidak sama dengan Konfirmasi Sandi pada saat di input";
@@ -105,6 +104,7 @@ class AuthProvider with ChangeNotifier {
     try {
       final data = await _ref.readdata(_accesstoken!);
       _mydata = data;
+      id_auth = mydata.first.id_auth;
     } catch (e) {
       throw e;
     }
