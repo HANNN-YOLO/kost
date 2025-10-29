@@ -9,13 +9,23 @@ class CriteriaManagement extends StatefulWidget {
 
 class _CriteriaManagementState extends State<CriteriaManagement> {
   final TextEditingController _controller = TextEditingController();
+  final TextEditingController _editController = TextEditingController();
 
   // Daftar kriteria
   List<String> kriteriaList = ["Fasilitas", "Luas kamar", "Keamanan", "Harga"];
 
-  // Untuk menandai item mana yang sedang diedit
+  // Bobot untuk setiap kriteria
+  Map<String, double> bobotKriteria = {};
+
   int? _editingIndex;
-  TextEditingController _editController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    for (var k in kriteriaList) {
+      bobotKriteria[k] = 0.0;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,9 +46,8 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 🔹 Header
               const Text(
-                "Managemen Kriteria kost",
+                "Manajemen Kriteria Kost",
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 20,
@@ -47,9 +56,9 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
               ),
               SizedBox(height: tinggiLayar * 0.03),
 
-              // 🔹 Input Field
+              // Input tambah kriteria
               const Text(
-                "Masukan Kriteria",
+                "Masukkan Kriteria",
                 style: TextStyle(
                   color: Colors.black,
                   fontSize: 14.5,
@@ -86,6 +95,7 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
                       if (value.trim().isNotEmpty) {
                         setState(() {
                           kriteriaList.add(value.trim());
+                          bobotKriteria[value.trim()] = 0.0;
                           _controller.clear();
                         });
                       }
@@ -95,66 +105,13 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
               ),
               SizedBox(height: tinggiLayar * 0.03),
 
-              // 🔹 Kartu daftar kriteria
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 3,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: lebarLayar * 0.04,
-                    vertical: tinggiLayar * 0.02,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "Kriteria yang ditambahkan",
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                          color: Colors.black,
-                        ),
-                      ),
-                      SizedBox(height: tinggiLayar * 0.01),
-                      Container(
-                        height: 1,
-                        color: Colors.grey.shade300,
-                      ),
-                      SizedBox(height: tinggiLayar * 0.02),
+              // Daftar kriteria
+              _buildKriteriaCard(lebarLayar, tinggiLayar, warnaKartu),
 
-                      // 🔹 Daftar kriteria
-                      Column(
-                        children: List.generate(
-                          kriteriaList.length,
-                          (index) => Padding(
-                            padding:
-                                EdgeInsets.only(bottom: tinggiLayar * 0.015),
-                            child: buildKriteriaItem(
-                              context,
-                              lebarLayar,
-                              tinggiLayar,
-                              kriteriaList[index],
-                              warnaKartu,
-                              index,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              SizedBox(height: tinggiLayar * 0.05),
+              SizedBox(height: tinggiLayar * 0.03),
+
+              // Bobot kriteria
+              _buildBobotCard(lebarLayar, tinggiLayar, warnaKartu),
             ],
           ),
         ),
@@ -162,9 +119,68 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
     );
   }
 
-  // 🔸 Widget item daftar kriteria
-  Widget buildKriteriaItem(
-    BuildContext context,
+  // ==========================
+  // 🔹 Kartu daftar kriteria
+  // ==========================
+  Widget _buildKriteriaCard(
+      double lebarLayar, double tinggiLayar, Color warnaKartu) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: lebarLayar * 0.04,
+          vertical: tinggiLayar * 0.02,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Kriteria yang ditambahkan",
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+                color: Colors.black,
+              ),
+            ),
+            SizedBox(height: tinggiLayar * 0.01),
+            Container(height: 1, color: Colors.grey.shade300),
+            SizedBox(height: tinggiLayar * 0.02),
+
+            // List item kriteria
+            Column(
+              children: List.generate(
+                kriteriaList.length,
+                (index) => Padding(
+                  padding: EdgeInsets.only(bottom: tinggiLayar * 0.015),
+                  child: _buildKriteriaItem(
+                    lebarLayar,
+                    tinggiLayar,
+                    kriteriaList[index],
+                    warnaKartu,
+                    index,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 🔸 Widget item kriteria
+  Widget _buildKriteriaItem(
     double lebarLayar,
     double tinggiLayar,
     String nama,
@@ -184,7 +200,6 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Jika sedang diedit → tampilkan TextField
           Expanded(
             child: _editingIndex == index
                 ? TextField(
@@ -192,18 +207,19 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
                     autofocus: true,
                     decoration: const InputDecoration(
                       isDense: true,
-                      contentPadding: EdgeInsets.symmetric(vertical: 4),
                       border: InputBorder.none,
                     ),
                     style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                    ),
+                        color: Colors.black,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500),
                     onSubmitted: (newValue) {
                       if (newValue.trim().isNotEmpty) {
                         setState(() {
+                          String old = kriteriaList[index];
                           kriteriaList[index] = newValue.trim();
+                          bobotKriteria[newValue.trim()] =
+                              bobotKriteria.remove(old) ?? 0.0;
                           _editingIndex = null;
                         });
                       }
@@ -218,17 +234,14 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
                     ),
                   ),
           ),
-
           Row(
             children: [
               GestureDetector(
                 onTap: () {
                   setState(() {
                     if (_editingIndex == index) {
-                      // Jika sedang edit lalu ditekan lagi → simpan
                       _editingIndex = null;
                     } else {
-                      // Masuk mode edit
                       _editingIndex = index;
                       _editController.text = kriteriaList[index];
                     }
@@ -243,16 +256,13 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
               SizedBox(width: lebarLayar * 0.03),
               GestureDetector(
                 onTap: () {
-                  _tampilkanKonfirmasiHapus(
-                    context,
-                    kriteriaList[index],
-                    () {
-                      setState(() {
-                        kriteriaList.removeAt(index);
-                      });
-                      Navigator.pop(context);
-                    },
-                  );
+                  _showDeleteDialog(kriteriaList[index], () {
+                    setState(() {
+                      bobotKriteria.remove(kriteriaList[index]);
+                      kriteriaList.removeAt(index);
+                    });
+                    Navigator.pop(context);
+                  });
                 },
                 child: Icon(Icons.delete,
                     color: Colors.red, size: lebarLayar * 0.05),
@@ -264,30 +274,109 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
     );
   }
 
-  // 🔸 Pop-up konfirmasi hapus
-  void _tampilkanKonfirmasiHapus(
-      BuildContext context, String nama, VoidCallback onConfirm) {
+  // ==========================
+  // 🔹 Kartu bobot kriteria
+  // ==========================
+  Widget _buildBobotCard(
+      double lebarLayar, double tinggiLayar, Color warnaKartu) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: lebarLayar * 0.04,
+          vertical: tinggiLayar * 0.02,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Bobot Kriteria (isi dengan angka)",
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+                color: Colors.black,
+              ),
+            ),
+            SizedBox(height: tinggiLayar * 0.015),
+            Container(height: 1, color: Colors.grey.shade300),
+            SizedBox(height: tinggiLayar * 0.02),
+
+            // List bobot
+            Column(
+              children: kriteriaList.map((kriteria) {
+                return Padding(
+                  padding: EdgeInsets.only(bottom: tinggiLayar * 0.015),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          kriteria,
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 80,
+                        height: 35,
+                        child: TextField(
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          decoration: InputDecoration(
+                            contentPadding: EdgeInsets.zero,
+                            filled: true,
+                            fillColor: warnaKartu,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                          onChanged: (value) {
+                            setState(() {
+                              bobotKriteria[kriteria] =
+                                  double.tryParse(value) ?? 0.0;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 🔸 Dialog hapus
+  void _showDeleteDialog(String nama, VoidCallback onConfirm) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-        ),
-        title: const Text(
-          "Hapus Kriteria?",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: Text(
-          "Apakah Anda yakin ingin menghapus '$nama' dari daftar?",
-          style: const TextStyle(fontSize: 15),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text("Hapus Kriteria?",
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text("Apakah Anda yakin ingin menghapus '$nama'?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
-              "Batal",
-              style: TextStyle(color: Colors.black54),
-            ),
+            child: const Text("Batal", style: TextStyle(color: Colors.black54)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
