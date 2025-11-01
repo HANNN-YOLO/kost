@@ -84,17 +84,19 @@ import 'package:flutter/material.dart';
 import 'package:kost_saw/screens/main/admin/criteria_management.dart';
 import 'package:kost_saw/screens/main/admin/management_boarding_house.dart';
 import 'package:kost_saw/screens/main/admin/user_management.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 
 class MainNavigationAdmin extends StatefulWidget {
   const MainNavigationAdmin({Key? key}) : super(key: key);
-  static const arah = "/mainavigation";
+  static const arah = "/mainavigation-admin";
 
   @override
   _MainNavigationAdminState createState() => _MainNavigationAdminState();
 }
 
 class _MainNavigationAdminState extends State<MainNavigationAdmin> {
-  int _selectedIndex = 1;
+  int _selectedIndex = 2;
   final List<int> _history = [1]; // menyimpan urutan tab terakhir
 
   // Fungsi untuk menampilkan halaman sesuai index
@@ -128,7 +130,9 @@ class _MainNavigationAdminState extends State<MainNavigationAdmin> {
             child: const Text("Batal"),
           ),
           TextButton(
-            onPressed: () {},
+            onPressed: () {
+              Provider.of<AuthProvider>(context, listen: false).logout();
+            },
             child: const Text(
               "Logout",
               style: TextStyle(color: Colors.red),

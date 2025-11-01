@@ -16,6 +16,7 @@ class UserProfilePage extends StatefulWidget {
 
 class _UserProfilePageState extends State<UserProfilePage> {
   int index = 0;
+  String? mesaage;
 
   final TextEditingController namaController = TextEditingController();
   final TextEditingController tglLahirController = TextEditingController();
@@ -161,9 +162,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
                         );
 
                         tglLahirController.text =
-                            "${penanggalan!.day.toString().padLeft(2, '0')}-"
-                            "${penanggalan.month.toString().padLeft(2, '0')}-"
-                            "${penanggalan.year.toString()}";
+                            "${penanggalan?.day.toString().padLeft(2, '0')}-"
+                            "${penanggalan?.month.toString().padLeft(2, '0')}-"
+                            "${penanggalan?.year.toString()}";
                       },
                     ),
                     CustomDropdownSearch(
@@ -189,6 +190,15 @@ class _UserProfilePageState extends State<UserProfilePage> {
               keadaan: true,
               label: "Email",
             ),
+            if (mesaage != null) ...[
+              Center(
+                child: Text(
+                  mesaage!,
+                  style: TextStyle(color: Colors.cyan),
+                ),
+              )
+            ],
+            SizedBox(height: 10),
             Align(
               alignment: Alignment.centerLeft,
               child: ElevatedButton(
@@ -241,6 +251,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       .format(penghubung2.mydata[index].tgllahir!);
                   noHpController.text = "${penghubung2.mydata[index].kontak}";
                   penghubung2.defaults = "${penghubung2.mydata[index].jkl}";
+                  mesaage = "Profil berhasil dibuat";
                 });
                 // -------------------------------------
               } else {
@@ -256,9 +267,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       .format(penghubung2.mydata[index].tgllahir!);
                   noHpController.text = "${penghubung2.mydata[index].kontak}";
                   penghubung2.defaults = "${penghubung2.mydata[index].jkl}";
+                  mesaage = "Profil berhasil Diperbarui";
                 });
               }
             } catch (e) {
+              mesaage = "Data Gagal diperbarui Diperbarui";
               showDialog(
                 context: context,
                 builder: (context) {

@@ -65,7 +65,7 @@ class ProfilProvider with ChangeNotifier {
       _mydata = hasilnya;
       id_profil = mydata.first.id_profil;
     } catch (e) {
-      throw e;
+      // throw e;
     }
     notifyListeners();
   }

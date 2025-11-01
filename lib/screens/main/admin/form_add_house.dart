@@ -19,23 +19,36 @@ class _FormAddHouseState extends State<FormAddHouse> {
 
   List<Map<String, dynamic>> fasilitasList = [
     {'nama': 'Kamar Mandi', 'ikon': Icons.bathtub_outlined, 'cek': false},
+    {'nama': 'Tempat Tidur', 'ikon': Icons.bed, 'cek': false},
+    // {'nama': 'AC', 'ikon': Icons.ac_unit, 'cek': false},
+    // {'nama': 'TV', 'ikon': Icons.tv, 'cek': false},
+
+    {'nama': 'Meja', 'ikon': Icons.desk, 'cek': false},
+    {'nama': 'Listrik', 'ikon': Icons.flash_on, 'cek': false},
+    {'nama': 'Air', 'ikon': Icons.water_drop, 'cek': false},
     {'nama': 'WiFi', 'ikon': Icons.wifi, 'cek': false},
+    {'nama': 'Tempat Parkir', 'ikon': Icons.local_parking, 'cek': false},
+    {'nama': 'Dapur Umum', 'ikon': Icons.kitchen, 'cek': false},
+    {'nama': 'CCTV', 'ikon': Icons.videocam, 'cek': false},
+    {'nama': 'Lemari', 'ikon': Icons.chair_alt, 'cek': false},
+
+    // tambahan dari kamu sebelumnya
     {'nama': 'AC', 'ikon': Icons.ac_unit, 'cek': false},
     {'nama': 'TV', 'ikon': Icons.tv, 'cek': false},
   ];
 
-  final List<IconData> ikonPilihan = [
-    Icons.bed,
-    Icons.chair,
-    Icons.tv,
-    Icons.wifi,
-    Icons.kitchen,
-    Icons.ac_unit,
-    Icons.bathtub_outlined,
-    Icons.local_laundry_service,
-    Icons.lock,
-    Icons.desk,
-  ];
+  // final List<IconData> ikonPilihan = [
+  //   Icons.bed,
+  //   Icons.chair,
+  //   Icons.tv,
+  //   Icons.wifi,
+  //   Icons.kitchen,
+  //   Icons.ac_unit,
+  //   Icons.bathtub_outlined,
+  //   Icons.local_laundry_service,
+  //   Icons.lock,
+  //   Icons.desk,
+  // ];
 
   IconData? ikonTerpilih;
 
@@ -96,12 +109,13 @@ class _FormAddHouseState extends State<FormAddHouse> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _inputField('Nama Pemilik', tinggiLayar, lebarLayar),
               _inputField('Nama Kost', tinggiLayar, lebarLayar),
+              _inputField('Nomor Telepon', tinggiLayar, lebarLayar),
               _inputField('Harga', tinggiLayar, lebarLayar),
               _inputField('Alamat', tinggiLayar, lebarLayar),
+              _inputField('Jarak', tinggiLayar, lebarLayar),
               _inputField('Luas Kamar', tinggiLayar, lebarLayar),
-              _inputField('Nama Pemilik', tinggiLayar, lebarLayar),
-              _inputField('Nomor Telepon', tinggiLayar, lebarLayar),
 
               // 🖼️ Input Gambar Kost
               Text(
@@ -205,33 +219,34 @@ class _FormAddHouseState extends State<FormAddHouse> {
 
               SizedBox(height: tinggiLayar * 0.025),
 
-              GestureDetector(
-                onTap: () => _tambahFasilitasPopup(context),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: Colors.blueAccent),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: lebarLayar * 0.04,
-                    vertical: tinggiLayar * 0.014,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.add, color: Colors.blueAccent),
-                      SizedBox(width: lebarLayar * 0.02),
-                      const Text(
-                        "Tambah Fasilitas",
-                        style: TextStyle(
-                            color: Colors.blueAccent,
-                            fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              // GestureDetector(
+              //   onTap: () => _tambahFasilitasPopup(context),
+              //   child: Container(
+              //     decoration: BoxDecoration(
+              //       color: Colors.white,
+              //       border: Border.all(color: Colors.blueAccent),
+              //       borderRadius: BorderRadius.circular(8),
+              //     ),
+              //     padding: EdgeInsets.symmetric(
+              //       horizontal: lebarLayar * 0.04,
+              //       vertical: tinggiLayar * 0.014,
+              //     ),
+              //     child: Row(
+              //       mainAxisAlignment: MainAxisAlignment.center,
+              //       children: [
+              //         const Icon(Icons.add, color: Colors.blueAccent),
+              //         SizedBox(width: lebarLayar * 0.02),
+              //         const Text(
+              //           "Tambah Fasilitas",
+              //           style: TextStyle(
+              //               color: Colors.blueAccent,
+              //               fontWeight: FontWeight.w600),
+              //         ),
+              //       ],
+              //     ),
+              //   ),
+              // ),
+
               SizedBox(height: tinggiLayar * 0.05),
             ],
           ),
@@ -351,112 +366,112 @@ class _FormAddHouseState extends State<FormAddHouse> {
   }
 
   // 🔹 Popup tambah fasilitas
-  void _tambahFasilitasPopup(BuildContext context) {
-    ikonTerpilih = null;
-    _namaFasilitasController.clear();
+  // void _tambahFasilitasPopup(BuildContext context) {
+  //   ikonTerpilih = null;
+  //   _namaFasilitasController.clear();
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: MediaQuery.of(context).viewInsets,
-          child: StatefulBuilder(
-            builder: (context, setStateBottom) {
-              return Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Tambah Fasilitas",
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                    ),
-                    const SizedBox(height: 15),
-                    TextField(
-                      controller: _namaFasilitasController,
-                      decoration: const InputDecoration(
-                        hintText: "Nama fasilitas",
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-                    const Text("Pilih Ikon:"),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: ikonPilihan.map((ikon) {
-                        final dipilih = ikonTerpilih == ikon;
-                        return GestureDetector(
-                          onTap: () {
-                            setStateBottom(() {
-                              ikonTerpilih = ikon;
-                            });
-                          },
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: dipilih
-                                  ? Colors.blueAccent.withOpacity(0.2)
-                                  : Colors.white,
-                              border: Border.all(
-                                color: dipilih
-                                    ? Colors.blueAccent
-                                    : Colors.grey.shade300,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            padding: const EdgeInsets.all(10),
-                            child: Icon(ikon,
-                                color: dipilih
-                                    ? Colors.blueAccent
-                                    : Colors.grey.shade700),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 25),
-                    ElevatedButton(
-                      onPressed: () {
-                        if (_namaFasilitasController.text.trim().isNotEmpty &&
-                            ikonTerpilih != null) {
-                          setState(() {
-                            fasilitasList.add({
-                              'nama': _namaFasilitasController.text.trim(),
-                              'ikon': ikonTerpilih,
-                              'cek': false,
-                            });
-                          });
-                          Navigator.pop(context);
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        minimumSize: const Size(double.infinity, 50),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        "Simpan Fasilitas",
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-                ),
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
+  //   showModalBottomSheet(
+  //     context: context,
+  //     isScrollControlled: true,
+  //     backgroundColor: Colors.white,
+  //     shape: const RoundedRectangleBorder(
+  //       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  //     ),
+  //     builder: (context) {
+  //       return Padding(
+  //         padding: MediaQuery.of(context).viewInsets,
+  //         child: StatefulBuilder(
+  //           builder: (context, setStateBottom) {
+  //             return Padding(
+  //               padding:
+  //                   const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
+  //               child: Column(
+  //                 mainAxisSize: MainAxisSize.min,
+  //                 crossAxisAlignment: CrossAxisAlignment.start,
+  //                 children: [
+  //                   const Text(
+  //                     "Tambah Fasilitas",
+  //                     style:
+  //                         TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+  //                   ),
+  //                   const SizedBox(height: 15),
+  //                   TextField(
+  //                     controller: _namaFasilitasController,
+  //                     decoration: const InputDecoration(
+  //                       hintText: "Nama fasilitas",
+  //                       border: OutlineInputBorder(),
+  //                     ),
+  //                   ),
+  //                   const SizedBox(height: 15),
+  //                   const Text("Pilih Ikon:"),
+  //                   const SizedBox(height: 10),
+  //                   Wrap(
+  //                     spacing: 12,
+  //                     runSpacing: 12,
+  //                     children: ikonPilihan.map((ikon) {
+  //                       final dipilih = ikonTerpilih == ikon;
+  //                       return GestureDetector(
+  //                         onTap: () {
+  //                           setStateBottom(() {
+  //                             ikonTerpilih = ikon;
+  //                           });
+  //                         },
+  //                         child: Container(
+  //                           decoration: BoxDecoration(
+  //                             color: dipilih
+  //                                 ? Colors.blueAccent.withOpacity(0.2)
+  //                                 : Colors.white,
+  //                             border: Border.all(
+  //                               color: dipilih
+  //                                   ? Colors.blueAccent
+  //                                   : Colors.grey.shade300,
+  //                             ),
+  //                             borderRadius: BorderRadius.circular(8),
+  //                           ),
+  //                           padding: const EdgeInsets.all(10),
+  //                           child: Icon(ikon,
+  //                               color: dipilih
+  //                                   ? Colors.blueAccent
+  //                                   : Colors.grey.shade700),
+  //                         ),
+  //                       );
+  //                     }).toList(),
+  //                   ),
+  //                   const SizedBox(height: 25),
+  //                   ElevatedButton(
+  //                     onPressed: () {
+  //                       if (_namaFasilitasController.text.trim().isNotEmpty &&
+  //                           ikonTerpilih != null) {
+  //                         setState(() {
+  //                           fasilitasList.add({
+  //                             'nama': _namaFasilitasController.text.trim(),
+  //                             'ikon': ikonTerpilih,
+  //                             'cek': false,
+  //                           });
+  //                         });
+  //                         Navigator.pop(context);
+  //                       }
+  //                     },
+  //                     style: ElevatedButton.styleFrom(
+  //                       backgroundColor: Colors.blueAccent,
+  //                       minimumSize: const Size(double.infinity, 50),
+  //                       shape: RoundedRectangleBorder(
+  //                         borderRadius: BorderRadius.circular(12),
+  //                       ),
+  //                     ),
+  //                     child: const Text(
+  //                       "Simpan Fasilitas",
+  //                       style: TextStyle(color: Colors.white, fontSize: 16),
+  //                     ),
+  //                   ),
+  //                   const SizedBox(height: 10),
+  //                 ],
+  //               ),
+  //             );
+  //           },
+  //         ),
+  //       );
+  //     },
+  //   );
+  // }
 }
