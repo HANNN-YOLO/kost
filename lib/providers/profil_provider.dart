@@ -16,6 +16,7 @@ class ProfilProvider with ChangeNotifier {
     id_auth = angka;
     if (_accesstoken != null && _email != null && id_auth != null) {
       readdata(_accesstoken!);
+      // readuser(_accesstoken!);
     }
     notifyListeners();
   }
@@ -56,6 +57,10 @@ class ProfilProvider with ChangeNotifier {
   // Penghubung ke Service
   List<ProfilModel> _mydata = [];
   List<ProfilModel> get mydata => _mydata;
+
+  List<ProfilModel> _alluser = [];
+  List<ProfilModel> get alluser => _alluser;
+  int get semuanya => _alluser.length;
   final ProfilService _ref = ProfilService();
   int? id_profil;
 
@@ -63,7 +68,11 @@ class ProfilProvider with ChangeNotifier {
     try {
       final hasilnya = await _ref.readdata(token, id_auth!);
       _mydata = hasilnya;
-      id_profil = mydata.first.id_profil;
+      if (mydata.isNotEmpty) {
+        id_profil = mydata.first.id_profil;
+      } else {
+        id_profil = null;
+      }
     } catch (e) {
       // throw e;
     }
@@ -106,6 +115,16 @@ class ProfilProvider with ChangeNotifier {
       throw e;
     }
     await readdata(_accesstoken!);
+    notifyListeners();
+  }
+
+  Future<void> readuser(String token) async {
+    try {
+      final hasil = await _ref.readuser(_accesstoken!);
+      _alluser = hasil;
+    } catch (e) {
+      throw e;
+    }
     notifyListeners();
   }
 

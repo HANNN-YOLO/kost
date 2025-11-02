@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/profil_provider.dart';
+import 'package:intl/intl.dart';
 
 class DetailUser extends StatelessWidget {
   const DetailUser({super.key});
@@ -14,6 +17,12 @@ class DetailUser extends StatelessWidget {
     const warnaTeksHitam = Colors.black87;
     const warnaAbu = Color(0xFF6B7280);
 
+    final terima = ModalRoute.of(context)!.settings.arguments as int;
+
+    final pakai = Provider.of<ProfilProvider>(context, listen: false)
+        .alluser
+        .firstWhere((element) => element.id_profil == terima);
+
     return Scaffold(
       backgroundColor: warnaLatar,
 
@@ -25,7 +34,9 @@ class DetailUser extends StatelessWidget {
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
               color: Colors.white, size: 20),
           onPressed: () {
-            Navigator.pop(context);
+            Navigator.pop(
+              context,
+            );
           },
         ),
         title: const Text(
@@ -53,9 +64,13 @@ class DetailUser extends StatelessWidget {
                   height: lebarLayar * 0.22,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
+                    image: DecorationImage(
+                      image: NetworkImage("${pakai.foto}"),
+                      fit: BoxFit.cover,
+                      alignment: Alignment.center,
+                    ),
                     border: Border.all(color: Colors.grey.shade400),
                   ),
-                  child: const Icon(Icons.person, size: 50, color: Colors.grey),
                 ),
                 SizedBox(height: tinggiLayar * 0.015),
                 const Text(
@@ -109,10 +124,14 @@ class DetailUser extends StatelessWidget {
                         children: [
                           infoBar("Nama", "Username"),
                           infoBar("Email", "Username@gmail.com"),
-                          infoBar("Jenis Kelamin", "Laki-Laki"),
-                          infoBar("No. handphone", "08123456789"),
-                          infoBar("Tanggal Lahir", "18 April 2001"),
-                          infoBar("Tanggal Bergabung", "18 April 2025"),
+                          infoBar("Jenis Kelamin", "${pakai.jkl}"),
+                          infoBar("No. handphone", "${pakai.kontak}"),
+                          infoBar(
+                              "Tanggal Lahir",
+                              // "${DateFormat('dd-MM-yyyy').parse(pakai.tgllahir.toString())}",
+                              "${DateFormat('dd-MM-yyyy').format(DateTime.parse(pakai.tgllahir.toString()))}"),
+                          infoBar("Tanggal Bergabung",
+                              "${DateFormat('dd-MM-yyyy').format(DateTime.parse(pakai.createdAt.toString()))}"),
                         ],
                       ),
                     ),

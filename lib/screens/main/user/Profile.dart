@@ -194,7 +194,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
               Center(
                 child: Text(
                   mesaage!,
-                  style: TextStyle(color: Colors.cyan),
+                  style: TextStyle(color: Colors.greenAccent),
                 ),
               )
             ],

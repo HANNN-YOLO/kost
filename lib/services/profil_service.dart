@@ -144,4 +144,35 @@ class ProfilService {
       throw "error data ${pengsian.body}";
     }
   }
+
+  Future<List<ProfilModel>> readuser(String token) async {
+    List<ProfilModel> hasilnya = [];
+
+    var url =
+        Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/profil?select=*");
+
+    var simpan = await htpp.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apipublic}',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (simpan.statusCode == 200 || simpan.statusCode == 201) {
+      final isian = json.decode(simpan.body) as List<dynamic>;
+      isian.forEach(
+        (value) {
+          var item = ProfilModel.fromJson(value);
+          hasilnya.add(item);
+        },
+      );
+      print("isian $isian");
+    } else {
+      print("error ${simpan.body}");
+      throw "error ${simpan.body}";
+    }
+    return hasilnya;
+  }
 }

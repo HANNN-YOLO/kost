@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:kost_saw/screens/main/admin/detail_user.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/profil_provider.dart';
+import 'package:intl/intl.dart';
 
 class UserManagement extends StatefulWidget {
-  const UserManagement({super.key});
+  UserManagement({super.key});
 
   @override
   State<UserManagement> createState() => _UserManagementState();
@@ -12,6 +15,19 @@ class _UserManagementState extends State<UserManagement> {
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((vakue) {
+      final penghubung2 = Provider.of<ProfilProvider>(context, listen: false);
+
+      if (penghubung2.alluser.isEmpty && penghubung2.accesstoken != null) {
+        penghubung2.readuser(penghubung2.accesstoken!);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +51,7 @@ class _UserManagementState extends State<UserManagement> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   if (!_isSearching)
-                    const Text(
+                    Text(
                       "Daftar Pengguna",
                       style: TextStyle(
                         fontSize: 20,
@@ -52,7 +68,7 @@ class _UserManagementState extends State<UserManagement> {
                         decoration: InputDecoration(
                           hintText: "Cari pengguna...",
                           isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(
+                          contentPadding: EdgeInsets.symmetric(
                             vertical: 8,
                             horizontal: 12,
                           ),
@@ -60,8 +76,8 @@ class _UserManagementState extends State<UserManagement> {
                           fillColor: Colors.white,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(
-                                color: Colors.grey, width: 0.3),
+                            borderSide:
+                                BorderSide(color: Colors.grey, width: 0.3),
                           ),
                         ),
                         onChanged: (value) {
@@ -79,7 +95,7 @@ class _UserManagementState extends State<UserManagement> {
 
                       if (_isSearching) {
                         // Saat tombol search ditekan, langsung fokus & munculkan keyboard
-                        Future.delayed(const Duration(milliseconds: 100), () {
+                        Future.delayed(Duration(milliseconds: 100), () {
                           FocusScope.of(context).requestFocus(_focusNode);
                         });
                       } else {
@@ -112,7 +128,7 @@ class _UserManagementState extends State<UserManagement> {
                     BoxShadow(
                       color: Colors.black.withOpacity(0.05),
                       blurRadius: 4,
-                      offset: const Offset(0, 2),
+                      offset: Offset(0, 2),
                     ),
                   ],
                 ),
@@ -125,11 +141,10 @@ class _UserManagementState extends State<UserManagement> {
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.grey.shade300),
                       ),
-                      child: const Icon(Icons.group_outlined,
-                          color: Colors.black54),
+                      child: Icon(Icons.group_outlined, color: Colors.black54),
                     ),
                     SizedBox(width: lebarLayar * 0.04),
-                    const Expanded(
+                    Expanded(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -157,27 +172,28 @@ class _UserManagementState extends State<UserManagement> {
               SizedBox(height: tinggiLayar * 0.03),
 
               // 🔹 Daftar Pengguna
-              Expanded(
-                child: ListView(
-                  children: const [
-                    UserCard(
-                      nama: "Irwan Syahrir",
-                      email: "irwansyahrir@gmail.com",
-                      alamat: "Kelurahan Tamalanrea Indah",
-                      telepon: "08123456789",
-                      tanggalBergabung: "2025-06-22",
-                    ),
-                    SizedBox(height: 16),
-                    UserCard(
-                      nama: "Aisyah Putri",
-                      email: "aisyahputri@gmail.com",
-                      alamat: "Jl. Perintis Kemerdekaan",
-                      telepon: "085212345678",
-                      tanggalBergabung: "2025-03-18",
-                    ),
-                  ],
-                ),
-              ),
+              Expanded(child: Consumer<ProfilProvider>(
+                builder: (context, value, child) {
+                  return value.alluser.isEmpty
+                      ? Center(child: CircularProgressIndicator())
+                      : ListView.builder(
+                          itemCount: value.semuanya,
+                          itemBuilder: (context, index) {
+                            return UserCard(
+                              nama: "default",
+                              email: "default",
+                              // alamat: "default",
+                              telepon: "${value.alluser[index].kontak}",
+                              tanggalBergabung:
+                                  "${DateFormat('dd-MM-yyyy').format(DateTime.parse(value.alluser[index].createdAt.toString()))}",
+                              foto: "${value.alluser[index].foto}",
+                              id: int.parse(
+                                  value.alluser[index].id_profil.toString()),
+                            );
+                          },
+                        );
+                },
+              )),
             ],
           ),
         ),
@@ -190,17 +206,21 @@ class _UserManagementState extends State<UserManagement> {
 class UserCard extends StatelessWidget {
   final String nama;
   final String email;
-  final String alamat;
+  // final String alamat;
   final String telepon;
   final String tanggalBergabung;
+  final String foto;
+  final int id;
 
-  const UserCard({
+  UserCard({
     super.key,
     required this.nama,
     required this.email,
-    required this.alamat,
+    // required this.alamat,
     required this.telepon,
     required this.tanggalBergabung,
+    required this.foto,
+    required this.id,
   });
 
   @override
@@ -219,7 +239,7 @@ class UserCard extends StatelessWidget {
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 4,
-            offset: const Offset(0, 2),
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -233,13 +253,13 @@ class UserCard extends StatelessWidget {
                 width: lebarLayar * 0.12,
                 height: lebarLayar * 0.12,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFDDE6FF),
+                  shape: BoxShape.rectangle,
+                  image: DecorationImage(
+                      image: NetworkImage("$foto"),
+                      fit: BoxFit.cover,
+                      alignment: Alignment.center),
+                  color: Color(0xFFDDE6FF),
                   borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.person,
-                  size: 30,
-                  color: warnaUtama,
                 ),
               ),
               SizedBox(width: lebarLayar * 0.04),
@@ -248,53 +268,35 @@ class UserCard extends StatelessWidget {
                 children: [
                   Text(
                     nama,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
                   ),
                   Text(
                     email,
-                    style: const TextStyle(color: Colors.grey, fontSize: 14),
+                    style: TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                 ],
               ),
             ],
           ),
           SizedBox(height: tinggiLayar * 0.015),
-
-          // 🔹 Info pengguna
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.location_on_outlined,
-                  size: 16, color: Colors.grey),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  alamat,
-                  style: const TextStyle(fontSize: 14, color: Colors.black87),
-                ),
-              ),
+              Icon(Icons.phone, size: 16, color: Colors.grey),
+              SizedBox(width: 4),
+              Text(telepon, style: TextStyle(fontSize: 14)),
             ],
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Row(
             children: [
-              const Icon(Icons.phone, size: 16, color: Colors.grey),
-              const SizedBox(width: 4),
-              Text(telepon, style: const TextStyle(fontSize: 14)),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              const Icon(Icons.calendar_today_outlined,
-                  size: 16, color: Colors.grey),
-              const SizedBox(width: 4),
+              Icon(Icons.calendar_today_outlined, size: 16, color: Colors.grey),
+              SizedBox(width: 4),
               Text(
                 "Bergabung: $tanggalBergabung",
-                style: const TextStyle(fontSize: 14),
+                style: TextStyle(fontSize: 14),
               ),
             ],
           ),
@@ -310,8 +312,8 @@ class UserCard extends StatelessWidget {
                 Navigator.push(
                   context,
                   PageRouteBuilder(
-                    transitionDuration: const Duration(milliseconds: 300),
-                    pageBuilder: (_, __, ___) => const DetailUser(),
+                    transitionDuration: Duration(milliseconds: 300),
+                    pageBuilder: (_, __, ___) => DetailUser(),
                     transitionsBuilder:
                         (context, animation, secondaryAnimation, child) {
                       return FadeTransition(
@@ -322,6 +324,7 @@ class UserCard extends StatelessWidget {
                         child: child,
                       );
                     },
+                    settings: RouteSettings(arguments: id),
                   ),
                 );
               },
@@ -331,7 +334,7 @@ class UserCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
               ),
-              child: const Text(
+              child: Text(
                 "Detail Pengguna",
                 style: TextStyle(fontSize: 15, color: Colors.white),
               ),

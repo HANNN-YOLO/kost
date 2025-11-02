@@ -107,7 +107,7 @@ class _MainNavigationAdminState extends State<MainNavigationAdmin> {
       case 1:
         return const CriteriaManagement();
       case 2:
-        return const UserManagement();
+        return UserManagement();
       default:
         return const CriteriaManagement();
     }
