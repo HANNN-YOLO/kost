@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    html, body, #map { height: 100%; margin: 0; padding: 0; width: 100%; }
+    .leaflet-container { font-family: sans-serif; }
+
+    /* marker titik biru lokasi saya */
+    .my-location-dot {
+      width: 18px;
+      height: 18px;
+      background: #4285F4;
+      border-radius: 50%;
+      border: 3px solid white;
+      box-shadow: 0 0 10px #4285F4;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script>
+    (function() {
+      // MODE: 'normal' or 'destination'
+      window._mode = 'normal';
+
+      // init map (Makassar default)
+      var map = L.map('map', { zoomControl: true }).setView([-5.147665, 119.432731], 13);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      window._lastClick = null;
+      window._lastMarker = null;
+      window._myLocationMarker = null;
+
+      // single click handler: hanya simpan _lastClick & marker
+      map.on('click', function(e) {
+        // tetap simpan click walau mode berbeda (berguna jika dev butuh)
+        window._lastClick = { lat: e.latlng.lat, lng: e.latlng.lng };
+        // jika mode normal, juga tampil marker pada klik satu (opsional)
+        if (window._mode === 'normal') {
+          if (window._lastMarker) map.removeLayer(window._lastMarker);
+          window._lastMarker = L.marker([e.latlng.lat, e.latlng.lng]).addTo(map);
+        }
+      });
+
+      // double-click handler: hanya dipakai saat mode == 'destination'
+      map.on('dblclick', function(e) {
+        if (window._mode === 'destination') {
+          window._lastClick = { lat: e.latlng.lat, lng: e.latlng.lng };
+
+          if (window._lastMarker) {
+            map.removeLayer(window._lastMarker);
+          }
+
+          window._lastMarker = L.marker([e.latlng.lat, e.latlng.lng]).addTo(map);
+
+          // kirim pesan ke Flutter via channel ToFlutter (webview_flutter)
+          try {
+            if (window.ToFlutter && window.ToFlutter.postMessage) {
+              window.ToFlutter.postMessage(JSON.stringify({
+                type: 'destination_selected',
+                lat: e.latlng.lat,
+                lng: e.latlng.lng
+              }));
+            } else if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+              // fallback untuk inappwebview jika digunakan
+              window.flutter_inappwebview.callHandler('ToFlutter', JSON.stringify({
+                type: 'destination_selected',
+                lat: e.latlng.lat,
+                lng: e.latlng.lng
+              }));
+            }
+          } catch (err) {
+            console.warn('Posting message to Flutter failed:', err);
+          }
+        }
+      });
+
+      // fungsi helper yang dipanggil dari Flutter
+      window.getLastClick = function() {
+        return JSON.stringify(window._lastClick);
+      };
+
+      window.setMarker = function(lat, lng) {
+        if (window._lastMarker) map.removeLayer(window._lastMarker);
+        window._lastMarker = L.marker([lat, lng]).addTo(map);
+        map.panTo([lat, lng]);
+      };
+
+      window.setView = function(lat, lng, zoom) {
+        map.setView([lat, lng], zoom || map.getZoom());
+      };
+
+      // set mode dari Flutter: 'normal' atau 'destination'
+      window.setMode = function(mode) {
+        window._mode = mode === 'destination' ? 'destination' : 'normal';
+      };
+
+      // set marker khusus "lokasi saya" (ikon biru)
+      window.setMyLocation = function(lat, lng) {
+        if (window._myLocationMarker) {
+          map.removeLayer(window._myLocationMarker);
+        }
+
+        var blueIcon = L.divIcon({
+          className: "my-location-dot",
+          iconSize: [18, 18]
+        });
+
+        window._myLocationMarker = L.marker([lat, lng], { icon: blueIcon }).addTo(map);
+        map.setView([lat, lng], 16);
+      };
+
+      // simpan map handle global untuk debug jika perlu
+      window._leaflet_map = map;
+    })();
+  </script>
+</body>
+</html>

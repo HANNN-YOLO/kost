@@ -41,6 +41,8 @@ dependencies:
   provider: ^6.1.5+1
   http: ^1.5.0
   intl: ^0.20.2
+  webview_flutter: ^4.8.0
+  geolocator: ^10.1.0
 
 dev_dependencies:
   flutter_test:
@@ -64,6 +66,7 @@ flutter:
   uses-material-design: true
   assets:
     - .env
+    - assets/map/map.html
 
   # To add assets to your application, add an assets section, like this:
   # assets:
