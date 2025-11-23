@@ -1,6 +1,11 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter/services.dart' show rootBundle;
 
 class FormAddHouse extends StatefulWidget {
   const FormAddHouse({super.key});
@@ -12,10 +17,18 @@ class FormAddHouse extends StatefulWidget {
 class _FormAddHouseState extends State<FormAddHouse> {
   final TextEditingController _namaFasilitasController =
       TextEditingController();
+  final TextEditingController _koordinatController = TextEditingController();
   File? _gambar1;
   File? _gambar2;
 
   final ImagePicker _picker = ImagePicker();
+
+  // -------- WebView (Leaflet) ----------
+  late final WebViewController _mapController;
+  bool _mapLoaded = false;
+
+  // Debounce timer untuk update peta
+  Timer? _debounceTimer;
 
   List<Map<String, dynamic>> fasilitasList = [
     {'nama': 'Kamar Mandi', 'ikon': Icons.bathtub_outlined, 'cek': false},
@@ -37,20 +50,102 @@ class _FormAddHouseState extends State<FormAddHouse> {
     {'nama': 'TV', 'ikon': Icons.tv, 'cek': false},
   ];
 
-  // final List<IconData> ikonPilihan = [
-  //   Icons.bed,
-  //   Icons.chair,
-  //   Icons.tv,
-  //   Icons.wifi,
-  //   Icons.kitchen,
-  //   Icons.ac_unit,
-  //   Icons.bathtub_outlined,
-  //   Icons.local_laundry_service,
-  //   Icons.lock,
-  //   Icons.desk,
-  // ];
-
   IconData? ikonTerpilih;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Buat controller WebView (webview_flutter >=4.x)
+    _mapController = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0x00000000))
+      ..enableZoom(true) // Aktifkan zoom
+      ..setNavigationDelegate(NavigationDelegate(
+        onPageFinished: (url) {
+          if (mounted) {
+            setState(() => _mapLoaded = true);
+          }
+        },
+        onWebResourceError: (err) {
+          // Error handling tanpa debug print yang berat
+        },
+      ));
+
+    // load map html
+    _loadMapHtmlFromAssets();
+
+    // Listener untuk koordinat controller
+    _koordinatController.addListener(_onKoordinatChanged);
+  }
+
+  Future<void> _loadMapHtmlFromAssets() async {
+    try {
+      final htmlContent = await rootBundle.loadString('assets/map/map.html');
+      await _mapController.loadHtmlString(htmlContent);
+      // onPageFinished nanti akan set _mapLoaded = true
+    } catch (e) {
+      if (mounted) setState(() => _mapLoaded = false);
+    }
+  }
+
+  // Update peta ketika koordinat diinput (dengan debounce)
+  void _onKoordinatChanged() {
+    final text = _koordinatController.text.trim();
+    if (text.isEmpty || !_mapLoaded) return;
+
+    // Cancel timer sebelumnya jika ada
+    _debounceTimer?.cancel();
+
+    // Debounce: tunggu 800ms setelah user berhenti mengetik
+    _debounceTimer = Timer(const Duration(milliseconds: 800), () {
+      _parseAndUpdateMap(text);
+    });
+  }
+
+  // Parse koordinat dan update peta
+  void _parseAndUpdateMap(String text) {
+    // Parse koordinat (format: "lat, lng" atau "lat,lng")
+    try {
+      final parts = text.split(',').map((e) => e.trim()).toList();
+      if (parts.length == 2) {
+        final lat = double.tryParse(parts[0]);
+        final lng = double.tryParse(parts[1]);
+
+        if (lat != null && lng != null) {
+          // Validasi range koordinat
+          if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+            _updateMapLocation(lat, lng);
+          }
+        }
+      }
+    } catch (e) {
+      // Error handling tanpa debug print
+    }
+  }
+
+  // Update lokasi peta dengan marker
+  Future<void> _updateMapLocation(double lat, double lng) async {
+    if (!_mapLoaded || !mounted) return;
+
+    try {
+      // Set marker dan pan ke lokasi
+      await _mapController.runJavaScript(
+        "setMarker($lat, $lng); setView($lat, $lng, 15);",
+      );
+    } catch (e) {
+      // Error handling
+    }
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _koordinatController.removeListener(_onKoordinatChanged);
+    _koordinatController.dispose();
+    _namaFasilitasController.dispose();
+    super.dispose();
+  }
 
   Future<void> _pilihGambar(int index) async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
@@ -95,13 +190,14 @@ class _FormAddHouseState extends State<FormAddHouse> {
                   color: Colors.black,
                 ),
               ),
-              const Icon(Icons.notifications_none, color: Colors.black),
+              const SizedBox(width: 24), // Placeholder untuk alignment
             ],
           ),
         ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
           padding: EdgeInsets.symmetric(
             horizontal: lebarLayar * 0.06,
             vertical: tinggiLayar * 0.02,
@@ -112,17 +208,25 @@ class _FormAddHouseState extends State<FormAddHouse> {
               _inputField('Nama Pemilik', tinggiLayar, lebarLayar),
               _inputField('Nama Kost', tinggiLayar, lebarLayar),
               _inputField('Nomor Telepon', tinggiLayar, lebarLayar),
-              _inputField('Harga', tinggiLayar, lebarLayar),
               _inputField('Alamat', tinggiLayar, lebarLayar),
-              _inputField('Jarak', tinggiLayar, lebarLayar),
+              _inputField('Harga', tinggiLayar, lebarLayar),
+              _inputField('Jenis Kost', tinggiLayar, lebarLayar),
+              _inputField('keamanan', tinggiLayar, lebarLayar),
               _inputField('Luas Kamar', tinggiLayar, lebarLayar),
+              _inputField('Batas Jam Malam', tinggiLayar, lebarLayar),
+              _inputField('Lokasi Pendukung', tinggiLayar, lebarLayar),
+              _inputField('Jenis Pembayaran Air', tinggiLayar, lebarLayar),
+              _inputField('Jenis Listrik', tinggiLayar, lebarLayar),
+              _inputFieldKoordinat(tinggiLayar, lebarLayar),
 
               // 🖼️ Input Gambar Kost
-              Text(
-                'Foto Kost',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: lebarLayar * 0.04,
+              RepaintBoundary(
+                child: Text(
+                  'Foto Kost',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: lebarLayar * 0.04,
+                  ),
                 ),
               ),
               SizedBox(height: tinggiLayar * 0.015),
@@ -149,11 +253,13 @@ class _FormAddHouseState extends State<FormAddHouse> {
               SizedBox(height: tinggiLayar * 0.04),
 
               // 🔹 Fasilitas
-              Text(
-                'Fasilitas',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: lebarLayar * 0.04,
+              RepaintBoundary(
+                child: Text(
+                  'Fasilitas',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: lebarLayar * 0.04,
+                  ),
                 ),
               ),
               SizedBox(height: tinggiLayar * 0.015),
@@ -162,55 +268,57 @@ class _FormAddHouseState extends State<FormAddHouse> {
                 spacing: lebarLayar * 0.03,
                 runSpacing: tinggiLayar * 0.015,
                 children: fasilitasList.map((fasilitas) {
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        fasilitas['cek'] = !fasilitas['cek'];
-                      });
-                    },
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: lebarLayar * 0.025,
-                        vertical: tinggiLayar * 0.009,
-                      ),
-                      decoration: BoxDecoration(
-                        color: fasilitas['cek']
-                            ? Colors.blue.shade100
-                            : Colors.white,
-                        border: Border.all(
-                          color: fasilitas['cek']
-                              ? Colors.blueAccent
-                              : Colors.grey.shade300,
+                  return RepaintBoundary(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          fasilitas['cek'] = !fasilitas['cek'];
+                        });
+                      },
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: lebarLayar * 0.025,
+                          vertical: tinggiLayar * 0.009,
                         ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            fasilitas['cek']
-                                ? Icons.check_box
-                                : Icons.check_box_outline_blank,
+                        decoration: BoxDecoration(
+                          color: fasilitas['cek']
+                              ? Colors.blue.shade100
+                              : Colors.white,
+                          border: Border.all(
                             color: fasilitas['cek']
-                                ? Colors.blue
-                                : Colors.grey.shade600,
-                            size: lebarLayar * 0.045,
+                                ? Colors.blueAccent
+                                : Colors.grey.shade300,
                           ),
-                          SizedBox(width: lebarLayar * 0.015),
-                          Icon(
-                            fasilitas['ikon'],
-                            size: lebarLayar * 0.045,
-                            color: Colors.grey.shade700,
-                          ),
-                          SizedBox(width: lebarLayar * 0.015),
-                          Text(
-                            fasilitas['nama'],
-                            style: TextStyle(
-                              fontSize: lebarLayar * 0.032,
-                              color: Colors.black.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              fasilitas['cek']
+                                  ? Icons.check_box
+                                  : Icons.check_box_outline_blank,
+                              color: fasilitas['cek']
+                                  ? Colors.blue
+                                  : Colors.grey.shade600,
+                              size: lebarLayar * 0.045,
                             ),
-                          ),
-                        ],
+                            SizedBox(width: lebarLayar * 0.015),
+                            Icon(
+                              fasilitas['ikon'],
+                              size: lebarLayar * 0.045,
+                              color: Colors.grey.shade700,
+                            ),
+                            SizedBox(width: lebarLayar * 0.015),
+                            Text(
+                              fasilitas['nama'],
+                              style: TextStyle(
+                                fontSize: lebarLayar * 0.032,
+                                color: Colors.black.withOpacity(0.8),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );
@@ -219,35 +327,7 @@ class _FormAddHouseState extends State<FormAddHouse> {
 
               SizedBox(height: tinggiLayar * 0.025),
 
-              // GestureDetector(
-              //   onTap: () => _tambahFasilitasPopup(context),
-              //   child: Container(
-              //     decoration: BoxDecoration(
-              //       color: Colors.white,
-              //       border: Border.all(color: Colors.blueAccent),
-              //       borderRadius: BorderRadius.circular(8),
-              //     ),
-              //     padding: EdgeInsets.symmetric(
-              //       horizontal: lebarLayar * 0.04,
-              //       vertical: tinggiLayar * 0.014,
-              //     ),
-              //     child: Row(
-              //       mainAxisAlignment: MainAxisAlignment.center,
-              //       children: [
-              //         const Icon(Icons.add, color: Colors.blueAccent),
-              //         SizedBox(width: lebarLayar * 0.02),
-              //         const Text(
-              //           "Tambah Fasilitas",
-              //           style: TextStyle(
-              //               color: Colors.blueAccent,
-              //               fontWeight: FontWeight.w600),
-              //         ),
-              //       ],
-              //     ),
-              //   ),
-              // ),
-
-              SizedBox(height: tinggiLayar * 0.05),
+              // SizedBox(height: tinggiLayar * 0.05),
             ],
           ),
         ),
@@ -303,6 +383,10 @@ class _FormAddHouseState extends State<FormAddHouse> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: Colors.grey.shade300,
+              width: 1,
+            ),
           ),
           child: TextField(
             decoration: InputDecoration(
@@ -311,6 +395,114 @@ class _FormAddHouseState extends State<FormAddHouse> {
                 vertical: tinggi * 0.018,
               ),
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+            ),
+          ),
+        ),
+        SizedBox(height: tinggi * 0.025),
+      ],
+    );
+  }
+
+  // 🔹 Input TextField khusus untuk Koordinat dengan Peta
+  Widget _inputFieldKoordinat(double tinggi, double lebar) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Titik Koordinat',
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: lebar * 0.035,
+            color: Colors.black,
+          ),
+        ),
+        SizedBox(height: tinggi * 0.005),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: Colors.grey.shade300,
+              width: 1,
+            ),
+          ),
+          child: TextField(
+            controller: _koordinatController,
+            keyboardType: TextInputType.text,
+            decoration: InputDecoration(
+              hintText: 'Contoh: -5.147665, 119.432731',
+              hintStyle: TextStyle(
+                color: Colors.grey.shade500,
+                fontSize: lebar * 0.032,
+              ),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: lebar * 0.04,
+                vertical: tinggi * 0.018,
+              ),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+            ),
+            style: TextStyle(
+              fontSize: lebar * 0.032,
+              color: Colors.black,
+            ),
+          ),
+        ),
+        SizedBox(height: tinggi * 0.015),
+        // Peta Leaflet - dengan RepaintBoundary untuk optimasi
+        RepaintBoundary(
+          child: SizedBox(
+            height: tinggi * 0.3,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.2),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Stack(
+                  children: [
+                    RepaintBoundary(
+                      child: WebViewWidget(
+                        controller: _mapController,
+                        gestureRecognizers: {
+                          Factory<VerticalDragGestureRecognizer>(
+                            () => VerticalDragGestureRecognizer(),
+                          ),
+                          Factory<HorizontalDragGestureRecognizer>(
+                            () => HorizontalDragGestureRecognizer(),
+                          ),
+                          Factory<ScaleGestureRecognizer>(
+                            () => ScaleGestureRecognizer(),
+                          ),
+                          Factory<TapGestureRecognizer>(
+                            () => TapGestureRecognizer(),
+                          ),
+                        },
+                      ),
+                    ),
+                    if (!_mapLoaded)
+                      Positioned.fill(
+                        child: Container(
+                          color: Colors.white,
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -364,114 +556,4 @@ class _FormAddHouseState extends State<FormAddHouse> {
       ),
     );
   }
-
-  // 🔹 Popup tambah fasilitas
-  // void _tambahFasilitasPopup(BuildContext context) {
-  //   ikonTerpilih = null;
-  //   _namaFasilitasController.clear();
-
-  //   showModalBottomSheet(
-  //     context: context,
-  //     isScrollControlled: true,
-  //     backgroundColor: Colors.white,
-  //     shape: const RoundedRectangleBorder(
-  //       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-  //     ),
-  //     builder: (context) {
-  //       return Padding(
-  //         padding: MediaQuery.of(context).viewInsets,
-  //         child: StatefulBuilder(
-  //           builder: (context, setStateBottom) {
-  //             return Padding(
-  //               padding:
-  //                   const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
-  //               child: Column(
-  //                 mainAxisSize: MainAxisSize.min,
-  //                 crossAxisAlignment: CrossAxisAlignment.start,
-  //                 children: [
-  //                   const Text(
-  //                     "Tambah Fasilitas",
-  //                     style:
-  //                         TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-  //                   ),
-  //                   const SizedBox(height: 15),
-  //                   TextField(
-  //                     controller: _namaFasilitasController,
-  //                     decoration: const InputDecoration(
-  //                       hintText: "Nama fasilitas",
-  //                       border: OutlineInputBorder(),
-  //                     ),
-  //                   ),
-  //                   const SizedBox(height: 15),
-  //                   const Text("Pilih Ikon:"),
-  //                   const SizedBox(height: 10),
-  //                   Wrap(
-  //                     spacing: 12,
-  //                     runSpacing: 12,
-  //                     children: ikonPilihan.map((ikon) {
-  //                       final dipilih = ikonTerpilih == ikon;
-  //                       return GestureDetector(
-  //                         onTap: () {
-  //                           setStateBottom(() {
-  //                             ikonTerpilih = ikon;
-  //                           });
-  //                         },
-  //                         child: Container(
-  //                           decoration: BoxDecoration(
-  //                             color: dipilih
-  //                                 ? Colors.blueAccent.withOpacity(0.2)
-  //                                 : Colors.white,
-  //                             border: Border.all(
-  //                               color: dipilih
-  //                                   ? Colors.blueAccent
-  //                                   : Colors.grey.shade300,
-  //                             ),
-  //                             borderRadius: BorderRadius.circular(8),
-  //                           ),
-  //                           padding: const EdgeInsets.all(10),
-  //                           child: Icon(ikon,
-  //                               color: dipilih
-  //                                   ? Colors.blueAccent
-  //                                   : Colors.grey.shade700),
-  //                         ),
-  //                       );
-  //                     }).toList(),
-  //                   ),
-  //                   const SizedBox(height: 25),
-  //                   ElevatedButton(
-  //                     onPressed: () {
-  //                       if (_namaFasilitasController.text.trim().isNotEmpty &&
-  //                           ikonTerpilih != null) {
-  //                         setState(() {
-  //                           fasilitasList.add({
-  //                             'nama': _namaFasilitasController.text.trim(),
-  //                             'ikon': ikonTerpilih,
-  //                             'cek': false,
-  //                           });
-  //                         });
-  //                         Navigator.pop(context);
-  //                       }
-  //                     },
-  //                     style: ElevatedButton.styleFrom(
-  //                       backgroundColor: Colors.blueAccent,
-  //                       minimumSize: const Size(double.infinity, 50),
-  //                       shape: RoundedRectangleBorder(
-  //                         borderRadius: BorderRadius.circular(12),
-  //                       ),
-  //                     ),
-  //                     child: const Text(
-  //                       "Simpan Fasilitas",
-  //                       style: TextStyle(color: Colors.white, fontSize: 16),
-  //                     ),
-  //                   ),
-  //                   const SizedBox(height: 10),
-  //                 ],
-  //               ),
-  //             );
-  //           },
-  //         ),
-  //       );
-  //     },
-  //   );
-  // }
 }
