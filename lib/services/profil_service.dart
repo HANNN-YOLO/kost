@@ -145,7 +145,7 @@ class ProfilService {
     }
   }
 
-  Future<List<ProfilModel>> readuser(String token) async {
+  Future<List<ProfilModel>> readuser() async {
     List<ProfilModel> hasilnya = [];
 
     var url =
@@ -155,8 +155,8 @@ class ProfilService {
       url,
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apipublic}',
-        'Authorization': 'Bearer $token',
+        'apikey': '${SupabaseApiConfig.apisecret}',
+        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
       },
     );
 
@@ -168,7 +168,6 @@ class ProfilService {
           hasilnya.add(item);
         },
       );
-      print("isian $isian");
     } else {
       print("error ${simpan.body}");
       throw "error ${simpan.body}";

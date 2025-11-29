@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:flutter/widgets.dart';
 import '../models/auth_model.dart';
 import '../services/auth_services.dart';
@@ -9,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AuthProvider with ChangeNotifier {
   // state relasi
   int? id_auth;
+  List<AuthModel> hasilnya = [];
 
   // UI state password
   bool _kelihatan = false;
@@ -105,6 +105,11 @@ class AuthProvider with ChangeNotifier {
       final data = await _ref.readdata(_accesstoken!);
       _mydata = data;
       id_auth = mydata.first.id_auth;
+      if (data.first.role == "Admin") {
+        final isinya = await _ref.alluser();
+        hasilnya = isinya;
+        print("aku admin");
+      }
     } catch (e) {
       throw e;
     }

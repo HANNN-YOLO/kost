@@ -23,6 +23,11 @@ class DetailUser extends StatelessWidget {
         .alluser
         .firstWhere((element) => element.id_profil == terima);
 
+    final isinya =
+        Provider.of<ProfilProvider>(context, listen: false).listauth.firstWhere(
+              (element) => element.id_auth == pakai.id_auth,
+            );
+
     return Scaffold(
       backgroundColor: warnaLatar,
 
@@ -73,16 +78,16 @@ class DetailUser extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: tinggiLayar * 0.015),
-                const Text(
-                  "Username",
+                Text(
+                  "${isinya.username}",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                     color: warnaTeksHitam,
                   ),
                 ),
-                const Text(
-                  "username@gmail.com",
+                Text(
+                  "${isinya.Email}",
                   style: TextStyle(
                     fontSize: 14,
                     color: warnaAbu,
@@ -99,7 +104,7 @@ class DetailUser extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       "Informasi pengguna",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
@@ -148,20 +153,20 @@ class DetailUser extends StatelessWidget {
   // 🔸 Widget baris info (label & nilai)
   Widget infoBar(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: EdgeInsets.symmetric(vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.black54,
               fontSize: 14,
             ),
           ),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 14.5,
               color: Colors.black,

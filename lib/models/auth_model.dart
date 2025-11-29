@@ -60,4 +60,9 @@ class AuthModel {
           json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
   }
+
+  @override
+  String toString() {
+    return 'AuthModel(id_auth: id_auth, UID: UID, username: username, Email: Email, role:role)';
+  }
 }

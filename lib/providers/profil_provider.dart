@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/profil_model.dart';
+import '../models/auth_model.dart';
 import '../services/profil_service.dart';
 
 class ProfilProvider with ChangeNotifier {
@@ -9,14 +10,23 @@ class ProfilProvider with ChangeNotifier {
   String? get accesstoken => _accesstoken;
   String? get email => _email;
   int? id_auth;
+  List<AuthModel> _listauth = [];
+  List<AuthModel> get listauth => _listauth;
 
-  void terisi(String value, String isi, int angka) async {
+  void terisi(
+      String value, String isi, int angka, List<AuthModel> hasil) async {
     _accesstoken = value;
     _email = isi;
     id_auth = angka;
-    if (_accesstoken != null && _email != null && id_auth != null) {
+    _listauth = hasil;
+    if (_accesstoken != null &&
+        _email != null &&
+        id_auth != null &&
+        _listauth != null) {
+      if (_listauth.first.role == "Admin") {
+        readuser();
+      }
       readdata(_accesstoken!);
-      // readuser(_accesstoken!);
     }
     notifyListeners();
   }
@@ -118,9 +128,9 @@ class ProfilProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> readuser(String token) async {
+  Future<void> readuser() async {
     try {
-      final hasil = await _ref.readuser(_accesstoken!);
+      final hasil = await _ref.readuser();
       _alluser = hasil;
     } catch (e) {
       throw e;

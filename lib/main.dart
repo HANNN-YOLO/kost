@@ -30,7 +30,12 @@ void main() async {
           if (value.accesstoken != null &&
               value.email != null &&
               value.id_auth != null) {
-            previous?.terisi(value.accesstoken!, value.email!, value.id_auth!);
+            previous?.terisi(
+              value.accesstoken!,
+              value.email!,
+              value.id_auth!,
+              value.hasilnya,
+            );
             // return previous!;
           }
           return previous!;

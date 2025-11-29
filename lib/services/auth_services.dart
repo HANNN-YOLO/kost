@@ -110,4 +110,28 @@ class AuthServices {
     }
     return hasilnya;
   }
+
+  Future<List<AuthModel>> alluser() async {
+    List<AuthModel> hasilnya = [];
+    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/auth?select=*");
+
+    var hasil = await htpp.get(url, headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'bearer ${SupabaseApiConfig.apisecret}',
+      'apikey': '${SupabaseApiConfig.apisecret}'
+    });
+
+    if (hasil.statusCode == 200 || hasil.statusCode == 201) {
+      print(hasil.body);
+      final take = json.decode(hasil.body) as List<dynamic>;
+      take.forEach((value) {
+        var item = AuthModel.fromJson(value);
+        hasilnya.add(item);
+      });
+    } else {
+      print("error ${hasil.body}");
+      throw "error ${hasil.body}";
+    }
+    return hasilnya;
+  }
 }

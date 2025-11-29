@@ -3,6 +3,7 @@ import 'package:kost_saw/screens/main/admin/detail_user.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/profil_provider.dart';
 import 'package:intl/intl.dart';
+import 'package:collection/collection.dart';
 
 class UserManagement extends StatefulWidget {
   UserManagement({super.key});
@@ -24,13 +25,14 @@ class _UserManagementState extends State<UserManagement> {
       final penghubung2 = Provider.of<ProfilProvider>(context, listen: false);
 
       if (penghubung2.alluser.isEmpty && penghubung2.accesstoken != null) {
-        penghubung2.readuser(penghubung2.accesstoken!);
+        penghubung2.readuser();
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final penghubung = Provider.of<ProfilProvider>(context, listen: false);
     final tinggiLayar = MediaQuery.of(context).size.height;
     final lebarLayar = MediaQuery.of(context).size.width;
     const warnaLatar = Color(0xFFF5F7FB);
@@ -156,7 +158,7 @@ class _UserManagementState extends State<UserManagement> {
                             ),
                           ),
                           Text(
-                            "30",
+                            "${penghubung.semuanya}",
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -179,10 +181,19 @@ class _UserManagementState extends State<UserManagement> {
                       : ListView.builder(
                           itemCount: value.semuanya,
                           itemBuilder: (context, index) {
+                            final profiluser = value.alluser[index];
+
+                            final authuser = value.listauth.firstWhereOrNull(
+                              (element) =>
+                                  element.id_auth == profiluser.id_auth,
+                            );
+
+                            final user = authuser?.username ?? "tidak ada";
+                            final email = authuser?.Email ?? "tidak ada";
+
                             return UserCard(
-                              nama: "default",
-                              email: "default",
-                              // alamat: "default",
+                              nama: "$user",
+                              email: "$email",
                               telepon: "${value.alluser[index].kontak}",
                               tanggalBergabung:
                                   "${DateFormat('dd-MM-yyyy').format(DateTime.parse(value.alluser[index].createdAt.toString()))}",
