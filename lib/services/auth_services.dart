@@ -122,7 +122,6 @@ class AuthServices {
     });
 
     if (hasil.statusCode == 200 || hasil.statusCode == 201) {
-      print(hasil.body);
       final take = json.decode(hasil.body) as List<dynamic>;
       take.forEach((value) {
         var item = AuthModel.fromJson(value);

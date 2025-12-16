@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:kost_saw/screens/main/user/recommendation.dart';
-import 'package:kost_saw/screens/main/user/Home.dart';
-import 'package:kost_saw/screens/main/user/Profile.dart';
+import 'package:kost_saw/screens/main/penyewa/recommendation.dart';
+import 'package:kost_saw/screens/main/penyewa/Home.dart';
+import 'package:kost_saw/screens/main/penyewa/Profile.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({Key? key}) : super(key: key);

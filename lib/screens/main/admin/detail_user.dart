@@ -4,6 +4,7 @@ import '../../../providers/profil_provider.dart';
 import 'package:intl/intl.dart';
 
 class DetailUser extends StatelessWidget {
+  static const arah = "/detail-user-admin";
   const DetailUser({super.key});
 
   @override

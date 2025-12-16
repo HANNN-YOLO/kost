@@ -1,21 +1,29 @@
 import 'package:flutter/material.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:kost_saw/widgets/main_navigation_admin.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/profil_provider.dart';
+import 'providers/kost_provider.dart';
 
 import 'test.dart';
 import 'screens/auth/Login.dart';
 import 'screens/auth/Register.dart';
 import 'package:kost_saw/widgets/main_navigation.dart';
+import 'package:kost_saw/widgets/main_navigation_admin.dart';
 
 import 'screens/main/admin/dashboard.dart';
+import 'screens/main/admin/criteria_management.dart';
+import 'screens/main/admin/detail_user.dart';
+import 'screens/main/admin/form_add_house.dart';
+import 'screens/main/admin/management_boarding_house.dart';
+import 'screens/main/admin/user_management.dart';
 
-import 'screens/main/user/Home.dart';
-import 'screens/main/user/Profile.dart';
-import 'screens/main/user/recommendation.dart';
+import 'screens/main/penyewa/Home.dart';
+import 'screens/main/penyewa/Profile.dart';
+import 'screens/main/penyewa/recommendation.dart';
+
+import 'screens/main/pemilik/dashboard_pemilik.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,6 +49,9 @@ void main() async {
           return previous!;
         },
       ),
+      ChangeNotifierProvider<KostProvider>(
+        create: (_) => KostProvider(),
+      )
     ],
     builder: (context, child) {
       return App();
@@ -89,9 +100,11 @@ class App extends StatelessWidget {
 
               if (cek.role == "Admin") {
                 menuju = MainNavigationAdmin();
-              } else if (cek.role == "User") {
+              } else if (cek.role == "Penyewa") {
                 menuju = MainNavigation();
                 // KostHomePage();
+              } else if (cek.role == "Pemilik") {
+                menuju = DashboardPemilik();
               } else {
                 menuju = LoginPage();
               }
@@ -118,6 +131,14 @@ class App extends StatelessWidget {
                 // state Admin
                 "/dashboard": (_) => Dashboard(),
                 "/mainavigation-admin": (_) => MainNavigationAdmin(),
+                "/criteria-admin": (_) => CriteriaManagement(),
+                "/detail-user-admin": (_) => DetailUser(),
+                "/add-house-admin": (_) => FormAddHouse(),
+                "/management-board-admin": (_) => ManagementBoardingHouse(),
+                "/user-management-admin": (_) => UserManagement(),
+
+                // state pemilik
+                'dashboard-pemilik': (_) => DashboardPemilik(),
               },
               // initialRoute: "/login",
               // home: value.token ? KostHomePage() : LoginPage(),

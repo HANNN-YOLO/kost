@@ -8,6 +8,7 @@ class ProfilService {
   // CD foto
   Future<String> uploadfoto(XFile foto, String token) async {
     final si = "${foto.name}";
+
     var url = Uri.parse(
         "${SupabaseApiConfig.masterurl}/storage/v1/object/profil/$si");
 
@@ -84,8 +85,14 @@ class ProfilService {
     return hasilnya;
   }
 
-  Future<void> createprofil(int id_auth, String token, String link,
-      DateTime tgllahir, String jkl, int hp) async {
+  Future<void> createprofil(
+    int id_auth,
+    String token,
+    String link,
+    DateTime tgllahir,
+    String jkl,
+    int hp,
+  ) async {
     var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/profil");
 
     final isian = ProfilModel(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'form_add_house.dart';
 
 class ManagementBoardingHouse extends StatelessWidget {
+  static const arah = "/management-board-admin";
   const ManagementBoardingHouse({super.key});
 
   @override
@@ -48,7 +49,7 @@ class ManagementBoardingHouse extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const FormAddHouse(),
+                            builder: (context) => FormAddHouse(),
                           ),
                         );
                       },

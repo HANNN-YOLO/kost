@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../custom/custom_dropdown_search.dart';
 import '../../providers/auth_provider.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -83,6 +84,26 @@ class _RegisterPageState extends State<RegisterPage> {
                     "Tolong Isikan data anda",
                     style: TextStyle(color: Colors.grey, fontSize: 14),
                   ),
+
+                  SizedBox(
+                    height: 20,
+                  ),
+
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: CustomDropdownSearch(
+                      manalistnya: penghubung.roles,
+                      label: penghubung.role,
+                      pilihan: penghubung.role,
+                      fungsi: (value) {
+                        penghubung.pilihrole(value);
+                      },
+                    ),
+                  ),
+
                   SizedBox(height: 20),
                   TextInput(
                     hintText: "Nama",
@@ -230,14 +251,15 @@ class TextInput extends StatelessWidget {
   final Icon? custom;
   final VoidCallback? fungsi;
 
-  const TextInput(
-      {super.key,
-      required this.hintText,
-      required this.prefixIcon,
-      this.kelihatan,
-      required this.isinya,
-      this.custom,
-      this.fungsi});
+  const TextInput({
+    super.key,
+    required this.hintText,
+    required this.prefixIcon,
+    this.kelihatan,
+    required this.isinya,
+    this.custom,
+    this.fungsi,
+  });
 
   @override
   Widget build(BuildContext context) {

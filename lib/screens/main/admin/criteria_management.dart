@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 class CriteriaManagement extends StatefulWidget {
+  static const arah = "/criteria-admin";
   const CriteriaManagement({super.key});
 
   @override

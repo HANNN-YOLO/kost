@@ -28,7 +28,14 @@ class AuthProvider with ChangeNotifier {
   }
 
   // UI set Role
-  final role = "User";
+  List<String> _roles = ['Pemilik', 'Penyewa'];
+  List<String> get roles => _roles;
+  String role = "Pilih";
+
+  void pilihrole(String value) {
+    role = value;
+    notifyListeners();
+  }
 
   // UI State Halaman
   String? _accesstoken, _email;
@@ -108,7 +115,7 @@ class AuthProvider with ChangeNotifier {
       if (data.first.role == "Admin") {
         final isinya = await _ref.alluser();
         hasilnya = isinya;
-        print("aku admin");
+        // print("aku admin");
       }
     } catch (e) {
       throw e;

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:collection/collection.dart';
 
 class UserManagement extends StatefulWidget {
+  static const arah = "/user-management-admin";
   UserManagement({super.key});
 
   @override
@@ -14,6 +15,7 @@ class UserManagement extends StatefulWidget {
 
 class _UserManagementState extends State<UserManagement> {
   bool _isSearching = false;
+  bool hanyasekali = true;
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
 
@@ -22,10 +24,16 @@ class _UserManagementState extends State<UserManagement> {
     // TODO: implement initState
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((vakue) {
-      final penghubung2 = Provider.of<ProfilProvider>(context, listen: false);
+      if (hanyasekali) {
+        final penghubung2 = Provider.of<ProfilProvider>(context, listen: false);
 
-      if (penghubung2.alluser.isEmpty && penghubung2.accesstoken != null) {
-        penghubung2.readuser();
+        if (penghubung2.alluser.isEmpty && penghubung2.accesstoken != null) {
+          penghubung2.readuser();
+        }
+        if (penghubung2.listauth.isEmpty && penghubung2.accesstoken != null) {
+          penghubung2.listauth;
+        }
+        hanyasekali = false;
       }
     });
   }

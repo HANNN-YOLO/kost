@@ -14,7 +14,11 @@ class ProfilProvider with ChangeNotifier {
   List<AuthModel> get listauth => _listauth;
 
   void terisi(
-      String value, String isi, int angka, List<AuthModel> hasil) async {
+    String value,
+    String isi,
+    int angka,
+    List<AuthModel> hasil,
+  ) async {
     _accesstoken = value;
     _email = isi;
     id_auth = angka;
@@ -95,7 +99,13 @@ class ProfilProvider with ChangeNotifier {
       final link = await _ref.uploadfoto(foto, _accesstoken!);
       if (link != null) {
         await _ref.createprofil(
-            id_auth!, _accesstoken!, link, tgllahir, jkl, hp);
+          id_auth!,
+          _accesstoken!,
+          link,
+          tgllahir,
+          jkl,
+          hp,
+        );
       }
     } catch (e) {
       throw e;
@@ -111,13 +121,30 @@ class ProfilProvider with ChangeNotifier {
     try {
       if (linklama != null && foto == null) {
         await _ref.updateprofil(
-            id_profil!, _accesstoken!, linklama, tgllahir, jkl, hp, edit);
+          id_profil!,
+          _accesstoken!,
+          linklama,
+          tgllahir,
+          jkl,
+          hp,
+          edit,
+        );
       } else {
         await _ref.hapusgambar(linklama, _accesstoken!);
-        final link = await _ref.uploadfoto(foto!, _accesstoken!);
+        final link = await _ref.uploadfoto(
+          foto!,
+          _accesstoken!,
+        );
         if (link != null) {
           await _ref.updateprofil(
-              id_profil!, _accesstoken!, link, tgllahir, jkl, hp, edit);
+            id_profil!,
+            _accesstoken!,
+            link,
+            tgllahir,
+            jkl,
+            hp,
+            edit,
+          );
         }
       }
     } catch (e) {
