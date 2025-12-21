@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class FasilitasModel with ChangeNotifier {
-  int? id_fasilitas;
+  int? id_fasilitas, id_auth;
   bool tempat_tidur,
       kamar_mandi_dalam,
       meja,
@@ -16,6 +16,7 @@ class FasilitasModel with ChangeNotifier {
 
   FasilitasModel({
     this.id_fasilitas,
+    this.id_auth,
     this.tempat_tidur = false,
     this.kamar_mandi_dalam = false,
     this.meja = false,
@@ -32,6 +33,7 @@ class FasilitasModel with ChangeNotifier {
 
   Map<String, dynamic> toJson() {
     final data = <String, dynamic>{
+      'id_auth': id_auth,
       'tempat_tidur': tempat_tidur,
       'kamar_mandi_dalam': kamar_mandi_dalam,
       'meja': meja,
@@ -61,6 +63,7 @@ class FasilitasModel with ChangeNotifier {
   factory FasilitasModel.fromJson(Map<String, dynamic> json) {
     return FasilitasModel(
       id_fasilitas: json['id_fasilitas'],
+      id_auth: json['id_auth'],
       tempat_tidur: json['tempat_tidur'],
       kamar_mandi_dalam: json['kamar_mandi_dalam'],
       meja: json['meja'],
@@ -77,6 +80,9 @@ class FasilitasModel with ChangeNotifier {
           json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
   }
+
+  List<FasilitasModel> _mydata = [];
+  List<FasilitasModel> get mydata => mydata;
 
   void booltempattidur() {
     this.tempat_tidur = !this.tempat_tidur;
@@ -125,6 +131,20 @@ class FasilitasModel with ChangeNotifier {
 
   void boolwifi() {
     this.wifi = !this.wifi;
+    notifyListeners();
+  }
+
+  void resetcheckbox() {
+    this.tempat_tidur = false;
+    this.kamar_mandi_dalam = false;
+    this.meja = meja;
+    this.tempat_parkir = false;
+    this.lemari = false;
+    this.ac = false;
+    this.tv = false;
+    this.kipas = false;
+    this.dapur_dalam = false;
+    this.wifi = false;
     notifyListeners();
   }
 }

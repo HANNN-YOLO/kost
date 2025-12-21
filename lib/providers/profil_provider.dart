@@ -114,8 +114,13 @@ class ProfilProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateprofil(XFile? foto, String linklama, DateTime tgllahir,
-      String jkl, int hp) async {
+  Future<void> updateprofil(
+    XFile? foto,
+    String linklama,
+    DateTime tgllahir,
+    String jkl,
+    int hp,
+  ) async {
     final edit = DateTime.now();
     await readdata(_accesstoken!);
     try {

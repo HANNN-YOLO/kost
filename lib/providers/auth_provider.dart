@@ -48,7 +48,8 @@ class AuthProvider with ChangeNotifier {
   String? get tokens {
     if (_accesstoken != null &&
         _email != null &&
-        _expiresIn!.isAfter(DateTime.now())) {
+        _expiresIn!.isAfter(DateTime.now()) &&
+        hasilnya != null) {
       return _accesstoken;
     } else {
       return null;
@@ -157,6 +158,7 @@ class AuthProvider with ChangeNotifier {
         'accesstoken': _accesstoken,
         'email': _email,
         'expiresIn': _expiresIn?.toIso8601String(),
+        // 'list_auth': hasilnya
       });
 
       awalan.setString('auth', isi);
@@ -184,6 +186,7 @@ class AuthProvider with ChangeNotifier {
     _accesstoken = ambil['accesstoken'];
     _email = ambil['email'];
     _expiresIn = waktunya;
+    // hasilnya = ambil['list_auth'];
 
     await readrole();
     notifyListeners();

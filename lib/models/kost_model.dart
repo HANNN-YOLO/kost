@@ -1,5 +1,5 @@
 class KostModel {
-  int? id_kost, id_fasilitas, notlp_kost, harga_kost, panjang, lebar;
+  int? id_kost, id_fasilitas, notlp_kost, harga_kost, panjang, lebar, id_auth;
   String? nama_kost,
       alamat_kost,
       pemilik_kost,
@@ -15,6 +15,7 @@ class KostModel {
   KostModel({
     this.id_kost,
     this.id_fasilitas,
+    this.id_auth,
     this.nama_kost,
     this.pemilik_kost,
     this.alamat_kost,
@@ -37,6 +38,7 @@ class KostModel {
   Map<String, dynamic> toJson() {
     final data = <String, dynamic>{
       'id_fasilitas': id_fasilitas,
+      'id_auth': id_auth,
       'nama_kost': nama_kost,
       'pemilik_kost': pemilik_kost,
       'alamat_kost': alamat_kost,
@@ -72,6 +74,7 @@ class KostModel {
     return KostModel(
       id_kost: json['id_kost'],
       id_fasilitas: json['id_fasilitas'],
+      id_auth: json['id_auth'],
       nama_kost: json['nama_kost'],
       pemilik_kost: json['pemilik_kost'],
       alamat_kost: json['alamat_kost'],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:kost_saw/models/fasilitas_model.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/profil_provider.dart';
@@ -15,9 +16,10 @@ import 'package:kost_saw/widgets/main_navigation_admin.dart';
 import 'screens/main/admin/dashboard.dart';
 import 'screens/main/admin/criteria_management.dart';
 import 'screens/main/admin/detail_user.dart';
-import 'screens/main/admin/form_add_house.dart';
+import 'screens/main/admin/form_house.dart';
 import 'screens/main/admin/management_boarding_house.dart';
 import 'screens/main/admin/user_management.dart';
+import 'screens/main/admin/detail_kost.dart';
 
 import 'screens/main/penyewa/Home.dart';
 import 'screens/main/penyewa/Profile.dart';
@@ -49,9 +51,29 @@ void main() async {
           return previous!;
         },
       ),
-      ChangeNotifierProvider<KostProvider>(
-        create: (_) => KostProvider(),
-      )
+      ChangeNotifierProxyProvider<AuthProvider, KostProvider>(
+        create: (context) => KostProvider(),
+        update: (context, value, previous) {
+          previous ?? KostProvider();
+          if (value.accesstoken != null &&
+              value.email != null &&
+              value.id_auth != null &&
+              value.hasilnya != null &&
+              value.id_auth != null) {
+            previous?.isi(
+              value.accesstoken!,
+              value.email!,
+              value.expiresIn!,
+              value.hasilnya,
+              value.id_auth!,
+            );
+            print("done ambil data");
+            // return previous!;
+          }
+          return previous!;
+        },
+      ),
+      ChangeNotifierProvider(create: (_) => FasilitasModel()),
     ],
     builder: (context, child) {
       return App();
@@ -133,9 +155,10 @@ class App extends StatelessWidget {
                 "/mainavigation-admin": (_) => MainNavigationAdmin(),
                 "/criteria-admin": (_) => CriteriaManagement(),
                 "/detail-user-admin": (_) => DetailUser(),
-                "/add-house-admin": (_) => FormAddHouse(),
+                "/house-admin": (_) => FormHouse(),
                 "/management-board-admin": (_) => ManagementBoardingHouse(),
                 "/user-management-admin": (_) => UserManagement(),
+                "detail-kost-admin": (_) => DetailKost(),
 
                 // state pemilik
                 'dashboard-pemilik': (_) => DashboardPemilik(),

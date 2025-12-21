@@ -5,19 +5,28 @@ import 'package:http/http.dart' as htpp;
 
 class AuthServices {
   // modul auth
-  Future<Map<String, dynamic>?> login(
-      {required String email, required String pass}) async {
+  Future<Map<String, dynamic>?> login({
+    required String email,
+    required String pass,
+  }) async {
+    print("inisiasi modul auth");
+
     var url = Uri.parse(
         "${SupabaseApiConfig.masterurl}/auth/v1/token?grant_type=password");
+    print("login 1 auth");
 
     final isi = AuthModel(Email: email, password: pass);
+    print("login 2 auth");
 
-    var pengisian = await htpp.post(url,
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': '${SupabaseApiConfig.apipublic}'
-        },
-        body: json.encode(isi.toJson()));
+    var pengisian = await htpp.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apipublic}'
+      },
+      body: json.encode(isi.toJson()),
+    );
+    print("login 3 auth");
 
     if (pengisian.statusCode == 200 || pengisian.statusCode == 201) {
       final data = json.decode(pengisian.body);
@@ -34,18 +43,27 @@ class AuthServices {
     }
   }
 
-  Future<Map<String, dynamic>?> register(
-      {required String email, required String pass}) async {
+  Future<Map<String, dynamic>?> register({
+    required String email,
+    required String pass,
+  }) async {
+    print("inisiasi modul auth");
+
     var url = Uri.parse("${SupabaseApiConfig.masterurl}/auth/v1/signup");
+    print("register 1 auth");
 
     final isi = AuthModel(Email: email, password: pass);
+    print("register 2 auth");
 
-    var pengisian = await htpp.post(url,
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': '${SupabaseApiConfig.apipublic}'
-        },
-        body: json.encode(isi.toJson()));
+    var pengisian = await htpp.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apipublic}'
+      },
+      body: json.encode(isi.toJson()),
+    );
+    print("register 3 auth");
 
     if (pengisian.statusCode == 200 || pengisian.statusCode == 201) {
       final data = json.decode(pengisian.body);
@@ -62,12 +80,25 @@ class AuthServices {
   }
 
   // modul realtime
-  Future<void> createuser(String token, String UID, String username,
-      String Email, String role) async {
-    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/auth");
+  Future<void> createuser(
+    String token,
+    String UID,
+    String username,
+    String Email,
+    String role,
+  ) async {
+    print("inisiasi buat data auth");
 
-    final isi =
-        AuthModel(UID: UID, username: username, Email: Email, role: role);
+    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/auth");
+    print("buat data 1 auth");
+
+    final isi = AuthModel(
+      UID: UID,
+      username: username,
+      Email: Email,
+      role: role,
+    );
+    print("buat data 2 auth");
 
     var pengisian = await htpp.post(url,
         headers: {

@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/kost_provider.dart';
 
 class KostHomePage extends StatelessWidget {
   static const routeName = '/kost_home';
+  bool keadaan = true;
 
-  const KostHomePage({Key? key}) : super(key: key);
+  KostHomePage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final tinggiLayar = MediaQuery.of(context).size.height;
     final lebarLayar = MediaQuery.of(context).size.width;
     final topPadding = MediaQuery.of(context).padding.top;
+    final penghubung = Provider.of<KostProvider>(context);
 
     // AppBar custom tinggi agar proporsi mudah dihitung
     final AppBar appBar = AppBar(
@@ -20,9 +24,8 @@ class KostHomePage extends StatelessWidget {
       centerTitle: false,
       titleSpacing: 0,
       title: Padding(
-        padding:
-            const EdgeInsets.only(left: 20, right: 20, bottom: 20, top: 20),
-        child: const Text(
+        padding: EdgeInsets.only(left: 20, right: 20, bottom: 20, top: 20),
+        child: Text(
           "Temukan Kost\nPilihan anda",
           style: TextStyle(
             color: Colors.black,
@@ -34,13 +37,13 @@ class KostHomePage extends StatelessWidget {
       ),
       actions: [
         Padding(
-          padding: const EdgeInsets.only(right: 5),
+          padding: EdgeInsets.only(right: 5),
           child: IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.notifications_none),
+            icon: Icon(Icons.notifications_none),
             color: Colors.black,
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+            constraints: BoxConstraints(),
           ),
         ),
       ],
@@ -88,7 +91,7 @@ class KostHomePage extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
+      backgroundColor: Color(0xFFF4F4F4),
       appBar: PreferredSize(
         preferredSize: appBar.preferredSize,
         child: SafeArea(child: appBar),
@@ -102,7 +105,7 @@ class KostHomePage extends StatelessWidget {
         ),
         child: Column(
           children: [
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
 
             // Search field
             Material(
@@ -111,22 +114,22 @@ class KostHomePage extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               child: TextField(
                 decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.search),
+                  prefixIcon: Icon(Icons.search),
                   hintText: "Cari kost...",
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                  contentPadding: EdgeInsets.symmetric(vertical: 14),
                 ),
               ),
             ),
 
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
 
             // Expanded area with ListView of cards
             Expanded(
               child: ListView.separated(
-                padding: const EdgeInsets.only(bottom: 80),
-                itemCount: 6,
-                separatorBuilder: (_, __) => const SizedBox(height: 18),
+                padding: EdgeInsets.only(bottom: 80),
+                itemCount: penghubung.kost.length,
+                separatorBuilder: (_, __) => SizedBox(height: 18),
                 itemBuilder: (context, index) {
                   return _KostCard(
                     imageHeight: imageHeight,
@@ -134,10 +137,11 @@ class KostHomePage extends StatelessWidget {
                     titleFontSize: titleFont,
                     priceFontSize: priceFont,
                     // contoh data statis
-                    price: "Rp 850.000.00",
-                    title: "Rumah Indekos Irwan",
-                    location: "Kelurahan Tamalanrea Indah",
-                    genderLabel: "PUTRA",
+                    price: "Rp ${penghubung.kost[index].harga_kost}",
+                    title: "${penghubung.kost[index].nama_kost}",
+                    location: "${penghubung.kost[index].alamat_kost}",
+                    genderLabel: "${penghubung.kost[index].jenis_kost}",
+                    gambar: "${penghubung.kost[index].gambar_kost}",
                   );
                 },
               ),
@@ -145,27 +149,6 @@ class KostHomePage extends StatelessWidget {
           ],
         ),
       ),
-      // Bottom navigation sederhana (floating style)
-      // bottomNavigationBar: SizedBox(
-      //   height: 70,
-      //   child: BottomAppBar(
-      //     color: Color.fromARGB(255, 255, 255, 255),
-      //     elevation: 6,
-      //     padding: const EdgeInsets.only(left: 30, right: 30),
-      //     shape: const CircularNotchedRectangle(),
-      //     child: Row(
-      //       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      //       children: const [
-      //         // SizedBox(width: 24),
-      //         Icon(Icons.home_outlined),
-      //         // SizedBox(width: 24),
-      //         Icon(Icons.home_outlined),
-      //         // SizedBox(width: 24),x
-      //         Icon(Icons.home_outlined),
-      //       ],
-      //     ),
-      //   ),
-      // ),
     );
   }
 }
@@ -179,8 +162,9 @@ class _KostCard extends StatelessWidget {
   final String title;
   final String location;
   final String genderLabel;
+  final String gambar;
 
-  const _KostCard({
+  _KostCard({
     Key? key,
     required this.imageHeight,
     required this.radius,
@@ -190,6 +174,7 @@ class _KostCard extends StatelessWidget {
     required this.title,
     required this.location,
     required this.genderLabel,
+    required this.gambar,
   }) : super(key: key);
 
   @override
@@ -209,14 +194,14 @@ class _KostCard extends StatelessWidget {
               child: SizedBox(
                 height: imageHeight,
                 width: double.infinity,
-                child: Image.asset(
-                  'assets/home.png', // ganti path sesuai aset anda
+                child: Image.network(
+                  '$gambar', // ganti path sesuai aset anda
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) {
                     // fallback ketika asset tidak ditemukan
                     return Container(
-                      color: const Color(0xFFECECEC),
-                      child: const Center(child: Icon(Icons.image, size: 48)),
+                      color: Color(0xFFECECEC),
+                      child: Center(child: Icon(Icons.image, size: 48)),
                     );
                   },
                 ),
@@ -226,7 +211,7 @@ class _KostCard extends StatelessWidget {
 
           // Info bawah
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12),
+            padding: EdgeInsets.symmetric(horizontal: 14.0, vertical: 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -245,21 +230,20 @@ class _KostCard extends StatelessWidget {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: Colors.grey.shade300),
                       ),
                       child: Text(
                         genderLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Text(
                   title,
                   style: TextStyle(
@@ -268,17 +252,16 @@ class _KostCard extends StatelessWidget {
                     color: Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Row(
                   children: [
-                    const Icon(Icons.location_on_outlined,
+                    Icon(Icons.location_on_outlined,
                         size: 14, color: Colors.grey),
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         location,
-                        style:
-                            const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),

@@ -7,12 +7,17 @@ import 'package:image_picker/image_picker.dart';
 class ProfilService {
   // CD foto
   Future<String> uploadfoto(XFile foto, String token) async {
+    print("inisiasi upload foto");
+
     final si = "${foto.name}";
+    print("upload foto 1 profil");
 
     var url = Uri.parse(
         "${SupabaseApiConfig.masterurl}/storage/v1/object/profil/$si");
+    print("upload foto 2 profil");
 
     var namanya = await foto.readAsBytes();
+    print("upload foto 3 profil");
 
     var simpan = await htpp.post(
       url,
@@ -23,6 +28,7 @@ class ProfilService {
       },
       body: namanya,
     );
+    print("upload foto 4 profil");
 
     if (simpan.statusCode == 200 || simpan.statusCode == 201) {
       final link =
@@ -36,11 +42,17 @@ class ProfilService {
   }
 
   Future<void> hapusgambar(String link, String token) async {
+    print("inisiasi hapus foto");
+
     var url = Uri.parse("$link");
+    print("hapus gambar 1 profil");
+
     final akhir = url.pathSegments.last;
+    print("hapus gambar 2 profil");
 
     var arah = Uri.parse(
         "${SupabaseApiConfig.masterurl}/storage/v1/object/profil/$akhir");
+    print("hapus gambar 3 profil");
 
     var hapus = await htpp.delete(
       arah,
@@ -50,6 +62,7 @@ class ProfilService {
         'Authorization': 'Bearer $token'
       },
     );
+    print("hapus gambar 4 profil");
 
     if (hapus.statusCode == 200) {
       print("done foto ${hapus.body}");
@@ -93,7 +106,10 @@ class ProfilService {
     String jkl,
     int hp,
   ) async {
+    print("inisiasi buat data");
+
     var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/profil");
+    print("buat data 1 profil");
 
     final isian = ProfilModel(
       id_auth: id_auth,
@@ -102,6 +118,7 @@ class ProfilService {
       jkl: jkl,
       kontak: hp,
     );
+    print("buat data 2 profil");
 
     var pengisian = await htpp.post(
       url,
@@ -112,6 +129,7 @@ class ProfilService {
       },
       body: json.encode(isian.toJson()),
     );
+    print("buat data 3 profil");
 
     if (pengisian.statusCode == 200 || pengisian.statusCode == 201) {
       print("done ${pengisian.body}");
@@ -121,10 +139,20 @@ class ProfilService {
     }
   }
 
-  Future<void> updateprofil(int Id_profil, String token, String link,
-      DateTime tgllahir, String jkl, int kontak, DateTime edit) async {
+  Future<void> updateprofil(
+    int Id_profil,
+    String token,
+    String link,
+    DateTime tgllahir,
+    String jkl,
+    int kontak,
+    DateTime edit,
+  ) async {
+    print("inisasi perubahan data");
+
     var url = Uri.parse(
         "${SupabaseApiConfig.masterurl}/rest/v1/profil?id_profil=eq.$Id_profil");
+    print("ubah data 1 profil");
 
     final isian = ProfilModel(
       foto: link,
@@ -133,6 +161,7 @@ class ProfilService {
       kontak: kontak,
       updatedAt: edit,
     );
+    print("ubah data 2 profil");
 
     var pengsian = await htpp.patch(
       url,
@@ -143,6 +172,7 @@ class ProfilService {
       },
       body: json.encode(isian.toJson()),
     );
+    print("ubah data 3 profil");
 
     if (pengsian.statusCode == 204) {
       print("done data ${pengsian.body}");

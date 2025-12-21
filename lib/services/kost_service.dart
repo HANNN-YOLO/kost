@@ -7,12 +7,17 @@ import 'package:image_picker/image_picker.dart';
 class KostService {
   // modul Storage
   Future<String> uploadgambar(XFile gambar) async {
+    print("inisiasi modul storage");
+
     final siapa = "${gambar.name}";
+    print("upload gambar 1 kost");
 
     var url = Uri.parse(
         "${SupabaseApiConfig.masterurl}/storage/v1/object/kost/$siapa");
+    print("upload gambar 2 kost");
 
     var isian = await gambar.readAsBytes();
+    print("upload gambar 3 kost");
 
     var pengisian = await htpp.post(
       url,
@@ -23,6 +28,7 @@ class KostService {
       },
       body: isian,
     );
+    print("upload gambar 4 kost");
 
     if (pengisian.statusCode == 200 || pengisian.statusCode == 201) {
       final ambil =
@@ -35,8 +41,40 @@ class KostService {
     }
   }
 
+  Future<void> deletegambar(String gambar) async {
+    print("inisiasi modul storage");
+
+    var link = Uri.parse("$gambar");
+    print("hapus gamba 1 kost");
+
+    var nama = link.pathSegments.last;
+    print("hapus gamba 2 kost");
+
+    var url = Uri.parse(
+        "${SupabaseApiConfig.masterurl}/storage/v1/object/kost/$nama");
+    print("hapus gamba 3 kost");
+
+    var delete = await htpp.delete(
+      url,
+      headers: {
+        'Content-Type': 'images/$nama.jpg',
+        'apikey': '${SupabaseApiConfig.apisecret}',
+        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+      },
+    );
+    print("hapus gamba 5 kost");
+
+    if (delete.statusCode == 200) {
+      print("done gambar dihapus");
+    } else {
+      print("error gambar tidak dihapus");
+      throw "error gambar tidak dihapus";
+    }
+  }
+
   // CRUD table
   Future<void> createdata(
+    int id_auth,
     int id_fasilitas,
     int notlp_kost,
     String nama_kost,
@@ -54,9 +92,13 @@ class KostService {
     double garis_bujur,
     String gambar,
   ) async {
+    print("inisiai buat data kost");
+
     var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/kost");
+    print("buat data 1 kost");
 
     var isian = KostModel(
+      id_auth: id_auth,
       id_fasilitas: id_fasilitas,
       notlp_kost: notlp_kost,
       nama_kost: nama_kost,
@@ -74,6 +116,7 @@ class KostService {
       garis_bujur: garis_bujur,
       gambar_kost: gambar,
     );
+    print("buat data 2 kost");
 
     var pengisian = await htpp.post(
       url,
@@ -85,13 +128,158 @@ class KostService {
       },
       body: json.encode(isian.toJson()),
     );
+    print("buat data 3 kost");
 
     if (pengisian.statusCode == 200 || pengisian.statusCode == 201) {
-      // final ambil = json.decode(pengisian.body);
-      print("done kost");
+      print("done data kost ${pengisian.body}");
     } else {
       print("error kost ${pengisian.body}");
       throw "error kost ${pengisian.body}";
     }
+  }
+
+  Future<List<KostModel>> readdata() async {
+    List<KostModel> hasilnya = [];
+    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/kost");
+    var simpan = await htpp.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apisecret}',
+        'Authorization': ' Bearer ${SupabaseApiConfig.apisecret}'
+      },
+    );
+    if (simpan.statusCode == 200) {
+      final ambil = json.decode(simpan.body) as List<dynamic>;
+      ambil.forEach((value) {
+        var take = KostModel.fromJson(value);
+        hasilnya.add(take);
+      });
+    } else {
+      print("error ambil data ${simpan.body}");
+      throw "error ambil data ${simpan.body}";
+    }
+    return hasilnya;
+  }
+
+  Future<void> deletedata(int id_kost) async {
+    print("inisiasi hapus data kost");
+
+    var url = Uri.parse(
+        "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_kost=eq.$id_kost");
+    print("data hapus 1 kost");
+
+    var delete = await htpp.delete(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apisecret},',
+        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+      },
+    );
+    print("data hapus 2 kost");
+
+    if (delete.statusCode == 204) {
+      print("done hapus data kost");
+    } else {
+      print("error hapus data kost");
+      throw "error hapus data kost";
+    }
+  }
+
+  Future<void> updatedata(
+    int id_kost,
+    int id_fasilitas,
+    int id_auth,
+    String nama_kost,
+    String nama_pemilik,
+    String alamat_kost,
+    int notlp_kost,
+    int harga_kost,
+    String batas_jam_malam,
+    String jenis_listrik,
+    String jenis_pembayaran_air,
+    String keamanan,
+    String jenis_kost,
+    int panjang,
+    int lebar,
+    String gambar_kost,
+    double garis_lintang,
+    double garis_bujur,
+    DateTime updatedAt,
+  ) async {
+    print("inisiasi perubahan data kost");
+
+    var url = Uri.parse(
+        "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_kost=eq.$id_kost");
+    print("ubah data 1 kost");
+
+    var isian = KostModel(
+      id_auth: id_auth,
+      id_kost: id_kost,
+      id_fasilitas: id_fasilitas,
+      nama_kost: nama_kost,
+      pemilik_kost: nama_pemilik,
+      alamat_kost: alamat_kost,
+      notlp_kost: notlp_kost,
+      harga_kost: harga_kost,
+      batas_jam_malam: batas_jam_malam,
+      jenis_listrik: jenis_listrik,
+      jenis_pembayaran_air: jenis_pembayaran_air,
+      keamanan: keamanan,
+      jenis_kost: jenis_kost,
+      panjang: panjang,
+      lebar: lebar,
+      gambar_kost: gambar_kost,
+      garis_lintang: garis_lintang,
+      garis_bujur: garis_bujur,
+      updatedAt: updatedAt,
+    );
+    print("ubah data 2 kost");
+
+    var updated = await htpp.patch(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apisecret}',
+        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+      },
+      body: json.encode(isian.toJson()),
+    );
+    print("ubah data 3 kost");
+
+    if (updated.statusCode == 204) {
+      print("done perubahan data kost ${updated.body}");
+    } else {
+      print("gagal perubahan data kost ${updated.body}");
+      throw "gagal perubahan data kost ${updated.body}";
+    }
+  }
+
+  Future<List<KostModel>> readdatapenyewa(String token) async {
+    List<KostModel> hasilnya = [];
+
+    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/kost");
+
+    var simpan = await htpp.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apipublic}',
+        'Authorization': 'Bearer $token'
+      },
+    );
+
+    if (simpan.statusCode == 200) {
+      final ambil = json.decode(simpan.body) as List<dynamic>;
+      ambil.forEach((value) {
+        var item = KostModel.fromJson(value);
+        hasilnya.add(item);
+      });
+    } else {
+      print("eror ambil data kost sebagai penyewa");
+      throw "eror ambil data kost sebagai penyewa";
+    }
+    return hasilnya;
   }
 }

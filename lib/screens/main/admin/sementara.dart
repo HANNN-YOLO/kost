@@ -14,15 +14,15 @@ import 'package:provider/provider.dart';
 import '../../../providers/kost_provider.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-class FormAddHouse extends StatefulWidget {
+class Sementara extends StatefulWidget {
   static const arah = "/add-house-admin";
-  const FormAddHouse({super.key});
+  const Sementara({super.key});
 
   @override
-  State<FormAddHouse> createState() => _FormAddHouseState();
+  State<Sementara> createState() => _FormAddHouseState();
 }
 
-class _FormAddHouseState extends State<FormAddHouse> {
+class _FormAddHouseState extends State<Sementara> {
   final TextEditingController _namapemilik = TextEditingController();
   final TextEditingController _namakost = TextEditingController();
   final TextEditingController _notlpn = TextEditingController();
@@ -198,8 +198,29 @@ class _FormAddHouseState extends State<FormAddHouse> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _inputField(
-                  'Nama Pemilik', tinggiLayar, lebarLayar, _namapemilik),
+              // _inputField(
+              //   'Nama Pemilik',
+              //   tinggiLayar,
+              //   lebarLayar,
+              //   _namapemilik,
+              // ),
+
+              Label1barisFull(
+                label: "Pemilik Kost",
+                lebar: lebarLayar,
+                jarak: 1,
+              ),
+              CustomDropdownSearchv2(
+                lebar: lebarLayar,
+                tinggi: tinggiLayar,
+                manalistnya: penghubung.naman,
+                label: penghubung.namanya,
+                pilihan: penghubung.namanya,
+                fungsi: (value) {
+                  penghubung.pilihpemilik(value);
+                },
+              ),
+
               _inputField('Nama Kost', tinggiLayar, lebarLayar, _namakost),
               _inputField('Nomor Telepon', tinggiLayar, lebarLayar, _notlpn),
               _inputField('Alamat', tinggiLayar, lebarLayar, _alamat),
@@ -532,8 +553,14 @@ class _FormAddHouseState extends State<FormAddHouse> {
               ),
             ),
             onPressed: () async {
+              final inilist = penghubung.listauth;
+
+              var cek = inilist.firstWhere(
+                  (element) => element.username == penghubung.namanya);
+
               try {
                 await penghubung.createdata(
+                  int.parse(cek.id_auth.toString()),
                   penghubung.inputan.tempat_tidur,
                   penghubung.inputan.kamar_mandi_dalam,
                   penghubung.inputan.meja,
@@ -546,8 +573,10 @@ class _FormAddHouseState extends State<FormAddHouse> {
                   penghubung.inputan.wifi,
                   int.parse(_notlpn.text),
                   _namakost.text,
+                  // cek.username!,
                   _alamat.text,
-                  _namapemilik.text,
+                  // _namapemilik.text,
+                  penghubung.namanya,
                   int.parse(_harga.text),
                   _koordinatController.text,
                   penghubung.jeniskosts,

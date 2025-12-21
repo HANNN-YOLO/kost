@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'form_add_house.dart';
+import 'package:kost_saw/screens/custom/showdialog_eror.dart';
+import 'form_house.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/kost_provider.dart';
 
 class ManagementBoardingHouse extends StatelessWidget {
   static const arah = "/management-board-admin";
@@ -7,6 +10,7 @@ class ManagementBoardingHouse extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final penghubung = Provider.of<KostProvider>(context);
     final tinggiLayar = MediaQuery.of(context).size.height;
     final lebarLayar = MediaQuery.of(context).size.width;
 
@@ -32,7 +36,7 @@ class ManagementBoardingHouse extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Daftar Kost',
                     style: TextStyle(
                       fontSize: 20,
@@ -49,7 +53,7 @@ class ManagementBoardingHouse extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => FormAddHouse(),
+                            builder: (context) => FormHouse(),
                           ),
                         );
                       },
@@ -63,11 +67,11 @@ class ManagementBoardingHouse extends StatelessWidget {
                             BoxShadow(
                               color: Colors.black.withOpacity(0.05),
                               blurRadius: 3,
-                              offset: const Offset(0, 2),
+                              offset: Offset(0, 2),
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.add, color: Colors.black87),
+                        child: Icon(Icons.add, color: Colors.black87),
                       ),
                     ),
                   )
@@ -90,7 +94,7 @@ class ManagementBoardingHouse extends StatelessWidget {
                     BoxShadow(
                       color: Colors.black.withOpacity(0.05),
                       blurRadius: 3,
-                      offset: const Offset(0, 2),
+                      offset: Offset(0, 2),
                     ),
                   ],
                 ),
@@ -100,7 +104,7 @@ class ManagementBoardingHouse extends StatelessWidget {
                       width: lebarLayar * 0.12,
                       height: lebarLayar * 0.12,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFDDE6FF),
+                        color: Color(0xFFDDE6FF),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -110,7 +114,7 @@ class ManagementBoardingHouse extends StatelessWidget {
                       ),
                     ),
                     SizedBox(width: lebarLayar * 0.04),
-                    const Text(
+                    Text(
                       'Total Kost',
                       style: TextStyle(
                         fontSize: 16,
@@ -118,9 +122,9 @@ class ManagementBoardingHouse extends StatelessWidget {
                         color: Colors.black,
                       ),
                     ),
-                    const Spacer(),
-                    const Text(
-                      '30',
+                    Spacer(),
+                    Text(
+                      "${penghubung.kost.length}",
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -133,72 +137,35 @@ class ManagementBoardingHouse extends StatelessWidget {
 
               SizedBox(height: tinggiLayar * 0.03),
 
-              // 🔹 Daftar Kost
               Expanded(
-                child: ListView(
-                  children: [
-                    KostCard(
-                      gambar:
-                          'https://i.pinimg.com/736x/fe/86/47/fe864738b0b4dc2e9c4281e70712e169.jpg',
-                      harga: 'Rp 850.000.00',
-                      nama: 'Rumah Indekos Irwan',
-                      lokasi: 'Kelurahan Tamalanrea Indah',
+                child: ListView.builder(
+                  itemCount: penghubung.kost.length,
+                  itemBuilder: (context, index) {
+                    return KostCard(
+                      gambar: "${penghubung.kost[index].gambar_kost}",
+                      harga: "${penghubung.kost[index].harga_kost}",
+                      nama: "${penghubung.kost[index].nama_kost}",
+                      lokasi: "${penghubung.kost[index].alamat_kost}",
                       tampilkanEdit: true,
                       tampilkanHapus: true,
-                    ),
-                    SizedBox(height: tinggiLayar * 0.02),
-                    KostCard(
-                      gambar:
-                          'https://i.pinimg.com/736x/fe/86/47/fe864738b0b4dc2e9c4281e70712e169.jpg',
-                      harga: 'Rp 850.000.00',
-                      nama: 'Rumah Indekos Irwan',
-                      lokasi: 'Kelurahan Tamalanrea Indah',
-                      tampilkanEdit: true,
-                      tampilkanHapus: true,
-                    ),
-                    SizedBox(height: tinggiLayar * 0.02),
-                    KostCard(
-                      gambar:
-                          'https://i.pinimg.com/736x/fe/86/47/fe864738b0b4dc2e9c4281e70712e169.jpg',
-                      harga: 'Rp 850.000.00',
-                      nama: 'Rumah Indekos Irwan',
-                      lokasi: 'Kelurahan Tamalanrea Indah',
-                      tampilkanEdit: true,
-                      tampilkanHapus: true,
-                    ),
-                    SizedBox(height: tinggiLayar * 0.02),
-                    KostCard(
-                      gambar:
-                          'https://i.pinimg.com/736x/fe/86/47/fe864738b0b4dc2e9c4281e70712e169.jpg',
-                      harga: 'Rp 850.000.00',
-                      nama: 'Rumah Indekos Irwan',
-                      lokasi: 'Kelurahan Tamalanrea Indah',
-                      tampilkanEdit: true,
-                      tampilkanHapus: true,
-                    ),
-                    SizedBox(height: tinggiLayar * 0.02),
-                    KostCard(
-                      gambar:
-                          'https://i.pinimg.com/736x/fe/86/47/fe864738b0b4dc2e9c4281e70712e169.jpg',
-                      harga: 'Rp 850.000.00',
-                      nama: 'Rumah Indekos Irwan',
-                      lokasi: 'Kelurahan Tamalanrea Indah',
-                      tampilkanEdit: true,
-                      tampilkanHapus: true,
-                    ),
-                    SizedBox(height: tinggiLayar * 0.02),
-                    KostCard(
-                      gambar:
-                          'https://binabangunbangsa.com/wp-content/uploads/2020/03/tips-Manajemen-Rumah-Kost-yang-Baik-dan-Benar-.jpg',
-                      harga: 'Rp 850.000.00',
-                      nama: 'Rumah Indekos juragan reyhan di daerah tamalanrea',
-                      lokasi: 'Kelurahan Tamalanrea Indah',
-                      tampilkanEdit: true,
-                      tampilkanHapus: true,
-                    ),
-                  ],
+                      fungsihapus: () {
+                        penghubung.deletedata(
+                          int.parse(penghubung.kost[index].id_kost.toString()),
+                        );
+                      },
+                      fungsitap: () {
+                        Navigator.of(context).pushNamed("detail-kost-admin",
+                            arguments: penghubung.kost[index].id_kost);
+                      },
+                      fungsiupdated: () {
+                        Navigator.of(context).pushNamed("/house-admin",
+                            arguments: penghubung.kost[index].id_kost);
+                      },
+                    );
+                    // SizedBox(height: tinggiLayar * 0.02);
+                  },
                 ),
-              ),
+              )
             ],
           ),
         ),
@@ -215,8 +182,11 @@ class KostCard extends StatelessWidget {
   final String lokasi;
   final bool tampilkanEdit;
   final bool tampilkanHapus;
+  final VoidCallback? fungsihapus;
+  final VoidCallback? fungsitap;
+  final VoidCallback? fungsiupdated;
 
-  const KostCard({
+  KostCard({
     super.key,
     required this.gambar,
     required this.harga,
@@ -224,6 +194,9 @@ class KostCard extends StatelessWidget {
     required this.lokasi,
     this.tampilkanEdit = false,
     this.tampilkanHapus = false,
+    this.fungsihapus,
+    this.fungsitap,
+    this.fungsiupdated,
   });
 
   void _tampilkanKonfirmasiHapus(BuildContext context) {
@@ -233,9 +206,9 @@ class KostCard extends StatelessWidget {
       barrierLabel: "Hapus Kost",
       barrierDismissible: true,
       barrierColor: Colors.black.withOpacity(0.4),
-      transitionDuration: const Duration(milliseconds: 250),
+      transitionDuration: Duration(milliseconds: 250),
       pageBuilder: (context, anim1, anim2) {
-        return const SizedBox.shrink();
+        return SizedBox.shrink();
       },
       transitionBuilder: (context, anim1, anim2, child) {
         return Transform.scale(
@@ -243,12 +216,12 @@ class KostCard extends StatelessWidget {
           child: Opacity(
             opacity: anim1.value,
             child: AlertDialog(
-              backgroundColor: const Color.fromARGB(
+              backgroundColor: Color.fromARGB(
                   255, 255, 255, 255), // 🌸 Warna background lembut
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
-              title: const Row(
+              title: Row(
                 children: [
                   Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
                   SizedBox(width: 10),
@@ -261,7 +234,7 @@ class KostCard extends StatelessWidget {
                   ),
                 ],
               ),
-              content: const Text(
+              content: Text(
                 "Apakah Anda yakin ingin menghapus kost ini? Tindakan ini tidak dapat dibatalkan.",
                 style: TextStyle(
                   fontSize: 15,
@@ -270,21 +243,20 @@ class KostCard extends StatelessWidget {
                 ),
               ),
               actionsPadding:
-                  const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                  EdgeInsets.symmetric(horizontal: 15, vertical: 10),
               actionsAlignment: MainAxisAlignment.spaceBetween,
               actions: [
                 TextButton(
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.black87,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 18, vertical: 10),
+                    padding: EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
-                      side: const BorderSide(color: Colors.black26),
+                      side: BorderSide(color: Colors.black26),
                     ),
                   ),
                   onPressed: () => Navigator.pop(context),
-                  child: const Text(
+                  child: Text(
                     "Batal",
                     style: TextStyle(fontWeight: FontWeight.w500),
                   ),
@@ -292,26 +264,33 @@ class KostCard extends StatelessWidget {
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.redAccent,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 10),
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
                     elevation: 2,
                   ),
                   onPressed: () {
-                    Navigator.pop(context);
-
-                    // TODO: logika hapus kost di sini
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Kost berhasil dihapus."),
-                        behavior: SnackBarBehavior.floating,
-                        backgroundColor: Colors.redAccent,
-                      ),
-                    );
+                    try {
+                      fungsihapus?.call();
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text("Kost berhasil dihapus."),
+                          behavior: SnackBarBehavior.floating,
+                          backgroundColor: Colors.redAccent,
+                        ),
+                      );
+                    } catch (e) {
+                      showDialog(
+                        context: context,
+                        builder: (context) {
+                          return ShowdialogEror(label: "${e.toString()}");
+                        },
+                      );
+                    }
                   },
-                  child: const Text(
+                  child: Text(
                     "Hapus",
                     style: TextStyle(
                       color: Colors.white,
@@ -332,66 +311,71 @@ class KostCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final tinggiLayar = MediaQuery.of(context).size.height;
     final lebarLayar = MediaQuery.of(context).size.width;
-    final double tinggiGambar = lebarLayar * 0.22;
+    final double tinggiGambar = lebarLayar * 0.25;
 
-    return Container(
-      padding: EdgeInsets.all(lebarLayar * 0.03),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 3,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 🏠 Gambar Kost
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              gambar,
-              width: lebarLayar * 0.22,
-              height: tinggiGambar,
-              fit: BoxFit.cover,
+    return InkWell(
+      onTap: fungsitap,
+      child: Container(
+        padding: EdgeInsets.all(lebarLayar * 0.03),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 3,
+              offset: Offset(0, 2),
             ),
-          ),
-          SizedBox(width: lebarLayar * 0.04),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 🏠 Gambar Kost
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                gambar,
+                width: lebarLayar * 0.22,
+                height: tinggiGambar,
+                fit: BoxFit.cover,
+              ),
+            ),
+            SizedBox(width: lebarLayar * 0.04),
 
-          // 🔤 Detail Kost
-          Expanded(
-            child: SizedBox(
-              height: tinggiGambar,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            harga,
-                            style: TextStyle(
-                              color: const Color(0xFF007BFF),
-                              fontSize: lebarLayar * 0.040,
-                              fontWeight: FontWeight.w900,
+            // 🔤 Detail Kost
+            Expanded(
+              child: SizedBox(
+                height: tinggiGambar,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              harga,
+                              style: TextStyle(
+                                color: Color(0xFF007BFF),
+                                fontSize: lebarLayar * 0.040,
+                                fontWeight: FontWeight.w900,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Row(
-                            children: [
-                              if (tampilkanEdit)
-                                Icon(Icons.edit,
+                            Row(
+                              children: [
+                                IconButton(
+                                  onPressed: fungsiupdated,
+                                  icon: Icon(
+                                    Icons.edit,
                                     color: Colors.green,
-                                    size: lebarLayar * 0.060),
-                              if (tampilkanHapus)
+                                    size: lebarLayar * 0.060,
+                                  ),
+                                ),
                                 Padding(
                                   padding:
                                       EdgeInsets.only(left: lebarLayar * 0.015),
@@ -405,46 +389,47 @@ class KostCard extends StatelessWidget {
                                     ),
                                   ),
                                 ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: tinggiLayar * 0.005),
-                      Text(
-                        nama,
-                        style: TextStyle(
-                          fontSize: lebarLayar * 0.041,
-                          fontWeight: FontWeight.bold,
+                              ],
+                            ),
+                          ],
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.location_on_outlined,
-                        size: lebarLayar * 0.04,
-                        color: Colors.grey,
-                      ),
-                      SizedBox(width: lebarLayar * 0.01),
-                      Expanded(
-                        child: Text(
-                          lokasi,
+                        SizedBox(height: tinggiLayar * 0.005),
+                        Text(
+                          nama,
                           style: TextStyle(
-                            fontSize: lebarLayar * 0.032,
-                            color: Colors.grey[700],
+                            fontSize: lebarLayar * 0.041,
+                            fontWeight: FontWeight.bold,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_outlined,
+                          size: lebarLayar * 0.04,
+                          color: Colors.grey,
+                        ),
+                        SizedBox(width: lebarLayar * 0.01),
+                        Expanded(
+                          child: Text(
+                            lokasi,
+                            style: TextStyle(
+                              fontSize: lebarLayar * 0.032,
+                              color: Colors.grey[700],
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
