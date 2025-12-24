@@ -186,8 +186,10 @@ class _UserManagementState extends State<UserManagement> {
                 builder: (context, value, child) {
                   return value.alluser.isEmpty
                       ? Center(child: CircularProgressIndicator())
-                      : ListView.builder(
+                      : ListView.separated(
                           itemCount: value.semuanya,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 12),
                           itemBuilder: (context, index) {
                             final profiluser = value.alluser[index];
 

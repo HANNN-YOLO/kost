@@ -138,8 +138,10 @@ class ManagementBoardingHouse extends StatelessWidget {
               SizedBox(height: tinggiLayar * 0.03),
 
               Expanded(
-                child: ListView.builder(
+                child: ListView.separated(
                   itemCount: penghubung.kost.length,
+                  separatorBuilder: (context, index) =>
+                      SizedBox(height: tinggiLayar * 0.02),
                   itemBuilder: (context, index) {
                     return KostCard(
                       gambar: "${penghubung.kost[index].gambar_kost}",
