@@ -8,7 +8,7 @@ class AppbarPolos extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      backgroundColor: Colors.cyan,
+      backgroundColor: warna,
       centerTitle: true,
       title: Text(label, style: TextStyle(color: Colors.white)),
     );

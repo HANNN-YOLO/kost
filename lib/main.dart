@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:kost_saw/models/fasilitas_model.dart';
+import 'package:kost_saw/screens/main/pemilik/form_add_house_pemilik.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/profil_provider.dart';
@@ -12,6 +13,7 @@ import 'screens/auth/Login.dart';
 import 'screens/auth/Register.dart';
 import 'package:kost_saw/widgets/main_navigation.dart';
 import 'package:kost_saw/widgets/main_navigation_admin.dart';
+import 'package:kost_saw/widgets/main_navigation_pemilik.dart';
 
 import 'screens/main/admin/dashboard.dart';
 import 'screens/main/admin/criteria_management.dart';
@@ -25,7 +27,9 @@ import 'screens/main/penyewa/Home.dart';
 import 'screens/main/penyewa/Profile.dart';
 import 'screens/main/penyewa/recommendation.dart';
 
-import 'screens/main/pemilik/dashboard_pemilik.dart';
+import 'screens/main/pemilik/dashboard_income.dart';
+import 'screens/main/pemilik/management_kost_pemilik.dart';
+import 'screens/main/pemilik/profile_pemilik.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,8 +61,6 @@ void main() async {
           previous ?? KostProvider();
           if (value.accesstoken != null &&
               value.email != null &&
-              value.id_auth != null &&
-              value.hasilnya != null &&
               value.id_auth != null) {
             previous?.isi(
               value.accesstoken!,
@@ -124,9 +126,8 @@ class App extends StatelessWidget {
                 menuju = MainNavigationAdmin();
               } else if (cek.role == "Penyewa") {
                 menuju = MainNavigation();
-                // KostHomePage();
               } else if (cek.role == "Pemilik") {
-                menuju = DashboardPemilik();
+                menuju = const MainNavigationPemilik();
               } else {
                 menuju = LoginPage();
               }
@@ -161,7 +162,11 @@ class App extends StatelessWidget {
                 "detail-kost-admin": (_) => DetailKost(),
 
                 // state pemilik
-                'dashboard-pemilik': (_) => DashboardPemilik(),
+                'dashboard-pemilik': (_) => DashboardIncome(),
+                '/management-board-pemilik': (_) => ManagementKostPemilik(),
+                '/mainavigation-pemilik': (_) => const MainNavigationPemilik(),
+                '/form-add-house-pemilik': (_) => FormAddHousePemilik(),
+                '/profil-pemilik': (_) => const ProfilePemilikPage(),
               },
               // initialRoute: "/login",
               // home: value.token ? KostHomePage() : LoginPage(),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+enum AtributType { benefit, cost }
+
 class CriteriaManagement extends StatefulWidget {
   static const arah = "/criteria-admin";
   const CriteriaManagement({super.key});
@@ -17,6 +19,8 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
 
   // Bobot untuk setiap kriteria
   Map<String, double> bobotKriteria = {};
+  // Atribut (Benefit/Cost) untuk setiap kriteria
+  Map<String, AtributType> atributKriteria = {};
 
   int? _editingIndex;
 
@@ -25,6 +29,7 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
     super.initState();
     for (var k in kriteriaList) {
       bobotKriteria[k] = 0.0;
+      atributKriteria[k] = AtributType.benefit;
     }
   }
 
@@ -97,6 +102,7 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
                         setState(() {
                           kriteriaList.add(value.trim());
                           bobotKriteria[value.trim()] = 0.0;
+                          atributKriteria[value.trim()] = AtributType.benefit;
                           _controller.clear();
                         });
                       }
@@ -221,6 +227,9 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
                           kriteriaList[index] = newValue.trim();
                           bobotKriteria[newValue.trim()] =
                               bobotKriteria.remove(old) ?? 0.0;
+                          atributKriteria[newValue.trim()] =
+                              atributKriteria.remove(old) ??
+                                  AtributType.benefit;
                           _editingIndex = null;
                         });
                       }
@@ -260,6 +269,7 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
                   _showDeleteDialog(kriteriaList[index], () {
                     setState(() {
                       bobotKriteria.remove(kriteriaList[index]);
+                      atributKriteria.remove(kriteriaList[index]);
                       kriteriaList.removeAt(index);
                     });
                     Navigator.pop(context);
@@ -316,10 +326,11 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
             // List bobot
             Column(
               children: kriteriaList.map((kriteria) {
+                final selected =
+                    atributKriteria[kriteria] ?? AtributType.benefit;
                 return Padding(
                   padding: EdgeInsets.only(bottom: tinggiLayar * 0.015),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
                         child: Text(
@@ -331,6 +342,38 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
                           ),
                         ),
                       ),
+                      // Dropdown atribut
+                      Container(
+                        height: 35,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: warnaKartu,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<AtributType>(
+                            value: selected,
+                            items: const [
+                              DropdownMenuItem(
+                                value: AtributType.benefit,
+                                child: Text("Benefit"),
+                              ),
+                              DropdownMenuItem(
+                                value: AtributType.cost,
+                                child: Text("Cost"),
+                              ),
+                            ],
+                            onChanged: (v) {
+                              if (v != null) {
+                                setState(() {
+                                  atributKriteria[kriteria] = v;
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
                       SizedBox(
                         width: 80,
                         height: 35,
