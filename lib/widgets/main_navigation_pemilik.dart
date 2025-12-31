@@ -20,15 +20,15 @@ class _MainNavigationPemilikState extends State<MainNavigationPemilik> {
   Widget _getPage(int index) {
     switch (index) {
       case 0:
-        return const ManagementKostPemilik();
+        return ManagementKostPemilik();
       case 1:
         return DashboardIncome();
       case 2:
-        return const ProfilePemilikPage();
+        return ProfilePemilikPage();
       case 3:
-        return const SizedBox.shrink(); // handled by logout
+        return SizedBox.shrink(); // handled by logout
       default:
-        return const ManagementKostPemilik();
+        return ManagementKostPemilik();
     }
   }
 
@@ -37,21 +37,21 @@ class _MainNavigationPemilikState extends State<MainNavigationPemilik> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text(
+        title: Text(
           "Konfirmasi Logout",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        content: const Text("Apakah Anda yakin ingin keluar dari akun?"),
+        content: Text("Apakah Anda yakin ingin keluar dari akun?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Batal"),
+            child: Text("Batal"),
           ),
           TextButton(
             onPressed: () {
               Provider.of<AuthProvider>(context, listen: false).logout();
             },
-            child: const Text(
+            child: Text(
               "Logout",
               style: TextStyle(color: Colors.red),
             ),
@@ -87,15 +87,15 @@ class _MainNavigationPemilikState extends State<MainNavigationPemilik> {
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8F7F7),
+        backgroundColor: Color(0xFFF8F7F7),
         body: _getPage(_selectedIndex),
         bottomNavigationBar: BottomNavigationBar(
           type: BottomNavigationBarType.fixed,
           currentIndex: _selectedIndex,
-          selectedItemColor: const Color(0xFF237EF2),
-          unselectedItemColor: const Color(0xFFA4A4A4),
+          selectedItemColor: Color(0xFF237EF2),
+          unselectedItemColor: Color(0xFFA4A4A4),
           onTap: _onItemTapped,
-          items: const [
+          items: [
             BottomNavigationBarItem(
               icon: Icon(Icons.other_houses_outlined),
               label: 'Daftar Kost Anda',

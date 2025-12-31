@@ -18,7 +18,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:collection/collection.dart';
 
 class FormHouse extends StatefulWidget {
-  static const arah = "/house-admin";
+  static const arah = "/form-house-admin";
   const FormHouse({super.key});
 
   @override
@@ -202,9 +202,9 @@ class _FormAddHouseState extends State<FormHouse> {
 
   @override
   void dispose() {
-    final penghubung = Provider.of<KostProvider>(context);
-    penghubung.dispose();
-    penghubung.inputan.dispose();
+    // final penghubung = Provider.of<KostProvider>(context);
+    // penghubung.dispose();
+    // penghubung.inputan.dispose();
     _namakost.dispose();
     _notlpn.dispose();
     _alamat.dispose();
@@ -247,7 +247,11 @@ class _FormAddHouseState extends State<FormHouse> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               GestureDetector(
-                onTap: () => Navigator.pop(context),
+                onTap: () {
+                  penghubung.inputan.resetcheckbox();
+                  penghubung.resetpilihan();
+                  Navigator.pop(context);
+                },
                 child: const Icon(Icons.arrow_back, color: Colors.black),
               ),
               terima != null
@@ -1414,22 +1418,3 @@ Widget _buildCustomItem(
     ),
   );
 }
-
-                              // final cekker = penghubung.faslitas
-                              //     .firstWhereOrNull((element) =>
-                              //         element.id_fasilitas ==
-                              //         pakai?.id_fasilitas);
-
-                              // if (cekker != null) {
-                              //   value.tempat_tidur = cekker.tempat_tidur;
-                              //   value.kamar_mandi_dalam =
-                              //       cekker.kamar_mandi_dalam;
-                              //   value.meja = cekker.meja;
-                              //   value.tempat_parkir = cekker.tempat_parkir;
-                              //   value.lemari = cekker.lemari;
-                              //   value.ac = cekker.ac;
-                              //   value.tv = cekker.tv;
-                              //   value.kipas = cekker.kipas;
-                              //   value.dapur_dalam = cekker.dapur_dalam;
-                              //   value.wifi = cekker.wifi;
-                              // }

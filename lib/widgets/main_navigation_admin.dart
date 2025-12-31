@@ -4,6 +4,7 @@ import 'package:kost_saw/screens/main/admin/management_boarding_house.dart';
 import 'package:kost_saw/screens/main/admin/user_management.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/kost_provider.dart';
 import 'package:kost_saw/screens/main/admin/subcriteria_management.dart';
 
 class MainNavigationAdmin extends StatefulWidget {
@@ -53,6 +54,7 @@ class _MainNavigationAdminState extends State<MainNavigationAdmin> {
           TextButton(
             onPressed: () {
               Provider.of<AuthProvider>(context, listen: false).logout();
+              Provider.of<KostProvider>(context, listen: false).resetpilihan();
             },
             child: const Text(
               "Logout",

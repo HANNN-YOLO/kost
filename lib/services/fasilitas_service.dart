@@ -179,7 +179,6 @@ class FasilitasService {
         'Authorization': 'Bearer $token'
       },
     );
-
     if (simpan.statusCode == 200) {
       final ambil = json.decode(simpan.body) as List<dynamic>;
       ambil.forEach((value) {
@@ -191,5 +190,154 @@ class FasilitasService {
       throw "error ambil data fasilitas penyewa";
     }
     return hasilnya;
+  }
+
+  Future<List<FasilitasModel>> readdatapemilik(
+    int id_auth,
+    String token,
+  ) async {
+    List<FasilitasModel> hasilnya = [];
+
+    var url = Uri.parse(
+        "${SupabaseApiConfig.masterurl}/rest/v1/fasilitas?id_auth=eq.$id_auth&select=*");
+
+    var simpan = await htpp.get(url, headers: {
+      'Content-Type': 'application/json',
+      'apikey': '${SupabaseApiConfig.apipublic}',
+      'Authorization': 'Bearer $token',
+      // 'Prefer': 'returns=representation'
+    });
+
+    if (simpan.statusCode == 200) {
+      final ambil = json.decode(simpan.body) as List<dynamic>;
+      ambil.forEach((value) {
+        var item = FasilitasModel.fromJson(value);
+        hasilnya.add(item);
+      });
+    } else {
+      print("gagal mengambil data fasilitas pemilik ${simpan.body}");
+      throw "Gagagl mengambil data fasilitas pemilik ${simpan.body}";
+    }
+    return hasilnya;
+  }
+
+  Future<Map<String, dynamic>> createdatapemilik(
+    String token,
+    int id_auth,
+    bool tempat_tidur,
+    bool kamar_mandi_dalam,
+    bool meja,
+    bool tempat_parkir,
+    bool lemari,
+    bool ac,
+    bool tv,
+    bool kipas,
+    bool dapur_dalam,
+    bool wifi,
+  ) async {
+    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/fasilitas");
+
+    final isian = FasilitasModel(
+        id_auth: id_auth,
+        tempat_tidur: tempat_tidur,
+        kamar_mandi_dalam: kamar_mandi_dalam,
+        meja: meja,
+        tempat_parkir: tempat_parkir,
+        ac: ac,
+        tv: tv,
+        kipas: kipas,
+        dapur_dalam: dapur_dalam,
+        wifi: wifi);
+
+    var pengisian = await htpp.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apipublic}',
+        'Authorization': 'Bearer $token',
+        'Prefer': 'return=representation'
+      },
+      body: json.encode(isian.toJson()),
+    );
+
+    if (pengisian.statusCode == 200 || pengisian.statusCode == 201) {
+      final List ambil = json.decode(pengisian.body);
+      final Map<String, dynamic> inicuy = ambil[0];
+      print(
+          "data fasilitas dari pemilik sebanyak $ambil dan ini key nya $inicuy");
+      return inicuy;
+    } else {
+      print("gagal ambil key fasilitas ${pengisian.body}");
+      throw "Gagal ambil key fasilitas ${pengisian.body}";
+    }
+  }
+
+  Future<void> updateddatapemilik(
+    String token,
+    int id_auth,
+    int id_fasilitas,
+    bool tempat_tidur,
+    bool kamar_mandi_dalam,
+    bool meja,
+    bool tempat_parkir,
+    bool lemari,
+    bool ac,
+    bool tv,
+    bool dapur_dalam,
+    bool wifi,
+    DateTime editan,
+  ) async {
+    var url = Uri.parse(
+        "${SupabaseApiConfig.masterurl}/rest/v1/fasilitas?id_fasilitas=eq.$id_fasilitas");
+
+    final isian = FasilitasModel(
+      id_auth: id_auth,
+      tempat_tidur: tempat_tidur,
+      kamar_mandi_dalam: kamar_mandi_dalam,
+      meja: meja,
+      tempat_parkir: tempat_parkir,
+      lemari: lemari,
+      ac: ac,
+      tv: tv,
+      dapur_dalam: dapur_dalam,
+      wifi: wifi,
+      updatedAt: editan,
+    );
+
+    var updated = await htpp.patch(
+      url,
+      headers: {
+        'Content-Type': 'Application/json',
+        'apikey': '${SupabaseApiConfig.apipublic}',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode(isian.toJson()),
+    );
+
+    if (updated.statusCode == 204) {
+      print("done updated data fasilitas pemilik ${updated.body}");
+    } else {
+      print("gagal updated data fasilitas pemilik ${updated.body}");
+      throw "gagal updated data fasilitas pemilik ${updated.body}";
+    }
+  }
+
+  Future<void> deletedatapemilik(String token, int id_fasilitas) async {
+    var url = Uri.parse(
+        "${SupabaseApiConfig.masterurl}/rest/v1/fasilitas?id_fasilitas=eq.$id_fasilitas");
+
+    var hapus = await htpp.delete(url, headers: {
+      'Content-Type': 'application/json',
+      'apikey': '${SupabaseApiConfig.apipublic}',
+      'Authorization': 'Bearer $token'
+    });
+
+    if (hapus.statusCode == 204) {
+      print(
+          "hapus berhasil di data fasilitas pemilik sekaligus di tabel kost karena cascade");
+    } else {
+      print("data gagal di hapus di data fasilitas pemilik");
+      throw "data gagagl di hapus di data fasilitas pemilik";
+    }
   }
 }

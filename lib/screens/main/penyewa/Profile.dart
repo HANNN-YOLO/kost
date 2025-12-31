@@ -6,6 +6,7 @@ import '../../custom/custom_dropdown_search.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/profil_provider.dart';
+import '../../../providers/kost_provider.dart';
 import 'package:intl/intl.dart';
 
 class UserProfilePage extends StatefulWidget {
@@ -42,7 +43,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
         emailController.text = penghubung.mydata[index].Email ?? "Default";
 
         if (penghubung2.accesstoken != null) {
-          await penghubung2.readdata(penghubung2.accesstoken!);
+          await penghubung2.readdata(
+            penghubung2.accesstoken!,
+            penghubung2.id_auth!,
+          );
         } else {
           Navigator.of(context).pop();
           throw Exception("User tidak terautentikasi.");
@@ -79,6 +83,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Widget build(BuildContext context) {
     final penghubung = Provider.of<AuthProvider>(context, listen: false);
     final penghubung2 = Provider.of<ProfilProvider>(context, listen: false);
+    final penghubung3 = Provider.of<KostProvider>(context, listen: false);
 
     return Scaffold(
       backgroundColor: Color(0xFFF7F9FC),
@@ -206,6 +211,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   try {
                     await penghubung.logout();
                     penghubung2.reset();
+                    penghubung3.resetpilihan();
                   } catch (e) {
                     showDialog(
                       context: context,

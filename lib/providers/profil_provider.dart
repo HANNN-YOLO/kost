@@ -13,6 +13,8 @@ class ProfilProvider with ChangeNotifier {
   List<AuthModel> _listauth = [];
   List<AuthModel> get listauth => _listauth;
 
+  List<ProfilModel> hasil = [];
+
   void terisi(
     String value,
     String isi,
@@ -30,7 +32,7 @@ class ProfilProvider with ChangeNotifier {
       if (_listauth.first.role == "Admin") {
         readuser();
       }
-      readdata(_accesstoken!);
+      readdata(_accesstoken!, id_auth!);
     }
     notifyListeners();
   }
@@ -78,10 +80,11 @@ class ProfilProvider with ChangeNotifier {
   final ProfilService _ref = ProfilService();
   int? id_profil;
 
-  Future<void> readdata(String token) async {
+  Future<void> readdata(String token, int id_auth) async {
     try {
-      final hasilnya = await _ref.readdata(token, id_auth!);
+      final hasilnya = await _ref.readdata(token, id_auth);
       _mydata = hasilnya;
+      hasil = hasilnya;
       if (mydata.isNotEmpty) {
         id_profil = mydata.first.id_profil;
       } else {
@@ -110,7 +113,7 @@ class ProfilProvider with ChangeNotifier {
     } catch (e) {
       throw e;
     }
-    await readdata(_accesstoken!);
+    await readdata(_accesstoken!, id_auth!);
     notifyListeners();
   }
 
@@ -122,7 +125,7 @@ class ProfilProvider with ChangeNotifier {
     int hp,
   ) async {
     final edit = DateTime.now();
-    await readdata(_accesstoken!);
+    await readdata(_accesstoken!, id_auth!);
     try {
       if (linklama != null && foto == null) {
         await _ref.updateprofil(
@@ -156,7 +159,7 @@ class ProfilProvider with ChangeNotifier {
       print(e);
       throw e;
     }
-    await readdata(_accesstoken!);
+    await readdata(_accesstoken!, id_auth!);
     notifyListeners();
   }
 

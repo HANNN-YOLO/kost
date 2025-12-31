@@ -128,20 +128,35 @@ class KostHomePage extends StatelessWidget {
             Expanded(
               child: ListView.separated(
                 padding: EdgeInsets.only(bottom: 80),
-                itemCount: penghubung.kost.length,
+                itemCount: penghubung.kostpenyewa.length,
                 separatorBuilder: (_, __) => SizedBox(height: 18),
                 itemBuilder: (context, index) {
+                  final tesst = penghubung.kostpenyewa[index];
+                  final yes = penghubung.fasilitaspenyewa.firstWhere(
+                      (element) => element.id_fasilitas == tesst.id_fasilitas);
+
                   return _KostCard(
                     imageHeight: imageHeight,
                     radius: cardRadius,
                     titleFontSize: titleFont,
                     priceFontSize: priceFont,
                     // contoh data statis
-                    price: "Rp ${penghubung.kost[index].harga_kost}",
-                    title: "${penghubung.kost[index].nama_kost}",
-                    location: "${penghubung.kost[index].alamat_kost}",
-                    genderLabel: "${penghubung.kost[index].jenis_kost}",
-                    gambar: "${penghubung.kost[index].gambar_kost}",
+                    price: "Rp ${penghubung.kostpenyewa[index].harga_kost}",
+                    title: "${penghubung.kostpenyewa[index].nama_kost}",
+                    location: "${penghubung.kostpenyewa[index].alamat_kost}",
+                    genderLabel: "${penghubung.kostpenyewa[index].jenis_kost}",
+                    gambar: "${penghubung.kostpenyewa[index].gambar_kost}",
+                    fungsitap: () {
+                      Navigator.of(context).pushNamed(
+                        'detail-kost',
+                        arguments:
+                            // penghubung.kostpenyewa[index],
+                            {
+                          'data_kost': tesst,
+                          'data_fasilitas': yes,
+                        },
+                      );
+                    },
                   );
                 },
               ),
@@ -163,114 +178,120 @@ class _KostCard extends StatelessWidget {
   final String location;
   final String genderLabel;
   final String gambar;
+  final VoidCallback? fungsitap;
 
-  _KostCard({
-    Key? key,
-    required this.imageHeight,
-    required this.radius,
-    required this.titleFontSize,
-    required this.priceFontSize,
-    required this.price,
-    required this.title,
-    required this.location,
-    required this.genderLabel,
-    required this.gambar,
-  }) : super(key: key);
+  _KostCard(
+      {Key? key,
+      required this.imageHeight,
+      required this.radius,
+      required this.titleFontSize,
+      required this.priceFontSize,
+      required this.price,
+      required this.title,
+      required this.location,
+      required this.genderLabel,
+      required this.gambar,
+      required this.fungsitap})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      borderRadius: BorderRadius.circular(radius),
-      color: Colors.white,
-      elevation: 2,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Gambar dengan sudut melengkung (top)
-          ClipRRect(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(radius)),
-            child: AspectRatio(
-              aspectRatio: 16 / 10,
-              child: SizedBox(
-                height: imageHeight,
-                width: double.infinity,
-                child: Image.network(
-                  '$gambar', // ganti path sesuai aset anda
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) {
-                    // fallback ketika asset tidak ditemukan
-                    return Container(
-                      color: Color(0xFFECECEC),
-                      child: Center(child: Icon(Icons.image, size: 48)),
-                    );
-                  },
+    return InkWell(
+      onTap: fungsitap,
+      child: Material(
+        borderRadius: BorderRadius.circular(radius),
+        color: Colors.white,
+        elevation: 2,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Gambar dengan sudut melengkung (top)
+            ClipRRect(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(radius)),
+              child: AspectRatio(
+                aspectRatio: 16 / 10,
+                child: SizedBox(
+                  height: imageHeight,
+                  width: double.infinity,
+                  child: Image.network(
+                    '$gambar', // ganti path sesuai aset anda
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) {
+                      // fallback ketika asset tidak ditemukan
+                      return Container(
+                        color: Color(0xFFECECEC),
+                        child: Center(child: Icon(Icons.image, size: 48)),
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // Info bawah
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 14.0, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // bar atas: price dan gender label di kanan
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        price,
-                        style: TextStyle(
-                          fontSize: priceFontSize,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue[800],
+            // Info bawah
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 14.0, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // bar atas: price dan gender label di kanan
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          price,
+                          style: TextStyle(
+                            fontSize: priceFontSize,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue[800],
+                          ),
                         ),
                       ),
-                    ),
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
+                      Container(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Text(
+                          genderLabel,
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
                       ),
-                      child: Text(
-                        genderLabel,
-                        style: TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: titleFontSize,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black87,
+                    ],
                   ),
-                ),
-                SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.location_on_outlined,
-                        size: 14, color: Colors.grey),
-                    SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        location,
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                  SizedBox(height: 8),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: titleFontSize,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                  SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on_outlined,
+                          size: 14, color: Colors.grey),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          location,
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

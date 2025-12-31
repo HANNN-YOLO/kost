@@ -269,7 +269,6 @@ class KostService {
         'Authorization': 'Bearer $token'
       },
     );
-
     if (simpan.statusCode == 200) {
       final ambil = json.decode(simpan.body) as List<dynamic>;
       ambil.forEach((value) {
@@ -281,5 +280,156 @@ class KostService {
       throw "eror ambil data kost sebagai penyewa";
     }
     return hasilnya;
+  }
+
+  Future<List<KostModel>> readdatapemilik(int id_auth, String token) async {
+    List<KostModel> hasilnya = [];
+
+    var url = Uri.parse(
+        "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_auth=eq.$id_auth&select=*");
+
+    var simpan = await htpp.get(url, headers: {
+      "Content-Type": 'applicaation/json',
+      'apikey': '${SupabaseApiConfig.apipublic}',
+      'Authorization': 'Bearer $token',
+      'Prefer': 'return=representation'
+    });
+
+    if (simpan.statusCode == 200) {
+      final ambil = json.decode(simpan.body) as List<dynamic>;
+      ambil.forEach((value) {
+        var item = KostModel.fromJson(value);
+        hasilnya.add(item);
+      });
+    } else {
+      print("gagal mengambil data kost pemilik${simpan.body}");
+      throw "Gagal mengambil data kost pemilik${simpan.body}";
+    }
+    return hasilnya;
+  }
+
+  Future<void> createddatapemilik(
+    String token,
+    int id_auth,
+    int id_fasilitas,
+    String nama_pemilik,
+    String nama_kost,
+    String alamat,
+    int telpon,
+    int harga,
+    String jenis_kost,
+    String keamanan,
+    int panjang,
+    int lebar,
+    String batas_jam_malam,
+    String jenis_pembayaran_air,
+    String jenis_listrik,
+    double garis_lintang,
+    double garis_bujur,
+    String gambar,
+  ) async {
+    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/kost");
+
+    final isian = KostModel(
+      id_auth: id_auth,
+      id_fasilitas: id_fasilitas,
+      pemilik_kost: nama_pemilik,
+      nama_kost: nama_kost,
+      alamat_kost: alamat,
+      notlp_kost: telpon,
+      harga_kost: harga,
+      jenis_kost: jenis_kost,
+      keamanan: keamanan,
+      panjang: panjang,
+      lebar: lebar,
+      batas_jam_malam: batas_jam_malam,
+      jenis_pembayaran_air: jenis_pembayaran_air,
+      jenis_listrik: jenis_listrik,
+      garis_lintang: garis_lintang,
+      garis_bujur: garis_bujur,
+      gambar_kost: gambar,
+    );
+
+    var pengisian = await htpp.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apipublic}',
+        'Authorization': 'Bearer $token',
+        'Prefer': 'return=represenstation',
+      },
+      body: json.encode(isian.toJson()),
+    );
+
+    if (pengisian.statusCode == 200 || pengisian.statusCode == 201) {
+      print("done buat data kost pemilik ${pengisian.body}");
+    } else {
+      print("gagal buat data kost pemilik ${pengisian.body}");
+      throw "gagal buat data kost pemilik ${pengisian.body}";
+    }
+  }
+
+  Future<void> updateddatapemmilik(
+      String token,
+      int id_kost,
+      int id_auth,
+      int id_fasilitas,
+      String nama_pemilik,
+      String nama_kost,
+      int telpon,
+      String alamat_kost,
+      int harga_kost,
+      String jenis_kost,
+      String keamanan,
+      int panjang,
+      int lebar,
+      String batas_jam_malam,
+      String jenis_pembayaran_air,
+      String jenis_listrik,
+      double garis_lintang,
+      double garis_bujur,
+      String gambar,
+      DateTime editan) async {
+    var url = Uri.parse(
+        "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_kost=eq.$id_kost");
+
+    var isian = KostModel(
+      id_auth: id_auth,
+      id_fasilitas: id_fasilitas,
+      pemilik_kost: nama_pemilik,
+      nama_kost: nama_kost,
+      notlp_kost: telpon,
+      alamat_kost: alamat_kost,
+      harga_kost: harga_kost,
+      jenis_kost: jenis_kost,
+      keamanan: keamanan,
+      panjang: panjang,
+      lebar: lebar,
+      batas_jam_malam: batas_jam_malam,
+      jenis_pembayaran_air: jenis_pembayaran_air,
+      jenis_listrik: jenis_listrik,
+      garis_lintang: garis_lintang,
+      garis_bujur: garis_bujur,
+      gambar_kost: gambar,
+      updatedAt: editan,
+    );
+
+    var updated = await htpp.patch(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apipublic}',
+        'Authorization': 'Bearer $token',
+        // 'Prefer': 'return=representation'
+      },
+      body: json.encode(isian.toJson()),
+    );
+
+    if (updated.statusCode == 204) {
+      print("done data kost pemilik sudah updated ${updated.body}");
+    } else {
+      print("gagal updated data kost pemilik ${updated.body}");
+      throw "gagal updated data kost pemilik ${updated.body}";
+    }
   }
 }

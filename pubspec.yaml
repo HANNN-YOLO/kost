@@ -45,6 +45,8 @@ dependencies:
   geolocator: ^10.1.0
   collection: ^1.19.1
   phosphor_flutter: ^2.1.0
+  font_awesome_flutter: any
+  # font_awesome_flutter: ^10.12.0
 
 dev_dependencies:
   flutter_test:
@@ -69,6 +71,7 @@ flutter:
   assets:
     - .env
     - assets/map/map.html
+    - lib/assets/arrow_up.jpg
 
   # To add assets to your application, add an assets section, like this:
   # assets:

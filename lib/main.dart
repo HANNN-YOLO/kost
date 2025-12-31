@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:kost_saw/models/fasilitas_model.dart';
-import 'package:kost_saw/screens/main/pemilik/form_add_house_pemilik.dart';
+import 'package:kost_saw/screens/main/pemilik/form_house_pemilik.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/profil_provider.dart';
@@ -15,13 +15,12 @@ import 'package:kost_saw/widgets/main_navigation.dart';
 import 'package:kost_saw/widgets/main_navigation_admin.dart';
 import 'package:kost_saw/widgets/main_navigation_pemilik.dart';
 
-import 'screens/main/admin/dashboard.dart';
 import 'screens/main/admin/criteria_management.dart';
 import 'screens/main/admin/detail_user.dart';
 import 'screens/main/admin/form_house.dart';
 import 'screens/main/admin/management_boarding_house.dart';
 import 'screens/main/admin/user_management.dart';
-import 'screens/main/admin/detail_kost.dart';
+import 'screens/main/detail_kost.dart';
 
 import 'screens/main/penyewa/Home.dart';
 import 'screens/main/penyewa/Profile.dart';
@@ -61,7 +60,9 @@ void main() async {
           previous ?? KostProvider();
           if (value.accesstoken != null &&
               value.email != null &&
-              value.id_auth != null) {
+              value.id_auth != null &&
+              value.hasilnya != null &&
+              value.expiresIn != null) {
             previous?.isi(
               value.accesstoken!,
               value.email!,
@@ -69,12 +70,23 @@ void main() async {
               value.hasilnya,
               value.id_auth!,
             );
-            print("done ambil data");
+            // print("done ambil data");
             // return previous!;
           }
           return previous!;
         },
       ),
+      // ChangeNotifierProxyProvider<ProfilProvider, KostProvider>(
+      //   create: (context) => KostProvider(),
+      //   update: (context, value, previous) {
+      //     previous ?? KostProvider();
+      //     if (value.hasil != null) {
+      //       previous?.inilist(value.hasil);
+      //       print("done lempar data nya");
+      //     }
+      //     return previous!;
+      //   },
+      // ),
       ChangeNotifierProvider(create: (_) => FasilitasModel()),
     ],
     builder: (context, child) {
@@ -109,16 +121,6 @@ class App extends StatelessWidget {
             if (login) {
               value.readrole();
 
-              // if (value.mydata.isEmpty) {
-              //   return MaterialApp(
-              //     home: Scaffold(
-              //       body: Center(
-              //         child: CircularProgressIndicator(),
-              //       ),
-              //     ),
-              //   );
-              // }
-
               final cek = value.mydata
                   .firstWhere((element) => element.Email == value.email);
 
@@ -152,21 +154,22 @@ class App extends StatelessWidget {
                 "/recomended-user": (_) => UserRecommendationPage(),
 
                 // state Admin
-                "/dashboard": (_) => Dashboard(),
                 "/mainavigation-admin": (_) => MainNavigationAdmin(),
                 "/criteria-admin": (_) => CriteriaManagement(),
                 "/detail-user-admin": (_) => DetailUser(),
-                "/house-admin": (_) => FormHouse(),
+                "/form-house-admin": (_) => FormHouse(),
                 "/management-board-admin": (_) => ManagementBoardingHouse(),
                 "/user-management-admin": (_) => UserManagement(),
-                "detail-kost-admin": (_) => DetailKost(),
 
                 // state pemilik
                 'dashboard-pemilik': (_) => DashboardIncome(),
                 '/management-board-pemilik': (_) => ManagementKostPemilik(),
                 '/mainavigation-pemilik': (_) => const MainNavigationPemilik(),
-                '/form-add-house-pemilik': (_) => FormAddHousePemilik(),
-                '/profil-pemilik': (_) => const ProfilePemilikPage(),
+                '/form-house-pemilik': (_) => FormAddHousePemilik(),
+                '/profil-pemilik': (_) => ProfilePemilikPage(),
+
+                // reusable
+                "detail-kost": (_) => DetailKost(),
               },
               // initialRoute: "/login",
               // home: value.token ? KostHomePage() : LoginPage(),

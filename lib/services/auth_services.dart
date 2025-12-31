@@ -164,4 +164,28 @@ class AuthServices {
     }
     return hasilnya;
   }
+
+  Future<List<AuthModel>> readlist(String token) async {
+    List<AuthModel> hasilnya = [];
+
+    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/auth?select=*");
+
+    var simpan = await htpp.get(url, headers: {
+      'Content-Type': 'application/json',
+      'apikey': '${SupabaseApiConfig.apipublic}',
+      'Authorization': 'Bearer $token'
+    });
+
+    if (simpan.statusCode == 200 || simpan.statusCode == 201) {
+      final ambil = json.decode(simpan.body) as List<dynamic>;
+      ambil.forEach((value) {
+        var item = AuthModel.fromJson(value);
+        hasilnya.add(item);
+      });
+    } else {
+      print("gagal ambil data read semua user ${simpan.body}");
+      throw "Gagal ambil data read semua user ${simpan.body}";
+    }
+    return hasilnya;
+  }
 }

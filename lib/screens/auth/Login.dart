@@ -159,12 +159,6 @@ class _LoginPageState extends State<LoginPage> {
                             mesaage = null;
                           });
                         } catch (e) {
-                          // showDialog(
-                          //   context: context,
-                          //   builder: (context) {
-                          //     return ShowdialogEror(label: "${e.toString()}");
-                          //   },
-                          // );
                           setState(() {
                             mesaage = e.toString();
                           });

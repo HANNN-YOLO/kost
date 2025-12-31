@@ -24,10 +24,9 @@ class DetailUser extends StatelessWidget {
         .alluser
         .firstWhere((element) => element.id_profil == terima);
 
-    final isinya =
-        Provider.of<ProfilProvider>(context, listen: false).listauth.firstWhere(
-              (element) => element.id_auth == pakai.id_auth,
-            );
+    final isinya = Provider.of<ProfilProvider>(context, listen: false)
+        .listauth
+        .firstWhere((element) => element.id_auth == pakai.id_auth);
 
     return Scaffold(
       backgroundColor: warnaLatar,
@@ -128,8 +127,8 @@ class DetailUser extends StatelessWidget {
                       ),
                       child: Column(
                         children: [
-                          infoBar("Nama", "Username"),
-                          infoBar("Email", "Username@gmail.com"),
+                          infoBar("Nama", "${isinya.username}"),
+                          infoBar("Email", "${isinya.Email}"),
                           infoBar("Jenis Kelamin", "${pakai.jkl}"),
                           infoBar("No. handphone", "${pakai.kontak}"),
                           infoBar(

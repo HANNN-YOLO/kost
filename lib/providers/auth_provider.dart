@@ -48,8 +48,7 @@ class AuthProvider with ChangeNotifier {
   String? get tokens {
     if (_accesstoken != null &&
         _email != null &&
-        _expiresIn!.isAfter(DateTime.now()) &&
-        hasilnya != null) {
+        _expiresIn!.isAfter(DateTime.now())) {
       return _accesstoken;
     } else {
       return null;
@@ -113,10 +112,11 @@ class AuthProvider with ChangeNotifier {
       final data = await _ref.readdata(_accesstoken!);
       _mydata = data;
       id_auth = mydata.first.id_auth;
-      if (data.first.role == "Admin") {
+      if (data.first.role == "Admin" ||
+          data.first.role == "Penyewa" ||
+          data.first.role == "Pemilik") {
         final isinya = await _ref.alluser();
         hasilnya = isinya;
-        // print("aku admin");
       }
     } catch (e) {
       throw e;

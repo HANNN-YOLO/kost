@@ -11,6 +11,7 @@ class ManagementBoardingHouse extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final penghubung = Provider.of<KostProvider>(context);
+    final penghubung2 = Provider.of<KostProvider>(context);
     final tinggiLayar = MediaQuery.of(context).size.height;
     final lebarLayar = MediaQuery.of(context).size.width;
 
@@ -156,12 +157,25 @@ class ManagementBoardingHouse extends StatelessWidget {
                         );
                       },
                       fungsitap: () {
-                        Navigator.of(context).pushNamed("detail-kost-admin",
-                            arguments: penghubung.kost[index].id_kost);
+                        final test = penghubung.kost[index];
+
+                        final cek =
+                            Provider.of<KostProvider>(context, listen: false)
+                                .faslitas
+                                .firstWhere((element) =>
+                                    element.id_fasilitas == test.id_fasilitas);
+
+                        Navigator.of(context)
+                            .pushNamed("detail-kost", arguments: {
+                          'data_kost': penghubung.kost[index],
+                          'data_fasilitas': cek,
+                        });
                       },
                       fungsiupdated: () {
-                        Navigator.of(context).pushNamed("/house-admin",
-                            arguments: penghubung.kost[index].id_kost);
+                        Navigator.of(context).pushNamed(
+                          "/form-house-admin",
+                          arguments: penghubung.kost[index].id_kost,
+                        );
                       },
                     );
                     // SizedBox(height: tinggiLayar * 0.02);
