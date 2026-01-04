@@ -23,15 +23,15 @@ class _MainNavigationAdminState extends State<MainNavigationAdmin> {
   Widget _getPage(int index) {
     switch (index) {
       case 0:
-        return const ManagementBoardingHouse();
+        return ManagementBoardingHouse();
       case 1:
-        return const CriteriaManagement();
+        return CriteriaManagement();
       case 2:
         return SubcriteriaManagement();
       case 3:
         return UserManagement();
       default:
-        return const CriteriaManagement();
+        return CriteriaManagement();
     }
   }
 
@@ -41,22 +41,22 @@ class _MainNavigationAdminState extends State<MainNavigationAdmin> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text(
+        title: Text(
           "Konfirmasi Logout",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        content: const Text("Apakah Anda yakin ingin keluar dari akun admin?"),
+        content: Text("Apakah Anda yakin ingin keluar dari akun admin?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Batal"),
+            child: Text("Batal"),
           ),
           TextButton(
             onPressed: () {
               Provider.of<AuthProvider>(context, listen: false).logout();
               Provider.of<KostProvider>(context, listen: false).resetpilihan();
             },
-            child: const Text(
+            child: Text(
               "Logout",
               style: TextStyle(color: Colors.red),
             ),
@@ -92,15 +92,15 @@ class _MainNavigationAdminState extends State<MainNavigationAdmin> {
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8F7F7),
+        backgroundColor: Color(0xFFF8F7F7),
         body: _getPage(_selectedIndex),
         bottomNavigationBar: BottomNavigationBar(
           type: BottomNavigationBarType.fixed,
           currentIndex: _selectedIndex,
-          selectedItemColor: const Color(0xFF237EF2),
-          unselectedItemColor: const Color(0xFFA4A4A4),
+          selectedItemColor: Color(0xFF237EF2),
+          unselectedItemColor: Color(0xFFA4A4A4),
           onTap: _onItemTapped,
-          items: const [
+          items: [
             BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined),
               label: 'Daftar Kos',

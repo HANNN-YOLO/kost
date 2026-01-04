@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/profil_provider.dart';
 import 'providers/kost_provider.dart';
+import 'providers/kriteria_provider.dart';
 
 import 'test.dart';
 import 'screens/auth/Login.dart';
@@ -76,17 +77,24 @@ void main() async {
           return previous!;
         },
       ),
-      // ChangeNotifierProxyProvider<ProfilProvider, KostProvider>(
-      //   create: (context) => KostProvider(),
-      //   update: (context, value, previous) {
-      //     previous ?? KostProvider();
-      //     if (value.hasil != null) {
-      //       previous?.inilist(value.hasil);
-      //       print("done lempar data nya");
-      //     }
-      //     return previous!;
-      //   },
-      // ),
+      ChangeNotifierProxyProvider<AuthProvider, KriteriaProvider>(
+        create: (_) => KriteriaProvider(),
+        update: (context, value, previous) {
+          previous ?? KriteriaProvider();
+          if (value.accesstoken != null &&
+              value.email != null &&
+              value.expiresIn != null &&
+              value.id_auth != null) {
+            previous!.wajiib_terisi(
+              value.accesstoken!,
+              value.email!,
+              value.expiresIn!,
+              value.id_auth!,
+            );
+          }
+          return previous!;
+        },
+      ),
       ChangeNotifierProvider(create: (_) => FasilitasModel()),
     ],
     builder: (context, child) {
