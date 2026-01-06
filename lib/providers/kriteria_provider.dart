@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/kriteria_models.dart';
+import '../models/subkriteria_models.dart';
 import '../services/kriteria_services.dart';
+import '../services/subkriteria_services.dart';
 
 class KriteriaProvider with ChangeNotifier {
   // state penting
@@ -28,13 +30,38 @@ class KriteriaProvider with ChangeNotifier {
         _expires_in != null &&
         _id_auth != null) {
       print("keadaan yang akan dijalankan");
+      readdata();
+      readdatasubkriteria();
     }
+  }
+
+  // state pilihan
+  String? nama = "isinya";
+
+  List<String> get kategoriall {
+    return _mydata
+        .map((element) => element.kategori)
+        .whereType<String>()
+        .toList();
+  }
+
+  void pilihkriteria(String value) {
+    nama = value;
+    notifyListeners();
   }
 
   // state service
   List<KriteriaModels> _mydata = [];
   List<KriteriaModels> get mydata => _mydata;
   final KriteriaServices _ref = KriteriaServices();
+
+  List<SubkriteriaModels> _inidata = [];
+  List<SubkriteriaModels> get inidata => _inidata;
+  final SubkriteriaServices _def = SubkriteriaServices();
+
+  // var cek = _mydata.f
+  // state cek angka
+  // cek = _mydaz
 
   Future<void> savemassal(List<dynamic> mana) async {
     print("inisiasisi");
@@ -130,6 +157,16 @@ class KriteriaProvider with ChangeNotifier {
       throw e;
     }
     await readdata();
+    notifyListeners();
+  }
+
+  Future<void> readdatasubkriteria() async {
+    try {
+      final salah = await _def.readdata();
+      _inidata = salah;
+    } catch (e) {
+      throw e;
+    }
     notifyListeners();
   }
 }

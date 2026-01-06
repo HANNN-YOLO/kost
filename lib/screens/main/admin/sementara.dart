@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../custom/custom_dropdown_searhc_v3.dart';
-import '../../../providers/kriteria_provider.dart';
 
 class SubcriteriaItem {
   final String nama;
@@ -13,17 +10,17 @@ class SubcriteriaItem {
   });
 }
 
-class SubcriteriaManagement extends StatefulWidget {
+class Sementara extends StatefulWidget {
   static const arah = "/subcriteria-admin";
-  SubcriteriaManagement({super.key});
+  const Sementara({super.key});
 
   @override
-  State<SubcriteriaManagement> createState() => _SubcriteriaManagementState();
+  State<Sementara> createState() => _SementaraState();
 }
 
-class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
+class _SementaraState extends State<Sementara> {
   // Data contoh agar tabel terlihat hidup (tidak terhubung backend)
-  final List<String> _kriteriaList = [
+  final List<String> _kriteriaList = const [
     "Fasilitas",
     "Luas kamar",
     "Keamanan",
@@ -53,20 +50,15 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
     ],
   };
 
-  List<SubcriteriaItem> _isinya = [];
-
   // Warna dan gaya mengikuti halaman lain
-  static Color _warnaLatar = Color(0xFFF5F7FB);
-  static Color _warnaKartu = Colors.white;
-  static Color _warnaUtama = Color(0xFF1E3A8A);
+  static const Color _warnaLatar = Color(0xFFF5F7FB);
+  static const Color _warnaKartu = Colors.white;
+  static const Color _warnaUtama = Color(0xFF1E3A8A);
 
   @override
   Widget build(BuildContext context) {
     final tinggiLayar = MediaQuery.of(context).size.height;
     final lebarLayar = MediaQuery.of(context).size.width;
-    final penghubung = Provider.of<KriteriaProvider>(context, listen: false);
-    final cek = penghubung.inidata.where((element) =>
-        element.id_kriteria == penghubung.mydata.first.id_kriteria);
 
     final items = (_subMap[_selectedKriteria] ?? [])
         .where((e) => e.nama.toLowerCase().contains(_query.toLowerCase()))
@@ -87,7 +79,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
+                  const Text(
                     "Manajemen Subkriteria SAW",
                     style: TextStyle(
                       fontSize: 20,
@@ -110,11 +102,11 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                             BoxShadow(
                               color: Colors.black.withOpacity(0.05),
                               blurRadius: 3,
-                              offset: Offset(0, 2),
+                              offset: const Offset(0, 2),
                             ),
                           ],
                         ),
-                        child: Icon(Icons.add, color: Colors.black87),
+                        child: const Icon(Icons.add, color: Colors.black87),
                       ),
                     ),
                   )
@@ -130,9 +122,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                     child: _InfoCard(
                       icon: Icons.category_outlined,
                       label: "Terpilih",
-                      value:
-                          // _selectedKriteria,
-                          penghubung.nama!,
+                      value: _selectedKriteria,
                       lebarLayar: lebarLayar,
                     ),
                   ),
@@ -141,10 +131,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                     child: _InfoCard(
                       icon: Icons.list_alt_outlined,
                       label: "Subkriteria",
-                      value:
-                          // "${cek.first.id_kriteria}??",
-                          // cek.first.id_subkriteria.toString() ?? "0",
-                          "angka",
+                      value: "${items.length}",
                       lebarLayar: lebarLayar,
                     ),
                   ),
@@ -154,224 +141,13 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
               SizedBox(height: tinggiLayar * 0.03),
 
               // Kartu pilih kriteria
-              // _buildPilihKriteriaCard(lebarLayar, tinggiLayar),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: _warnaKartu,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 3,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: lebarLayar * 0.04,
-                    vertical: tinggiLayar * 0.02,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Pilih Kriteria",
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                          color: Colors.black,
-                        ),
-                      ),
-                      SizedBox(height: tinggiLayar * 0.012),
-                      //
-
-                      CustomDropdownSearchv3(
-                        manalistnya: penghubung.kategoriall,
-                        label: "PIlih",
-                        pilihan: penghubung.nama!,
-                        fungsi: (value) {
-                          penghubung.pilihkriteria(value);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              _buildPilihKriteriaCard(lebarLayar, tinggiLayar),
 
               SizedBox(height: tinggiLayar * 0.02),
 
               // Kartu tabel subkriteria
               Expanded(
-                child:
-                    // _buildTabelCard(lebarLayar, tinggiLayar, items),
-                    Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: _warnaKartu,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 3,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: lebarLayar * 0.02,
-                      vertical: tinggiLayar * 0.015,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                "Daftar Subkriteria",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 15,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: TextField(
-                                decoration: InputDecoration(
-                                  hintText: "Cari subkriteria...",
-                                  isDense: true,
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide:
-                                        BorderSide(color: Colors.grey.shade300),
-                                  ),
-                                  contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 8),
-                                ),
-                                onChanged: (v) => setState(() => _query = v),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: tinggiLayar * 0.015),
-                        Container(height: 1, color: Colors.grey.shade300),
-                        SizedBox(height: tinggiLayar * 0.015),
-                        Expanded(
-                          child: _isinya.isEmpty
-                              ? Center(
-                                  child: Text(
-                                    "Belum ada subkriteria",
-                                    style: TextStyle(color: Colors.black54),
-                                  ),
-                                )
-                              : ListView.separated(
-                                  itemCount: _isinya.length,
-                                  separatorBuilder: (context, index) =>
-                                      SizedBox(height: tinggiLayar * 0.012),
-                                  itemBuilder: (context, index) {
-                                    return
-                                        // _buildSubItem(
-                                        //   lebarLayar,
-                                        //   tinggiLayar,
-                                        //   items[index],
-                                        // );
-                                        Container(
-                                      width: double.infinity,
-                                      padding: EdgeInsets.symmetric(
-                                        vertical: tinggiLayar * 0.018,
-                                        horizontal: lebarLayar * 0.04,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: _warnaKartu,
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  _isinya[index].nama,
-                                                  style: TextStyle(
-                                                    color: Colors.black,
-                                                    fontSize: 15,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                                SizedBox(height: 6),
-                                                Row(
-                                                  children: [
-                                                    Container(
-                                                      padding:
-                                                          EdgeInsets.symmetric(
-                                                        horizontal: 10,
-                                                        vertical: 6,
-                                                      ),
-                                                      decoration: BoxDecoration(
-                                                        color: Colors.white,
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(8),
-                                                      ),
-                                                      child: Text(
-                                                        "Bobot: ${_isinya[index].bobot.toStringAsFixed(2)}",
-                                                        style: TextStyle(
-                                                          color: Colors.black87,
-                                                          fontSize: 13.5,
-                                                          fontWeight:
-                                                              FontWeight.w500,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          Row(
-                                            children: [
-                                              IconButton(
-                                                tooltip: "Ubah (simulasi)",
-                                                onPressed: _tombolBelumTersedia,
-                                                icon: Icon(
-                                                  Icons.edit,
-                                                  color: Colors.green,
-                                                  size: lebarLayar * 0.060,
-                                                ),
-                                              ),
-                                              SizedBox(
-                                                  width: lebarLayar * 0.015),
-                                              IconButton(
-                                                tooltip: "Hapus (simulasi)",
-                                                onPressed: _tombolBelumTersedia,
-                                                icon: Icon(
-                                                  Icons.delete,
-                                                  color: Colors.red,
-                                                  size: lebarLayar * 0.060,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                child: _buildTabelCard(lebarLayar, tinggiLayar, items),
               ),
             ],
           ),
@@ -390,7 +166,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 3,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -402,7 +178,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               "Pilih Kriteria",
               style: TextStyle(
                 fontWeight: FontWeight.w600,
@@ -421,8 +197,8 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
               },
               decoration: InputDecoration(
                 filled: true,
-                fillColor: Color(0xFFE5ECFF),
-                contentPadding: EdgeInsets.symmetric(
+                fillColor: const Color(0xFFE5ECFF),
+                contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 12,
                 ),
@@ -452,7 +228,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 3,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -467,7 +243,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
             Row(
               children: [
                 Expanded(
-                  child: Text(
+                  child: const Text(
                     "Daftar Subkriteria",
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
@@ -487,8 +263,8 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                         borderRadius: BorderRadius.circular(8),
                         borderSide: BorderSide(color: Colors.grey.shade300),
                       ),
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
                     ),
                     onChanged: (v) => setState(() => _query = v),
                   ),
@@ -527,7 +303,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
 
   void _tombolBelumTersedia() {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+      const SnackBar(
         content: Text("Fitur CRUD belum diaktifkan"),
         behavior: SnackBarBehavior.floating,
       ),
@@ -539,7 +315,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
     double tinggiLayar,
     SubcriteriaItem item,
   ) {
-    Color warnaItem = Color(0xFFE5ECFF);
+    const Color warnaItem = Color(0xFFE5ECFF);
     return Container(
       width: double.infinity,
       padding: EdgeInsets.symmetric(
@@ -559,17 +335,17 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
               children: [
                 Text(
                   item.nama,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.black,
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 Row(
                   children: [
                     Container(
-                      padding: EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: 10,
                         vertical: 6,
                       ),
@@ -579,7 +355,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                       ),
                       child: Text(
                         "Bobot: ${item.bobot.toStringAsFixed(2)}",
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.black87,
                           fontSize: 13.5,
                           fontWeight: FontWeight.w500,
@@ -627,7 +403,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
+        title: const Text(
           "Tambah Subkriteria",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
@@ -641,21 +417,21 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                 decoration: InputDecoration(
                   labelText: "Nama Subkriteria",
                   filled: true,
-                  fillColor: Color(0xFFF5F7FB),
+                  fillColor: const Color(0xFFF5F7FB),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide.none,
                   ),
                 ),
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               TextField(
                 controller: bobotController,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: "Bobot (0-1)",
                   filled: true,
-                  fillColor: Color(0xFFF5F7FB),
+                  fillColor: const Color(0xFFF5F7FB),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide.none,
@@ -669,11 +445,11 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text("Batal"),
+            child: const Text("Batal"),
           ),
-          TextButton(
-            style: TextButton.styleFrom(
-              // backgroundColor: _warnaUtama,
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _warnaUtama,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -681,16 +457,13 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
             onPressed: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
+                const SnackBar(
                   content: Text("Simulasi: Subkriteria belum disimpan"),
                   behavior: SnackBarBehavior.floating,
                 ),
               );
             },
-            child: Text(
-              "Simpan",
-              style: TextStyle(color: _warnaUtama),
-            ),
+            child: const Text("Simpan"),
           ),
         ],
       ),
@@ -704,7 +477,7 @@ class _InfoCard extends StatelessWidget {
   final String value;
   final double lebarLayar;
 
-  _InfoCard({
+  const _InfoCard({
     required this.icon,
     required this.label,
     required this.value,
@@ -725,7 +498,7 @@ class _InfoCard extends StatelessWidget {
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 3,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -735,10 +508,10 @@ class _InfoCard extends StatelessWidget {
             width: lebarLayar * 0.10,
             height: lebarLayar * 0.10,
             decoration: BoxDecoration(
-              color: Color(0xFFDDE6FF),
+              color: const Color(0xFFDDE6FF),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: Color(0xFF1E3A8A)),
+            child: Icon(icon, color: const Color(0xFF1E3A8A)),
           ),
           SizedBox(width: lebarLayar * 0.04),
           Expanded(
@@ -747,15 +520,15 @@ class _InfoCard extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
                   value,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
