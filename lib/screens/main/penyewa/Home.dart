@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/kost_provider.dart';
 
+// ini perubahan irwan
+
 class KostHomePage extends StatelessWidget {
   static const routeName = '/kost_home';
   bool keadaan = true;
