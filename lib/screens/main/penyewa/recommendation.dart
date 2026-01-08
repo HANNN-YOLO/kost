@@ -5,6 +5,8 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'recommendation_saw.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:geolocator/geolocator.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/kost_provider.dart';
 
 class UserRecommendationPage extends StatefulWidget {
   const UserRecommendationPage({Key? key}) : super(key: key);
@@ -48,6 +50,8 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
           setState(() => _mapLoaded = true);
           // Set mode sesuai dengan _selectedLocation yang aktif saat pertama kali load
           _syncMapModeWithSelectedLocation();
+          // setelah peta siap, tampilkan semua titik kost
+          _showAllKostOnMap();
         },
         onWebResourceError: (err) {
           debugPrint("WEBVIEW ERROR: ${err.description}");
@@ -100,6 +104,37 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
         setState(() => _fieldSize = renderBox.size);
       }
     });
+  }
+
+  // =================================================
+  // Kirim semua titik kost ke peta Leaflet
+  Future<void> _showAllKostOnMap() async {
+    if (!_mapLoaded) return;
+
+    try {
+      final kostProvider = Provider.of<KostProvider>(context, listen: false);
+
+      // gunakan data kost untuk penyewa jika ada, jika tidak fallback ke kost umum
+      final allKost = kostProvider.kostpenyewa.isNotEmpty
+          ? kostProvider.kostpenyewa
+          : kostProvider.kost;
+
+      final points = allKost
+          .where((k) => k.garis_lintang != null && k.garis_bujur != null)
+          .map((k) => {
+                'lat': k.garis_lintang,
+                'lng': k.garis_bujur,
+                'name': k.nama_kost ?? '',
+              })
+          .toList();
+
+      if (points.isEmpty) return;
+
+      final jsonData = jsonEncode(points);
+      await _mapController.runJavaScript('showAllKostMarkers($jsonData);');
+    } catch (e) {
+      debugPrint('Failed to show kost markers: $e');
+    }
   }
 
   Future<void> _loadMapHtmlFromAssets() async {

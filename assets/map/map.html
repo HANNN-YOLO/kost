@@ -53,6 +53,7 @@
       window._lastClick = null;
       window._lastMarker = null;
       window._myLocationMarker = null;
+      window._allKostMarkers = [];
 
       // icon khusus untuk lokasi kost (bulat biru)
       var kostIcon = L.divIcon({
@@ -145,6 +146,42 @@
 
         window._myLocationMarker = L.marker([lat, lng], { icon: blueIcon }).addTo(map);
         map.setView([lat, lng], 16);
+      };
+
+      // tampilkan semua titik kost (dipanggil dari Flutter)
+      // dataKost: array of { lat: number, lng: number, name?: string }
+      window.showAllKostMarkers = function(dataKost) {
+        try {
+          if (!Array.isArray(dataKost)) return;
+
+          // hapus marker kost lama
+          if (Array.isArray(window._allKostMarkers)) {
+            window._allKostMarkers.forEach(function(m) {
+              try { map.removeLayer(m); } catch (e) {}
+            });
+          }
+          window._allKostMarkers = [];
+
+          dataKost.forEach(function(item) {
+            if (!item) return;
+            var lat = parseFloat(item.lat);
+            var lng = parseFloat(item.lng);
+            if (!isFinite(lat) || !isFinite(lng)) return;
+
+            var marker = L.marker([lat, lng], { icon: kostIcon }).addTo(map);
+            if (item.name) {
+              marker.bindPopup(String(item.name));
+            }
+            window._allKostMarkers.push(marker);
+          });
+
+          if (window._allKostMarkers.length > 0) {
+            var group = L.featureGroup(window._allKostMarkers);
+            map.fitBounds(group.getBounds().pad(0.2));
+          }
+        } catch (err) {
+          console.warn('showAllKostMarkers error:', err);
+        }
       };
 
       // simpan map handle global untuk debug jika perlu
