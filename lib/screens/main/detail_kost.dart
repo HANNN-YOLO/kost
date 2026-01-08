@@ -45,6 +45,40 @@ class DetailKost extends StatelessWidget {
     //         (element) => element.id_fasilitas == terima.id_fasilitas) ??
     //     Provider.of<KostProvider>(context).fasilitaspenyewa.firstWhere(
     //         (element) => element.id_fasilitas == terima.id_fasilitas);
+    // Large circular back button overlay (top-left)
+    Positioned(
+      left: 12,
+      top: 12,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: () => Navigator.of(context).maybePop(),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.10),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: Color(0xFF1E3A8A),
+                size: 20,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
 
     // // pemilik
     // final pakaipemilik = Provider.of<KostProvider>(context)

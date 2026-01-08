@@ -18,9 +18,16 @@ class SatuTombol extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         backgroundColor: warna,
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
       ),
       onPressed: fungsi,
-      child: Text(label, style: TextStyle(color: Colors.white)),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }
