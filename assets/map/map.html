@@ -22,6 +22,16 @@
       border: 3px solid white;
       box-shadow: 0 0 10px #4285F4;
     }
+
+    /* marker titik biru lokasi kost (sama gaya dengan lokasi saya) */
+    .kost-location-dot {
+      width: 18px;
+      height: 18px;
+      background: #4285F4;
+      border-radius: 50%;
+      border: 3px solid white;
+      box-shadow: 0 0 10px #4285F4;
+    }
   </style>
 </head>
 <body>
@@ -44,10 +54,20 @@
       window._lastMarker = null;
       window._myLocationMarker = null;
 
+      // icon khusus untuk lokasi kost (bulat biru)
+      var kostIcon = L.divIcon({
+        className: 'kost-location-dot',
+        iconSize: [18, 18]
+      });
+
       // single click handler: hanya simpan _lastClick & marker
       map.on('click', function(e) {
         // tetap simpan click walau mode berbeda (berguna jika dev butuh)
         window._lastClick = { lat: e.latlng.lat, lng: e.latlng.lng };
+        // jika mode readonly, jangan pindah marker apa pun
+        if (window._mode === 'readonly') {
+          return;
+        }
         // jika mode normal, juga tampil marker pada klik satu (opsional)
         if (window._mode === 'normal') {
           if (window._lastMarker) map.removeLayer(window._lastMarker);
@@ -95,7 +115,7 @@
 
       window.setMarker = function(lat, lng) {
         if (window._lastMarker) map.removeLayer(window._lastMarker);
-        window._lastMarker = L.marker([lat, lng]).addTo(map);
+        window._lastMarker = L.marker([lat, lng], { icon: kostIcon }).addTo(map);
         map.panTo([lat, lng]);
       };
 
@@ -105,7 +125,11 @@
 
       // set mode dari Flutter: 'normal' atau 'destination'
       window.setMode = function(mode) {
-        window._mode = mode === 'destination' ? 'destination' : 'normal';
+        if (mode === 'destination' || mode === 'normal' || mode === 'readonly') {
+          window._mode = mode;
+        } else {
+          window._mode = 'normal';
+        }
       };
 
       // set marker khusus "lokasi saya" (ikon biru)

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:convert';
 import '../custom/satu_tombol.dart';
 import '../../providers/kost_provider.dart';
 import '../../models/kost_model.dart';
@@ -317,21 +321,16 @@ class DetailKost extends StatelessWidget {
                         //             ? pakaipenyewa.keamanan.toString()
                         //             : "tidak ada keamanan",
                       ),
-                      _FacilityChips(
-                        label: 'Fasilitas',
-                        icon: Icons.list_alt_outlined,
-                        raw1:
-                            // "ada lek"
-                            pakai.tempat_tidur == true
-                                ? "Ada tempat tidur"
-                                : "tidak ada tempat tidur",
-                        // cek.tempat_tidur == true
-                        //     ? "Ada tempat tidur"
-                        //     : cekpemilik.tempat_tidur == true
-                        //         ? "Ada tempat tidur"
-                        //         : cekpenyewa.tempat_tidur == true
-                        //             ? "Ada tempat tidur"
-                        //             : "tidak ada tempat tidur",
+                      _FacilityList(fasilitas: pakai),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _SectionCard(
+                    title: 'Lokasi Kost',
+                    children: [
+                      _MapWidget(
+                        latitude: terima.garis_lintang ?? -5.147665,
+                        longitude: terima.garis_bujur ?? 119.432731,
                       ),
                     ],
                   ),
@@ -634,6 +633,224 @@ class _FacilityChips extends StatelessWidget {
                 .toList(),
           ),
       ],
+    );
+  }
+}
+
+class _MapWidget extends StatefulWidget {
+  final double latitude;
+  final double longitude;
+
+  const _MapWidget({
+    required this.latitude,
+    required this.longitude,
+  });
+
+  @override
+  State<_MapWidget> createState() => _MapWidgetState();
+}
+
+class _MapWidgetState extends State<_MapWidget> {
+  WebViewController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeMap();
+  }
+
+  void _initializeMap() {
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(Colors.white)
+      ..loadFlutterAsset('assets/map/map.html')
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (String url) {
+            // Set marker pada koordinat kost setelah map selesai dimuat
+            _setMarkerOnMap();
+            // Set mode readonly agar klik di peta tidak memindahkan marker kost
+            _controller?.runJavaScript("setMode('readonly');");
+          },
+        ),
+      );
+  }
+
+  void _setMarkerOnMap() async {
+    if (_controller != null) {
+      // Delay lebih singkat untuk performa lebih baik
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      // Set view ke koordinat kost
+      await _controller!.runJavaScript(
+        'window.setView(${widget.latitude}, ${widget.longitude}, 16);',
+      );
+
+      // Set marker pada koordinat kost
+      await _controller!.runJavaScript(
+        'window.setMarker(${widget.latitude}, ${widget.longitude});',
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 250,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Stack(
+          children: [
+            if (_controller != null)
+              WebViewWidget(
+                controller: _controller!,
+                gestureRecognizers: {
+                  Factory<OneSequenceGestureRecognizer>(
+                    () => EagerGestureRecognizer(),
+                  ),
+                },
+              ),
+            if (_controller == null)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF1E3A8A),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FacilityList extends StatelessWidget {
+  final FasilitasModel fasilitas;
+
+  const _FacilityList({required this.fasilitas});
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Map<String, dynamic>> fasilitasList = [
+      {
+        'icon': Icons.bed_outlined,
+        'label': 'Tempat Tidur',
+        'available': fasilitas.tempat_tidur
+      },
+      {
+        'icon': Icons.bathroom_outlined,
+        'label': 'Kamar Mandi Dalam',
+        'available': fasilitas.kamar_mandi_dalam
+      },
+      {
+        'icon': Icons.table_restaurant_outlined,
+        'label': 'Meja',
+        'available': fasilitas.meja
+      },
+      {
+        'icon': Icons.local_parking_outlined,
+        'label': 'Tempat Parkir',
+        'available': fasilitas.tempat_parkir
+      },
+      {
+        'icon': Icons.checkroom_outlined,
+        'label': 'Lemari',
+        'available': fasilitas.lemari
+      },
+      {
+        'icon': Icons.ac_unit_outlined,
+        'label': 'AC',
+        'available': fasilitas.ac
+      },
+      {'icon': Icons.tv_outlined, 'label': 'TV', 'available': fasilitas.tv},
+      {
+        'icon': Icons.air_outlined,
+        'label': 'Kipas',
+        'available': fasilitas.kipas
+      },
+      {
+        'icon': Icons.kitchen_outlined,
+        'label': 'Dapur Dalam',
+        'available': fasilitas.dapur_dalam
+      },
+      {
+        'icon': Icons.wifi_outlined,
+        'label': 'WiFi',
+        'available': fasilitas.wifi
+      },
+    ];
+
+    // Filter hanya fasilitas yang tersedia
+    final availableFacilities =
+        fasilitasList.where((item) => item['available'] == true).toList();
+
+    // Jika tidak ada fasilitas yang tersedia, return empty widget
+    if (availableFacilities.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: availableFacilities
+          .map(
+            (item) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: item['available'] == true
+                    ? const Color(0xFFE5ECFF)
+                    : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: item['available'] == true
+                      ? const Color(0xFF1E3A8A).withOpacity(0.3)
+                      : Colors.grey.shade300,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    item['icon'],
+                    size: 16,
+                    color: item['available'] == true
+                        ? const Color(0xFF1E3A8A)
+                        : Colors.grey.shade500,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    item['label'],
+                    style: TextStyle(
+                      color: item['available'] == true
+                          ? const Color(0xFF1E3A8A)
+                          : Colors.grey.shade600,
+                      fontWeight: item['available'] == true
+                          ? FontWeight.w600
+                          : FontWeight.w500,
+                      fontSize: 13,
+                    ),
+                  ),
+                  if (item['available'] == true) ...[
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.check_circle,
+                      size: 14,
+                      color: Color(0xFF1E3A8A),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 }
