@@ -65,8 +65,8 @@ class ProfilProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  bersihfoto(XFile? foto) {
-    foto = null;
+  void bersihfoto() {
+    _isinya = null;
     notifyListeners();
   }
 
@@ -159,6 +159,33 @@ class ProfilProvider with ChangeNotifier {
       print(e);
       throw e;
     }
+    await readdata(_accesstoken!, id_auth!);
+    notifyListeners();
+  }
+
+  Future<void> hapusFotoProfil() async {
+    if (_accesstoken == null || id_auth == null || id_profil == null) return;
+    if (_mydata.isEmpty) return;
+
+    final String? linklama = _mydata.first.foto;
+    final edit = DateTime.now();
+
+    try {
+      if (linklama != null && linklama.isNotEmpty) {
+        await _ref.hapusgambar(linklama, _accesstoken!);
+      }
+
+      await _ref.setFotoProfil(
+        id_profil!,
+        _accesstoken!,
+        null,
+        edit,
+      );
+    } catch (e) {
+      print(e);
+      throw e;
+    }
+
     await readdata(_accesstoken!, id_auth!);
     notifyListeners();
   }

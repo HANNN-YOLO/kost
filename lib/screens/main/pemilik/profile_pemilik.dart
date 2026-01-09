@@ -30,6 +30,8 @@ class _ProfilePemilikPageState extends State<ProfilePemilikPage> {
   bool _editTelepon = false;
   bool _editJenisKelamin = false;
 
+  bool _isSaving = false;
+
   String? _backuptgllahir;
   String? _backupTelepon;
   String? _backupJenisKelamin;
@@ -195,12 +197,13 @@ class _ProfilePemilikPageState extends State<ProfilePemilikPage> {
                                               path: penghubung2.isinya?.path,
                                               pathlama:
                                                   penghubung2.mydata.first.foto,
-                                              tinggi: 50,
-                                              panjang: 50,
+                                              tinggi: 72,
+                                              panjang: 72,
+                                              warnautama: warnaUtama,
                                             )
                                           : CustomUploadfotoStack(
-                                              panjang: 50,
-                                              tinggi: 50,
+                                              panjang: 72,
+                                              tinggi: 72,
                                               fungsi: () {
                                                 penghubung2.uploadfoto();
                                               },
@@ -234,17 +237,72 @@ class _ProfilePemilikPageState extends State<ProfilePemilikPage> {
                                 ),
                               ),
                               TextButton.icon(
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                        content:
-                                            Text('UI-only: Ubah Foto Profil')),
-                                  );
-                                },
+                                onPressed: _isSaving
+                                    ? null
+                                    : () async {
+                                        final konfirmasi =
+                                            await showDialog<bool>(
+                                          context: context,
+                                          builder: (context) => AlertDialog(
+                                            title:
+                                                const Text('Hapus Foto Profil'),
+                                            content: const Text(
+                                                'Foto profil akan dikembalikan ke default. Lanjutkan?'),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.of(context)
+                                                        .pop(false),
+                                                child: const Text('Batal'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.of(context)
+                                                        .pop(true),
+                                                child: const Text('Hapus'),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+
+                                        if (konfirmasi != true) return;
+
+                                        setState(() {
+                                          _isSaving = true;
+                                        });
+
+                                        try {
+                                          await penghubung2.hapusFotoProfil();
+
+                                          if (!mounted) return;
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                  'Foto profil berhasil dihapus.'),
+                                            ),
+                                          );
+                                        } catch (e) {
+                                          if (!mounted) return;
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                  'Gagal menghapus foto profil. Silakan coba lagi.'),
+                                            ),
+                                          );
+                                        } finally {
+                                          if (!mounted) return;
+                                          setState(() {
+                                            _isSaving = false;
+                                          });
+                                        }
+                                      },
                                 style: TextButton.styleFrom(
-                                    foregroundColor: Colors.white),
-                                icon: Icon(Icons.camera_alt_outlined),
-                                label: Text('Ubah Foto'),
+                                  foregroundColor: warnaUtama,
+                                ),
+                                icon: const Icon(Icons.delete_outline),
+                                label: const Text('Hapus Foto'),
                               ),
                             ],
                           ),
@@ -483,23 +541,95 @@ class _ProfilePemilikPageState extends State<ProfilePemilikPage> {
               builder: (context, value, child) {
                 return penghubung2.mydata.isNotEmpty
                     ? ElevatedButton.icon(
-                        onPressed: () async {
-                          await penghubung2.updateprofil(
-                            penghubung2.isinya,
-                            penghubung2.mydata.first.foto!,
-                            DateFormat('dd-MM-yyyy').parse(_tgllahir.text),
-                            _jenisKelamin.text,
-                            int.parse(_teleponController.text),
-                          );
+                        onPressed: _isSaving
+                            ? null
+                            : () async {
+                                if (_tgllahir.text.isEmpty ||
+                                    _jenisKelamin.text.isEmpty ||
+                                    _teleponController.text.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'Lengkapi tanggal lahir, jenis kelamin, dan telepon.'),
+                                    ),
+                                  );
+                                  return;
+                                }
 
-                          setState(() {
-                            _editgllahir = false;
-                            _editJenisKelamin = false;
-                            _editTelepon = false;
-                          });
-                        },
-                        icon: Icon(Icons.save_outlined),
-                        label: Text('Simpan Perubahan Data'),
+                                final int? hp = int.tryParse(
+                                    _teleponController.text.trim());
+                                if (hp == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'Nomor telepon harus berupa angka.'),
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                setState(() {
+                                  _isSaving = true;
+                                });
+
+                                final DateTime tgl = DateFormat('dd-MM-yyyy')
+                                    .parse(_tgllahir.text);
+
+                                try {
+                                  await penghubung2.updateprofil(
+                                    penghubung2.isinya,
+                                    penghubung2.mydata.first.foto!,
+                                    tgl,
+                                    _jenisKelamin.text,
+                                    hp,
+                                  );
+
+                                  if (!mounted) return;
+
+                                  penghubung2.bersihfoto();
+
+                                  setState(() {
+                                    _editgllahir = false;
+                                    _editJenisKelamin = false;
+                                    _editTelepon = false;
+                                  });
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content:
+                                          Text('Profil berhasil diperbarui.'),
+                                    ),
+                                  );
+                                } catch (e) {
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Gagal memperbarui profil. Silakan coba lagi.',
+                                      ),
+                                    ),
+                                  );
+                                } finally {
+                                  if (!mounted) return;
+                                  setState(() {
+                                    _isSaving = false;
+                                  });
+                                }
+                              },
+                        icon: _isSaving
+                            ? SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
+                                ),
+                              )
+                            : Icon(Icons.save_outlined),
+                        label: Text(_isSaving
+                            ? 'Menyimpan...'
+                            : 'Simpan Perubahan Data'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: ProfilePemilikPage.warnaUtama,
                           foregroundColor: Colors.white,
@@ -509,22 +639,101 @@ class _ProfilePemilikPageState extends State<ProfilePemilikPage> {
                         ),
                       )
                     : ElevatedButton.icon(
-                        onPressed: () {
-                          penghubung2.createprofil(
-                            penghubung2.isinya!,
-                            DateFormat('dd-MM-yyyy').parse(_tgllahir.text),
-                            _jenisKelamin.text,
-                            int.parse(_teleponController.text),
-                          );
+                        onPressed: _isSaving
+                            ? null
+                            : () async {
+                                if (penghubung2.isinya == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'Silakan unggah foto profil terlebih dahulu.'),
+                                    ),
+                                  );
+                                  return;
+                                }
 
-                          setState(() {
-                            _editgllahir = false;
-                            _editJenisKelamin = false;
-                            _editTelepon = false;
-                          });
-                        },
-                        icon: Icon(Icons.save_outlined),
-                        label: Text('Simpan'),
+                                if (_tgllahir.text.isEmpty ||
+                                    _jenisKelamin.text.isEmpty ||
+                                    _teleponController.text.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'Lengkapi tanggal lahir, jenis kelamin, dan telepon.'),
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                final int? hp = int.tryParse(
+                                    _teleponController.text.trim());
+                                if (hp == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'Nomor telepon harus berupa angka.'),
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                setState(() {
+                                  _isSaving = true;
+                                });
+
+                                final DateTime tgl = DateFormat('dd-MM-yyyy')
+                                    .parse(_tgllahir.text);
+
+                                try {
+                                  await penghubung2.createprofil(
+                                    penghubung2.isinya!,
+                                    tgl,
+                                    _jenisKelamin.text,
+                                    hp,
+                                  );
+
+                                  if (!mounted) return;
+
+                                  penghubung2.bersihfoto();
+
+                                  setState(() {
+                                    _editgllahir = false;
+                                    _editJenisKelamin = false;
+                                    _editTelepon = false;
+                                  });
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Profil berhasil dibuat.'),
+                                    ),
+                                  );
+                                } catch (e) {
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Gagal membuat profil. Silakan coba lagi.',
+                                      ),
+                                    ),
+                                  );
+                                } finally {
+                                  if (!mounted) return;
+                                  setState(() {
+                                    _isSaving = false;
+                                  });
+                                }
+                              },
+                        icon: _isSaving
+                            ? SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
+                                ),
+                              )
+                            : Icon(Icons.save_outlined),
+                        label: Text(_isSaving ? 'Menyimpan...' : 'Simpan'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: ProfilePemilikPage.warnaUtama,
                           foregroundColor: Colors.white,

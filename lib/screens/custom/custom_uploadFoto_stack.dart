@@ -51,55 +51,54 @@ class CustomUploadfotoStack extends StatelessWidget {
             // ),
 
             // lingkaran
-            ClipOval(
-          child: path != null
-              ? Image.file(
-                  File(path!),
-                  fit: BoxFit.cover,
-                )
-              : Center(
-                  child:
-                      // Icon(
-                      //   Icons.add_a_photo,
-                      //   size: 40,
-                      //   color: Colors.grey[700],
-                      // ),
-                      Stack(
+            Stack(
+          children: [
+            Positioned.fill(
+              child: ClipOval(
+                child: path != null
+                    ? Image.file(
+                        File(path!),
+                        fit: BoxFit.cover,
+                      )
+                    : Container(
+                        color: Colors.transparent,
+                      ),
+              ),
+            ),
+            if (path == null)
+              Center(
+                child: Stack(
                   children: [
                     CircleAvatar(
-                      radius: 34,
-                      backgroundColor: Color(0xFFDDE6FF),
+                      radius: panjang / 2.4,
+                      backgroundColor: const Color(0xFFDDE6FF),
                       child: Icon(
                         Icons.person,
                         color: warnautama,
-                        size: 30,
+                        size: panjang / 2.4,
                       ),
                     ),
                     Positioned(
                       right: 0,
                       bottom: 0,
                       child: Container(
-                        decoration: BoxDecoration(
+                        width: 28,
+                        height: 28,
+                        decoration: const BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
                         ),
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.edit,
-                            size: 16,
-                            color: warnautama,
-                          ),
+                        child: Icon(
+                          Icons.edit,
+                          size: 16,
+                          color: warnautama,
                         ),
                       ),
-                    )
+                    ),
                   ],
-                )),
+                ),
+              ),
+          ],
         ),
       ),
     );

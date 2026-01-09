@@ -244,15 +244,10 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
 
     final penghubung3 = Provider.of<ProfilProvider>(context);
 
-    if (penghubung3.mydata.isEmpty) {
-      return Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+    // Jika profil sudah ada, isi otomatis nomor telepon sekali saja
+    if (penghubung3.mydata.isNotEmpty && _notlpn.text.isEmpty) {
+      _notlpn.text = penghubung3.mydata.first.kontak.toString();
     }
-
-    _notlpn.text = penghubung3.mydata.first.kontak.toString() ?? "";
 
     final tinggiLayar = MediaQuery.of(context).size.height;
     final lebarLayar = MediaQuery.of(context).size.width;

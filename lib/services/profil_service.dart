@@ -64,9 +64,15 @@ class ProfilService {
     );
     print("hapus gambar 4 profil");
 
-    if (hapus.statusCode == 200) {
+    if (hapus.statusCode == 200 || hapus.statusCode == 204) {
+      // sukses hapus
       print("done foto ${hapus.body}");
+    } else if (hapus.statusCode == 404) {
+      // objek sudah tidak ada di storage -> anggap aman (idempotent delete)
+      print(
+          "foto tidak ditemukan saat dihapus, lanjut tanpa error: ${hapus.body}");
     } else {
+      // status lain tetap dianggap error
       print("error foto ${hapus.body}");
       throw "error foto ${hapus.body}";
     }
@@ -179,6 +185,42 @@ class ProfilService {
     } else {
       print("error data ${pengsian.body}");
       throw "error data ${pengsian.body}";
+    }
+  }
+
+  Future<void> setFotoProfil(
+    int idProfil,
+    String token,
+    String? link,
+    DateTime edit,
+  ) async {
+    print("inisiasi set foto profil");
+
+    var url = Uri.parse(
+        "${SupabaseApiConfig.masterurl}/rest/v1/profil?id_profil=eq.$idProfil");
+    print("set foto 1 profil");
+
+    final body = json.encode({
+      'foto': link,
+      'updatedAt': edit.toIso8601String(),
+    });
+
+    var response = await htpp.patch(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apipublic}',
+        'Authorization': 'Bearer $token',
+      },
+      body: body,
+    );
+    print("set foto 2 profil");
+
+    if (response.statusCode == 204) {
+      print("done set foto ${response.body}");
+    } else {
+      print("error set foto ${response.body}");
+      throw "error set foto ${response.body}";
     }
   }
 

@@ -51,18 +51,35 @@ class custom_editfotostack extends StatelessWidget {
               // lingkaran
               Stack(
             children: [
-              ClipOval(
-                child: path != null
-                    ? Image.file(File(path!), fit: BoxFit.cover)
-                    : (pathlama != null
-                        ? Image.network(pathlama!, fit: BoxFit.cover)
-                        : Center(
-                            child: Icon(
-                              Icons.add_a_photo,
-                              size: 40,
-                              color: Colors.grey[700],
-                            ),
-                          )),
+              Positioned.fill(
+                child: ClipOval(
+                  child: path != null
+                      ? Image.file(
+                          File(path!),
+                          fit: BoxFit.cover,
+                        )
+                      : (pathlama != null
+                          ? Image.network(
+                              pathlama!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Center(
+                                  child: Icon(
+                                    Icons.person,
+                                    size: 40,
+                                    color: Colors.grey[700],
+                                  ),
+                                );
+                              },
+                            )
+                          : Center(
+                              child: Icon(
+                                Icons.add_a_photo,
+                                size: 40,
+                                color: Colors.grey[700],
+                              ),
+                            )),
+                ),
               ),
               Positioned(
                 right: 0,
