@@ -1,11 +1,13 @@
 // lib/user_recommendation_page.dart
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'recommendation_saw.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
 import '../../../providers/kost_provider.dart';
 
 class UserRecommendationPage extends StatefulWidget {
@@ -36,6 +38,8 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
   late final WebViewController _mapController;
   bool _mapLoaded = false;
 
+  bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
@@ -47,6 +51,7 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
       ..setNavigationDelegate(NavigationDelegate(
         onPageFinished: (url) {
           debugPrint("MAP PAGE LOADED: $url");
+          if (!mounted) return;
           setState(() => _mapLoaded = true);
           // Set mode sesuai dengan _selectedLocation yang aktif saat pertama kali load
           _syncMapModeWithSelectedLocation();
@@ -67,6 +72,7 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
           if (payload is Map && payload['type'] == 'destination_selected') {
             final lat = payload['lat'];
             final lng = payload['lng'];
+            if (!mounted) return;
             setState(() {
               _coordinateText = '$lat, $lng';
             });
@@ -155,6 +161,7 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
 
     if (_selectedLocation == "Lokasi Tujuan") {
       await _mapController.runJavaScript("setMode('destination');");
+      if (!mounted) return;
       setState(() => _coordinateText = "Klik 2x pada peta");
     } else {
       await _mapController.runJavaScript("setMode('normal');");
@@ -212,6 +219,7 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
       await _mapController
           .runJavaScript("setMyLocation(${pos.latitude}, ${pos.longitude});");
 
+      if (!mounted) return;
       setState(() {
         _coordinateText = "${pos.latitude}, ${pos.longitude}";
         _selectedLocation = "Lokasi Sekarang";
@@ -249,6 +257,7 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
       if (parsed is Map && parsed['lat'] != null && parsed['lng'] != null) {
         final lat = parsed['lat'];
         final lng = parsed['lng'];
+        if (!mounted) return;
         setState(() {
           _coordinateText = '$lat, $lng';
         });
@@ -327,11 +336,13 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
         _closeDropdown();
 
         if (text == "Lokasi Sekarang") {
-          // ubah mode peta ke normal dan ambil lokasi saya
+          // ubah mode peta ke normal, bersihkan marker tujuan, lalu ambil lokasi saya
           await _mapController.runJavaScript("setMode('normal');");
+          await _mapController.runJavaScript("clearDestination();");
           await _goToMyLocation();
         } else {
-          // Lokasi Tujuan: ganti mode ke destination (butuh dblclick)
+          // Lokasi Tujuan: bersihkan marker lokasi sekarang dan ganti mode ke destination (butuh dblclick)
+          await _mapController.runJavaScript("clearMyLocation();");
           await _mapController.runJavaScript("setMode('destination');");
           setState(() => _coordinateText = "Klik 2x pada peta");
         }
@@ -357,6 +368,7 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
   void _closeDropdown() {
     if (!_dropdownOpen) return;
     _controller.reverse().then((_) {
+      if (!mounted) return;
       _dropdownOverlay?.remove();
       _dropdownOverlay = null;
       setState(() => _dropdownOpen = false);
@@ -365,8 +377,57 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
 
   @override
   void dispose() {
+    // pastikan overlay dibersihkan agar tidak menahan referensi State
+    _dropdownOverlay?.remove();
+    _dropdownOverlay = null;
     _controller.dispose();
     super.dispose();
+  }
+
+  // =================================================
+  // Hitung jarak (Haversine) dalam kilometer (backup jika routing gagal)
+  double _distanceKm(double lat1, double lon1, double lat2, double lon2) {
+    const double R = 6371.0; // radius bumi km
+    final double dLat = _deg2rad(lat2 - lat1);
+    final double dLon = _deg2rad(lon2 - lon1);
+    final double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_deg2rad(lat1)) *
+            math.cos(_deg2rad(lat2)) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+    final double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return R * c;
+  }
+
+  double _deg2rad(double deg) => deg * (math.pi / 180.0);
+
+  // Hitung jarak berdasarkan rute jalan (driving) menggunakan OSRM
+  // Jika API gagal, fallback ke jarak garis lurus (Haversine)
+  Future<double> _roadDistanceKm(
+      double fromLat, double fromLng, double toLat, double toLng) async {
+    final uri = Uri.parse('https://router.project-osrm.org/route/v1/driving/'
+        '$fromLng,$fromLat;$toLng,$toLat?overview=false&alternatives=false&steps=false');
+
+    try {
+      final response = await http.get(uri);
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        final routes = data['routes'] as List?;
+        if (routes != null && routes.isNotEmpty) {
+          final distanceMeters = (routes[0]['distance'] as num?)?.toDouble();
+          if (distanceMeters != null) {
+            return distanceMeters / 1000.0;
+          }
+        }
+      } else {
+        debugPrint('OSRM route error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('OSRM route exception: $e');
+    }
+
+    // fallback jika gagal
+    return _distanceKm(fromLat, fromLng, toLat, toLng);
   }
 
   // ================= UI =============================
@@ -599,14 +660,125 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
                                 SizedBox(
                                   height: s(56),
                                   child: ElevatedButton(
-                                    onPressed: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              const RecommendationSawPage(),
-                                        ),
-                                      );
-                                    },
+                                    onPressed: _isLoading
+                                        ? null
+                                        : () async {
+                                            // Parse koordinat tujuan
+                                            final parts = _coordinateText
+                                                .split(',')
+                                                .map((e) => e.trim())
+                                                .toList();
+
+                                            if (parts.length != 2) {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                      'Silakan pilih titik lokasi tujuan di peta dulu.'),
+                                                ),
+                                              );
+                                              return;
+                                            }
+
+                                            final double? destLat =
+                                                double.tryParse(parts[0]);
+                                            final double? destLng =
+                                                double.tryParse(parts[1]);
+
+                                            if (destLat == null ||
+                                                destLng == null) {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                      'Format koordinat tidak valid. Silakan pilih ulang di peta.'),
+                                                ),
+                                              );
+                                              return;
+                                            }
+
+                                            setState(() {
+                                              _isLoading = true;
+                                            });
+
+                                            try {
+                                              final kostProvider =
+                                                  Provider.of<KostProvider>(
+                                                context,
+                                                listen: false,
+                                              );
+
+                                              final allKost = kostProvider
+                                                      .kostpenyewa.isNotEmpty
+                                                  ? kostProvider.kostpenyewa
+                                                  : kostProvider.kost;
+
+                                              final List<Map<String, dynamic>>
+                                                  dataKost = [];
+
+                                              for (final k in allKost) {
+                                                final lat = k.garis_lintang;
+                                                final lng = k.garis_bujur;
+                                                if (lat == null || lng == null)
+                                                  continue;
+
+                                                // gunakan jarak rute jalan (driving) jika memungkinkan
+                                                final dKm =
+                                                    await _roadDistanceKm(
+                                                        destLat,
+                                                        destLng,
+                                                        lat,
+                                                        lng);
+
+                                                dataKost.add({
+                                                  'id_kost': k.id_kost,
+                                                  'id_fasilitas':
+                                                      k.id_fasilitas,
+                                                  'name': k.nama_kost ?? 'Kost',
+                                                  'address':
+                                                      k.alamat_kost ?? '',
+                                                  'pricePerMonth':
+                                                      k.harga_kost ?? 0,
+                                                  'distanceKm': dKm,
+                                                  'imageUrl':
+                                                      k.gambar_kost ?? '',
+                                                });
+                                              }
+
+                                              if (dataKost.isEmpty) {
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                        'Belum ada kost dengan koordinat lokasi.'),
+                                                  ),
+                                                );
+                                                return;
+                                              }
+
+                                              // urutkan berdasarkan jarak terdekat
+                                              dataKost.sort((a, b) =>
+                                                  (a['distanceKm'] as double)
+                                                      .compareTo(b['distanceKm']
+                                                          as double));
+
+                                              await Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      RecommendationSawPage(
+                                                    destinationLat: destLat,
+                                                    destinationLng: destLng,
+                                                    kostData: dataKost,
+                                                  ),
+                                                ),
+                                              );
+                                            } finally {
+                                              if (!mounted) return;
+                                              setState(() {
+                                                _isLoading = false;
+                                              });
+                                            }
+                                          },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: colorPrimary,
                                       shape: RoundedRectangleBorder(
@@ -614,14 +786,41 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
                                             BorderRadius.circular(s(14)),
                                       ),
                                     ),
-                                    child: Text(
-                                      'Tampilkan Hasil',
-                                      style: TextStyle(
-                                        fontSize: s(16),
-                                        fontWeight: FontWeight.w600,
-                                        color: colorWhite,
-                                      ),
-                                    ),
+                                    child: _isLoading
+                                        ? Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              SizedBox(
+                                                width: s(20),
+                                                height: s(20),
+                                                child:
+                                                    const CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  valueColor:
+                                                      AlwaysStoppedAnimation<
+                                                          Color>(Colors.white),
+                                                ),
+                                              ),
+                                              SizedBox(width: s(10)),
+                                              Text(
+                                                'Menghitung jarak...',
+                                                style: TextStyle(
+                                                  fontSize: s(16),
+                                                  fontWeight: FontWeight.w600,
+                                                  color: colorWhite,
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        : Text(
+                                            'Tampilkan Hasil',
+                                            style: TextStyle(
+                                              fontSize: s(16),
+                                              fontWeight: FontWeight.w600,
+                                              color: colorWhite,
+                                            ),
+                                          ),
                                   ),
                                 ),
 

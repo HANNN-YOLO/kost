@@ -17,11 +17,25 @@ class DetailKost extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final argsRaw = ModalRoute.of(context)?.settings.arguments;
     final gunakan =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>;
+        argsRaw is Map<String, dynamic> ? argsRaw : <String, dynamic>{};
 
     final terima = gunakan['data_kost'];
     final pakai = gunakan['data_fasilitas'];
+
+    // optional: koordinat tujuan & jarak dari halaman rekomendasi SAW
+    final dynamic rawDestLat = gunakan['destinationLat'];
+    final dynamic rawDestLng = gunakan['destinationLng'];
+    final dynamic rawDistanceKm = gunakan['distanceKm'];
+
+    double? destinationLat;
+    double? destinationLng;
+    double? distanceKm;
+
+    if (rawDestLat is num) destinationLat = rawDestLat.toDouble();
+    if (rawDestLng is num) destinationLng = rawDestLng.toDouble();
+    if (rawDistanceKm is num) distanceKm = rawDistanceKm.toDouble();
     // final terima = {
     //   ModalRoute.of(context)?.settings.arguments as KostModel,
     //   ModalRoute.of(context)?.settings.arguments as int
@@ -331,7 +345,21 @@ class DetailKost extends StatelessWidget {
                       _MapWidget(
                         latitude: terima.garis_lintang ?? -5.147665,
                         longitude: terima.garis_bujur ?? 119.432731,
+                        destinationLat: destinationLat,
+                        destinationLng: destinationLng,
                       ),
+                      if (distanceKm != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Jarak kost ke tujuan Anda: '
+                          '${distanceKm!.toStringAsFixed(2)} km',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black54,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],
@@ -640,10 +668,14 @@ class _FacilityChips extends StatelessWidget {
 class _MapWidget extends StatefulWidget {
   final double latitude;
   final double longitude;
+  final double? destinationLat;
+  final double? destinationLng;
 
   const _MapWidget({
     required this.latitude,
     required this.longitude,
+    this.destinationLat,
+    this.destinationLng,
   });
 
   @override
@@ -680,16 +712,31 @@ class _MapWidgetState extends State<_MapWidget> {
     if (_controller != null) {
       // Delay lebih singkat untuk performa lebih baik
       await Future.delayed(const Duration(milliseconds: 300));
+      final hasDestination =
+          widget.destinationLat != null && widget.destinationLng != null;
 
-      // Set view ke koordinat kost
-      await _controller!.runJavaScript(
-        'window.setView(${widget.latitude}, ${widget.longitude}, 16);',
-      );
-
-      // Set marker pada koordinat kost
-      await _controller!.runJavaScript(
-        'window.setMarker(${widget.latitude}, ${widget.longitude});',
-      );
+      if (hasDestination) {
+        // Set marker kost dan tujuan lalu fit ke keduanya
+        await _controller!.runJavaScript(
+          'window.setMarker(${widget.latitude}, ${widget.longitude});',
+        );
+        await _controller!.runJavaScript(
+          'window.setDestinationLocation(${widget.destinationLat}, ${widget.destinationLng});',
+        );
+        await _controller!.runJavaScript('window.fitToKostAndDestination();');
+        await _controller!.runJavaScript(
+          'window.drawRouteBetweenPoints(${widget.latitude}, ${widget.longitude}, '
+          '${widget.destinationLat}, ${widget.destinationLng});',
+        );
+      } else {
+        // View & marker hanya pada kost seperti sebelumnya
+        await _controller!.runJavaScript(
+          'window.setView(${widget.latitude}, ${widget.longitude}, 16);',
+        );
+        await _controller!.runJavaScript(
+          'window.setMarker(${widget.latitude}, ${widget.longitude});',
+        );
+      }
     }
   }
 

@@ -220,6 +220,16 @@ class KostProvider with ChangeNotifier {
   List<FasilitasModel> _fasilitaspemilik = [];
   List<FasilitasModel> get fasilitaspemilik => _fasilitaspemilik;
 
+  // Loading flags untuk daftar kost
+  bool _isLoadingAdminKost = false;
+  bool get isLoadingAdminKost => _isLoadingAdminKost;
+
+  bool _isLoadingPenyewaKost = false;
+  bool get isLoadingPenyewaKost => _isLoadingPenyewaKost;
+
+  bool _isLoadingPemilikKost = false;
+  bool get isLoadingPemilikKost => _isLoadingPemilikKost;
+
   FasilitasModel inputan = FasilitasModel();
 
   Future<void> createdata(
@@ -303,6 +313,9 @@ class KostProvider with ChangeNotifier {
   }
 
   Future<void> readdata() async {
+    _isLoadingAdminKost = true;
+    notifyListeners();
+
     try {
       final hasilnya = await _kekost.readdata();
       final isinya = await _kefasilitas.readdata();
@@ -310,8 +323,10 @@ class KostProvider with ChangeNotifier {
       _kost = hasilnya;
     } catch (e) {
       throw e;
+    } finally {
+      _isLoadingAdminKost = false;
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   Future<void> deletedata(int id_kost) async {
@@ -320,7 +335,7 @@ class KostProvider with ChangeNotifier {
       await _kekost.deletegambar(cek.gambar_kost!);
       await _kefasilitas.deletedata(cek.id_fasilitas!);
       print("done data kehapus");
-      // await _kekost.deletedata(id_kost);
+      await _kekost.deletedata(id_kost);
     } catch (e) {
       throw e;
     }
@@ -462,6 +477,9 @@ class KostProvider with ChangeNotifier {
   }
 
   Future<void> readdatapenyewa(String token) async {
+    _isLoadingPenyewaKost = true;
+    notifyListeners();
+
     try {
       final inikost = await _kekost.readdatapenyewa(token);
       final inifasilitas = await _kefasilitas.readdatapenyewa(token);
@@ -469,11 +487,16 @@ class KostProvider with ChangeNotifier {
       _kostpenyewa = inikost;
     } catch (e) {
       throw e;
+    } finally {
+      _isLoadingPenyewaKost = false;
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   Future<void> readdatapemilik(int id_auth, String token) async {
+    _isLoadingPemilikKost = true;
+    notifyListeners();
+
     try {
       final hasilkost = await _kekost.readdatapemilik(id_auth, token);
       final hasilifasilitas =
@@ -483,8 +506,10 @@ class KostProvider with ChangeNotifier {
       _fasilitaspemilik = hasilifasilitas;
     } catch (e) {
       throw e;
+    } finally {
+      _isLoadingPemilikKost = false;
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   Future<void> createdatapemilik(

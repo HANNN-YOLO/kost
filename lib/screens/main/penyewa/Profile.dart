@@ -1,4 +1,6 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import '../../custom/custom_UploadFoto.dart';
 import '../../custom/custom_editfoto.dart';
 import '../../custom/showdialog_eror.dart';
@@ -11,6 +13,14 @@ import 'package:intl/intl.dart';
 
 class UserProfilePage extends StatefulWidget {
   static const arah = "/profil-user";
+
+  /// Kontrol apakah tombol "Keluar Akun" ditampilkan.
+  /// Default: true (untuk profil penyewa).
+  final bool showLogoutButton;
+
+  const UserProfilePage({Key? key, this.showLogoutButton = true})
+      : super(key: key);
+
   @override
   State<UserProfilePage> createState() => _UserProfilePageState();
 }
@@ -19,6 +29,13 @@ class _UserProfilePageState extends State<UserProfilePage> {
   int index = 0;
   String? mesaage;
 
+  bool _isSaving = false;
+  bool _hasChanges = false;
+
+  String? _initialTglText;
+  String? _initialNoHpText;
+  String? _initialGender;
+
   final TextEditingController namaController = TextEditingController();
   final TextEditingController tglLahirController = TextEditingController();
   final TextEditingController noHpController = TextEditingController();
@@ -26,21 +43,29 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((value) async {
+
+    // pantau perubahan pada field agar bisa mengaktifkan/nonaktifkan tombol simpan
+    namaController.addListener(_onFormChanged);
+    tglLahirController.addListener(_onFormChanged);
+    noHpController.addListener(_onFormChanged);
+    emailController.addListener(_onFormChanged);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final penghubung = Provider.of<AuthProvider>(context, listen: false);
       final penghubung2 = Provider.of<ProfilProvider>(context, listen: false);
 
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => Center(child: CircularProgressIndicator()),
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
       );
 
       try {
-        namaController.text = penghubung.mydata[index].username ?? "Default";
-        emailController.text = penghubung.mydata[index].Email ?? "Default";
+        namaController.text = penghubung.mydata[index].username ?? 'Default';
+        emailController.text = penghubung.mydata[index].Email ?? 'Default';
 
         if (penghubung2.accesstoken != null) {
           await penghubung2.readdata(
@@ -49,20 +74,33 @@ class _UserProfilePageState extends State<UserProfilePage> {
           );
         } else {
           Navigator.of(context).pop();
-          throw Exception("User tidak terautentikasi.");
+          throw Exception('User tidak terautentikasi.');
         }
 
         Navigator.of(context).pop();
 
         if (penghubung2.mydata.isEmpty) {
-          penghubung2.defaults = "Jenis Kelamin";
+          penghubung2.defaults = 'Jenis Kelamin';
+          // profil baru, nilai awal masih kosong
+          _initialTglText = tglLahirController.text;
+          _initialNoHpText = noHpController.text;
+          _initialGender = penghubung2.defaults;
         } else {
           tglLahirController.text = DateFormat('dd-MM-yyyy')
               .format(penghubung2.mydata[index].tgllahir!);
-          noHpController.text = "${penghubung2.mydata[index].kontak}";
-          penghubung2.pilihan("${penghubung2.mydata[index].jkl}");
+          noHpController.text = '${penghubung2.mydata[index].kontak}';
+          penghubung2.pilihan(
+            '${penghubung2.mydata[index].jkl}',
+          );
+
+          // simpan nilai awal saat pertama kali berhasil dibaca
+          _initialTglText = tglLahirController.text;
+          _initialNoHpText = noHpController.text;
+          _initialGender = penghubung2.defaults;
         }
+
         if (mounted) {
+          _recomputeHasChanges();
           setState(() {});
         }
       } catch (e) {
@@ -73,10 +111,353 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   @override
   void dispose() {
-    // TODO: implement dispose
     namaController.dispose();
+    tglLahirController.dispose();
+    noHpController.dispose();
     emailController.dispose();
     super.dispose();
+  }
+
+  void _onFormChanged() {
+    _recomputeHasChanges();
+  }
+
+  void _recomputeHasChanges() {
+    if (!mounted) return;
+
+    final profil = Provider.of<ProfilProvider>(context, listen: false);
+
+    final currentTgl = tglLahirController.text;
+    final currentNoHp = noHpController.text;
+    final currentGender = profil.defaults;
+
+    bool changed = false;
+
+    if (currentTgl != (_initialTglText ?? '')) {
+      changed = true;
+    } else if (currentNoHp != (_initialNoHpText ?? '')) {
+      changed = true;
+    } else if (currentGender != _initialGender) {
+      changed = true;
+    }
+
+    // perubahan foto yang belum disimpan (memilih foto baru)
+    if (profil.isinya != null) {
+      changed = true;
+    }
+
+    if (changed != _hasChanges) {
+      setState(() {
+        _hasChanges = changed;
+      });
+    }
+  }
+
+  Future<void> _openPhotoOptions(
+    BuildContext context,
+    ProfilProvider value,
+    bool hasFoto,
+  ) async {
+    await showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'PhotoOptions',
+      // Hilangkan overlay gelap, hanya blur halus di belakang
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 260),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        return const SizedBox.shrink();
+      },
+      transitionBuilder: (dialogContext, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        // Animasi: blur bertambah halus bersamaan dengan modal yang fade+scale
+        final double sigma = 14 * curved.value;
+
+        return Stack(
+          children: [
+            // Blur halus pada seluruh layar
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+              child: Container(color: Colors.transparent),
+            ),
+            // Kartu modal di tengah dengan animasi fade + scale
+            Center(
+              child: FadeTransition(
+                opacity: curved,
+                child: ScaleTransition(
+                  scale: Tween<double>(begin: 0.95, end: 1.0).animate(curved),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 24),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 18),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade300,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Kelola Foto Profil',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF111827),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Pilih aksi untuk mengubah atau menghapus foto profil Anda.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF6B7280),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE0ECFF),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.photo_camera_back_outlined,
+                                color: Color(0xFF1E3A8A),
+                              ),
+                            ),
+                            title: const Text('Upload Foto Profil'),
+                            subtitle: const Text(
+                              'Pilih gambar dari galeri perangkat.',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            onTap: () async {
+                              Navigator.of(context).pop();
+                              await value.uploadfoto();
+                              _recomputeHasChanges();
+                            },
+                          ),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            enabled: hasFoto,
+                            leading: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: hasFoto
+                                    ? const Color(0xFFFEE2E2)
+                                    : Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                Icons.delete_outline,
+                                color: hasFoto ? Colors.red : Colors.grey,
+                              ),
+                            ),
+                            title: const Text('Hapus Foto Profil'),
+                            subtitle: const Text(
+                              'Kembalikan ke avatar default.',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            onTap: hasFoto
+                                ? () async {
+                                    Navigator.of(context).pop();
+
+                                    if (_isSaving) return;
+
+                                    setState(() {
+                                      _isSaving = true;
+                                    });
+
+                                    try {
+                                      await value.hapusFotoProfil();
+                                      value.bersihfoto();
+
+                                      if (!mounted) return;
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Foto profil berhasil dihapus.',
+                                          ),
+                                        ),
+                                      );
+                                    } catch (e) {
+                                      if (!mounted) return;
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Gagal menghapus foto profil. Silakan coba lagi.',
+                                          ),
+                                        ),
+                                      );
+                                    } finally {
+                                      if (!mounted) return;
+                                      setState(() {
+                                        _isSaving = false;
+                                      });
+                                    }
+                                  }
+                                : null,
+                          ),
+                          const SizedBox(height: 4),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text(
+                              'Batal',
+                              style: TextStyle(
+                                color: Color(0xFF111827),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showSuccessDialog(
+    BuildContext context, {
+    required String title,
+    required String message,
+  }) async {
+    await showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Success',
+      barrierColor: Colors.black.withOpacity(0.25),
+      transitionDuration: const Duration(milliseconds: 260),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return const SizedBox.shrink();
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+        );
+
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.92, end: 1.0).animate(curved),
+            child: Center(
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.78,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.12),
+                      blurRadius: 24,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.check,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      message,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF6B7280),
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: CupertinoButton(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        borderRadius: BorderRadius.circular(14),
+                        color: const Color(0xFF1E3A8A),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text(
+                          'Oke',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -86,218 +467,467 @@ class _UserProfilePageState extends State<UserProfilePage> {
     final penghubung3 = Provider.of<KostProvider>(context, listen: false);
 
     return Scaffold(
-      backgroundColor: Color(0xFFF7F9FC),
-      appBar: AppBar(
-        backgroundColor: Color(0xFFF7F9FC),
-        elevation: 0,
-        centerTitle: true,
-        title: Text(
-          'Profil',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: Icon(Icons.notifications_none, color: Colors.black),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Consumer<ProfilProvider>(
-              builder: (context, value, child) {
-                if (value.mydata.isEmpty) {
-                  return CustomUploadfoto(
-                    tinggi: 100,
-                    panjang: 100,
-                    radius: 40,
-                    fungsi: () {
-                      value.uploadfoto();
-                    },
-                    path: value.isinya?.path,
-                  );
-                } else {
-                  return custom_editfoto(
-                    fungsi: () {
-                      value.uploadfoto();
-                    },
-                    path: value.isinya?.path,
-                    pathlama: value.mydata[index].foto!,
-                    tinggi: 100,
-                    panjang: 100,
-                    radius: 40,
-                  );
-                }
-              },
-            ),
-            SizedBox(height: 24),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "Detail",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ),
-            SizedBox(height: 12),
-            buildTextfiel(
-              controllers: namaController,
-              keadaan: true,
-              label: "Nama",
-            ),
-            Consumer<ProfilProvider>(
-              builder: (context, value, child) {
-                return Column(
-                  children: [
-                    buildTextfiel(
-                      controllers: tglLahirController,
-                      keadaan: true,
-                      label: "Tanggal Lahir",
-                      fungsi: () async {
-                        final penanggalan = await showDatePicker(
-                          context: context,
-                          firstDate: DateTime(1945),
-                          lastDate: DateTime(9999),
-                          initialDate: DateTime.now(),
-                        );
-
-                        tglLahirController.text =
-                            "${penanggalan?.day.toString().padLeft(2, '0')}-"
-                            "${penanggalan?.month.toString().padLeft(2, '0')}-"
-                            "${penanggalan?.year.toString()}";
-                      },
+      backgroundColor: const Color(0xFFF5F7FB),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // HEADER mirip profil pemilik
+              Stack(
+                children: [
+                  Container(
+                    height: 180,
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                     ),
-                    CustomDropdownSearch(
-                      manalistnya: penghubung2.jkl,
-                      label: "Jenis Kelamin",
-                      pilihan: penghubung2.defaults!,
-                      fungsi: (value) {
-                        penghubung2.pilihan(value);
-                      },
-                    ),
-                    SizedBox(height: 20),
-                    buildTextfiel(
-                      controllers: noHpController,
-                      keadaan: false,
-                      label: "No. Hp",
-                    ),
-                  ],
-                );
-              },
-            ),
-            buildTextfiel(
-              controllers: emailController,
-              keadaan: true,
-              label: "Email",
-            ),
-            if (mesaage != null) ...[
-              Center(
-                child: Text(
-                  mesaage!,
-                  style: TextStyle(color: Colors.greenAccent),
-                ),
-              )
-            ],
-            SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: ElevatedButton(
-                onPressed: () async {
-                  try {
-                    await penghubung.logout();
-                    penghubung2.reset();
-                    penghubung3.resetpilihan();
-                  } catch (e) {
-                    showDialog(
-                      context: context,
-                      builder: (context) {
-                        return ShowdialogEror(label: "${e.toString()}");
-                      },
-                    );
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
                   ),
-                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                ),
-                child: Text(
-                  "Keluar",
-                  style: TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold),
+                  Positioned(
+                    right: -60,
+                    top: -40,
+                    child: Container(
+                      width: 160,
+                      height: 160,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.08),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: -40,
+                    bottom: -50,
+                    child: Container(
+                      width: 140,
+                      height: 140,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.06),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                    child: Column(
+                      children: [
+                        const Center(
+                          child: Text(
+                            'Details',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 18),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.08),
+                                blurRadius: 10,
+                                offset: const Offset(0, 6),
+                              )
+                            ],
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Consumer<ProfilProvider>(
+                                builder: (context, value, child) {
+                                  final hasFoto = value.mydata.isNotEmpty &&
+                                      value.mydata[index].foto != null &&
+                                      value.mydata[index].foto!.isNotEmpty;
+
+                                  return GestureDetector(
+                                    onTap: () => _openPhotoOptions(
+                                      context,
+                                      value,
+                                      hasFoto,
+                                    ),
+                                    child: Stack(
+                                      alignment: Alignment.bottomRight,
+                                      children: [
+                                        if (!hasFoto)
+                                          CustomUploadfoto(
+                                            tinggi: 70,
+                                            panjang: 70,
+                                            radius: 35,
+                                            fungsi: () {
+                                              _openPhotoOptions(
+                                                context,
+                                                value,
+                                                hasFoto,
+                                              );
+                                            },
+                                            path: value.isinya?.path,
+                                          )
+                                        else
+                                          custom_editfoto(
+                                            fungsi: () {
+                                              _openPhotoOptions(
+                                                context,
+                                                value,
+                                                hasFoto,
+                                              );
+                                            },
+                                            path: value.isinya?.path,
+                                            pathlama: value.mydata[index].foto,
+                                            tinggi: 70,
+                                            panjang: 70,
+                                            radius: 35,
+                                          ),
+                                        Positioned(
+                                          bottom: 2,
+                                          right: 2,
+                                          child: Container(
+                                            width: 24,
+                                            height: 24,
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF1E3A8A),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black
+                                                      .withOpacity(0.25),
+                                                  blurRadius: 6,
+                                                  offset: const Offset(0, 3),
+                                                ),
+                                              ],
+                                            ),
+                                            child: const Icon(
+                                              Icons.edit,
+                                              size: 14,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      penghubung.mydata[index].username ?? '-',
+                                      style: const TextStyle(
+                                        color: Color(0xFF111827),
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      penghubung.mydata[index].Email ?? '-',
+                                      style: const TextStyle(
+                                        color: Colors.black54,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Informasi Akun',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _IconTextField(
+                      controller: namaController,
+                      label: 'Nama',
+                      icon: Icons.person_outline,
+                      readOnly: true,
+                    ),
+                    Consumer<ProfilProvider>(
+                      builder: (context, value, child) {
+                        return Column(
+                          children: [
+                            _IconTextField(
+                              controller: tglLahirController,
+                              label: 'Tanggal Lahir',
+                              icon: Icons.calendar_today_outlined,
+                              readOnly: true,
+                              onTap: () async {
+                                final penanggalan = await showDatePicker(
+                                  context: context,
+                                  firstDate: DateTime(1945),
+                                  lastDate: DateTime(9999),
+                                  initialDate: DateTime.now(),
+                                );
+
+                                if (penanggalan != null) {
+                                  tglLahirController.text =
+                                      '${penanggalan.day.toString().padLeft(2, '0')}-'
+                                      '${penanggalan.month.toString().padLeft(2, '0')}-'
+                                      '${penanggalan.year.toString()}';
+                                }
+                              },
+                            ),
+                            CustomDropdownSearch(
+                              manalistnya: penghubung2.jkl,
+                              label: 'Jenis Kelamin',
+                              pilihan: penghubung2.defaults!,
+                              fungsi: (value) {
+                                penghubung2.pilihan(value);
+                                _recomputeHasChanges();
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                            _IconTextField(
+                              controller: noHpController,
+                              label: 'No. Hp',
+                              icon: Icons.phone_outlined,
+                              readOnly: false,
+                              keyboardType: TextInputType.phone,
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                    _IconTextField(
+                      controller: emailController,
+                      label: 'Email',
+                      icon: Icons.email_outlined,
+                      readOnly: true,
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    if (mesaage != null) ...[
+                      const SizedBox(height: 8),
+                      Center(
+                        child: Text(
+                          mesaage!,
+                          style: const TextStyle(color: Colors.green),
+                        ),
+                      )
+                    ],
+                    const SizedBox(height: 16),
+                    if (widget.showLogoutButton)
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          try {
+                            await penghubung.logout();
+                            penghubung2.reset();
+                            penghubung3.resetpilihan();
+                          } catch (e) {
+                            // ignore: use_build_context_synchronously
+                            showDialog(
+                              context: context,
+                              builder: (context) {
+                                return ShowdialogEror(
+                                  label: e.toString(),
+                                );
+                              },
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: const Icon(Icons.logout),
+                        label: const Text(
+                          'Keluar Akun',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-            ),
-            SizedBox(height: 80),
-          ],
+            ],
+          ),
         ),
       ),
-      bottomNavigationBar: Container(
-        padding: EdgeInsets.all(16),
-        color: Color(0xFFF7F9FC),
-        child: ElevatedButton(
-          onPressed: () async {
-            try {
-              if (penghubung2.mydata.isEmpty) {
-                await penghubung2.createprofil(
-                  penghubung2.isinya!,
-                  DateFormat('dd-MM-yyyy').parse(tglLahirController.text),
-                  penghubung2.defaults!,
-                  int.parse(noHpController.text),
-                );
-                setState(() {
-                  tglLahirController.text = DateFormat('dd-MM-yyyy')
-                      .format(penghubung2.mydata[index].tgllahir!);
-                  noHpController.text = "${penghubung2.mydata[index].kontak}";
-                  penghubung2.defaults = "${penghubung2.mydata[index].jkl}";
-                  mesaage = "Profil berhasil dibuat";
-                });
-                // -------------------------------------
-              } else {
-                await penghubung2.updateprofil(
-                  penghubung2.isinya,
-                  penghubung2.mydata[index].foto!,
-                  DateFormat('dd-MM-yyyy').parse(tglLahirController.text),
-                  penghubung2.defaults!,
-                  int.parse(noHpController.text),
-                );
-                setState(() {
-                  tglLahirController.text = DateFormat('dd-MM-yyyy')
-                      .format(penghubung2.mydata[index].tgllahir!);
-                  noHpController.text = "${penghubung2.mydata[index].kontak}";
-                  penghubung2.defaults = "${penghubung2.mydata[index].jkl}";
-                  mesaage = "Profil berhasil Diperbarui";
-                });
-              }
-            } catch (e) {
-              mesaage = "Data Gagal diperbarui Diperbarui";
-              showDialog(
-                context: context,
-                builder: (context) {
-                  return ShowdialogEror(label: "${e.toString()}");
-                },
-              );
-            }
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.black87,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(30),
-            ),
-            padding: EdgeInsets.symmetric(vertical: 16),
-          ),
-          child: Text(
-            "Simpan",
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+          child: SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: _isSaving || !_hasChanges
+                  ? null
+                  : () async {
+                      // Validasi input dasar
+                      if (tglLahirController.text.isEmpty ||
+                          noHpController.text.isEmpty ||
+                          penghubung2.defaults == null ||
+                          penghubung2.defaults == 'Jenis Kelamin') {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Lengkapi tanggal lahir, jenis kelamin, dan nomor HP.',
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+
+                      final int? hp = int.tryParse(noHpController.text.trim());
+                      if (hp == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Nomor HP harus berupa angka.'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      try {
+                        setState(() {
+                          _isSaving = true;
+                        });
+
+                        final tgl = DateFormat('dd-MM-yyyy')
+                            .parse(tglLahirController.text);
+
+                        if (penghubung2.mydata.isEmpty) {
+                          if (penghubung2.isinya == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Silakan unggah foto profil terlebih dahulu.',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+
+                          await penghubung2.createprofil(
+                            penghubung2.isinya!,
+                            tgl,
+                            penghubung2.defaults!,
+                            hp,
+                          );
+
+                          setState(() {
+                            tglLahirController.text = DateFormat('dd-MM-yyyy')
+                                .format(penghubung2.mydata[index].tgllahir!);
+                            noHpController.text =
+                                '${penghubung2.mydata[index].kontak}';
+                            penghubung2.defaults =
+                                '${penghubung2.mydata[index].jkl}';
+                            mesaage = 'Profil berhasil dibuat';
+                            _initialTglText = tglLahirController.text;
+                            _initialNoHpText = noHpController.text;
+                            _initialGender = penghubung2.defaults;
+                            _hasChanges = false;
+                          });
+                          if (mounted) {
+                            await _showSuccessDialog(
+                              context,
+                              title: 'Profil Tersimpan',
+                              message:
+                                  'Profil baru kamu berhasil disimpan dan siap digunakan.',
+                            );
+                          }
+                        } else {
+                          await penghubung2.updateprofil(
+                            penghubung2.isinya,
+                            penghubung2.mydata[index].foto,
+                            tgl,
+                            penghubung2.defaults!,
+                            hp,
+                          );
+
+                          setState(() {
+                            tglLahirController.text = DateFormat('dd-MM-yyyy')
+                                .format(penghubung2.mydata[index].tgllahir!);
+                            noHpController.text =
+                                '${penghubung2.mydata[index].kontak}';
+                            penghubung2.defaults =
+                                '${penghubung2.mydata[index].jkl}';
+                            mesaage = 'Profil berhasil diperbarui';
+                            _initialTglText = tglLahirController.text;
+                            _initialNoHpText = noHpController.text;
+                            _initialGender = penghubung2.defaults;
+                            _hasChanges = false;
+                          });
+                          if (mounted) {
+                            await _showSuccessDialog(
+                              context,
+                              title: 'Perubahan Disimpan',
+                              message:
+                                  'Perubahan pada profil kamu sudah berhasil disimpan.',
+                            );
+                          }
+                        }
+                      } catch (e) {
+                        mesaage = 'Data gagal diperbarui';
+                        // ignore: use_build_context_synchronously
+                        showDialog(
+                          context: context,
+                          builder: (context) {
+                            return ShowdialogEror(label: e.toString());
+                          },
+                        );
+                      } finally {
+                        if (!mounted) return;
+                        setState(() {
+                          _isSaving = false;
+                        });
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1E3A8A),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: _isSaving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Icon(Icons.save_outlined),
+              label: Text(
+                _isSaving ? 'Menyimpan...' : 'Simpan Perubahan Data',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
             ),
           ),
         ),
@@ -342,3 +972,57 @@ class buildTextfiel extends StatelessWidget {
     );
   }
 }
+
+class _IconTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final IconData icon;
+  final bool readOnly;
+  final VoidCallback? onTap;
+  final TextInputType? keyboardType;
+
+  const _IconTextField({
+    Key? key,
+    required this.controller,
+    required this.label,
+    required this.icon,
+    this.readOnly = false,
+    this.onTap,
+    this.keyboardType,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14.0),
+      child: TextField(
+        controller: controller,
+        readOnly: readOnly,
+        onTap: onTap,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          prefixIcon: Icon(
+            icon,
+            color: const Color(0xFF6B7280),
+          ),
+          labelText: label,
+          labelStyle: const TextStyle(color: Color(0xFF6B7280)),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.grey.shade200, width: 1),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFF1E3A8A), width: 1.2),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// oke

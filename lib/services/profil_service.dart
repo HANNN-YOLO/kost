@@ -9,7 +9,10 @@ class ProfilService {
   Future<String> uploadfoto(XFile foto, String token) async {
     print("inisiasi upload foto");
 
-    final si = "${foto.name}";
+    // Gunakan nama file yang unik agar tidak bentrok dengan upload pengguna lain
+    final sanitizedName = foto.name.replaceAll(' ', '_');
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final si = "${timestamp}_$sanitizedName";
     print("upload foto 1 profil");
 
     var url = Uri.parse(
@@ -252,5 +255,67 @@ class ProfilService {
       throw "error ${simpan.body}";
     }
     return hasilnya;
+  }
+
+  Future<void> adminUpdateProfil({
+    required int idProfil,
+    String? jkl,
+    int? kontak,
+    DateTime? tgllahir,
+  }) async {
+    print("inisiasi update profil oleh admin");
+
+    final Map<String, dynamic> body = {};
+    if (jkl != null) body['jkl'] = jkl;
+    if (kontak != null) body['kontak'] = kontak;
+    if (tgllahir != null) {
+      body['tgllahir'] = tgllahir.toIso8601String();
+    }
+    body['updatedAt'] = DateTime.now().toIso8601String();
+
+    if (body.isEmpty) return;
+
+    final url = Uri.parse(
+        "${SupabaseApiConfig.masterurl}/rest/v1/profil?id_profil=eq.$idProfil");
+
+    final response = await htpp.patch(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apisecret}',
+        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+      },
+      body: json.encode(body),
+    );
+
+    if (response.statusCode == 204) {
+      print("berhasil update profil admin $idProfil");
+    } else {
+      print("gagal update profil admin ${response.body}");
+      throw "gagal update profil admin ${response.body}";
+    }
+  }
+
+  Future<void> deleteProfilById(int idProfil) async {
+    print("inisiasi hapus profil oleh admin");
+
+    final url = Uri.parse(
+        "${SupabaseApiConfig.masterurl}/rest/v1/profil?id_profil=eq.$idProfil");
+
+    final response = await htpp.delete(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apisecret}',
+        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+      },
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      print("berhasil hapus profil $idProfil");
+    } else {
+      print("gagal hapus profil ${response.body}");
+      throw "gagal hapus profil ${response.body}";
+    }
   }
 }

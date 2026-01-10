@@ -1,17 +1,29 @@
 import 'package:flutter/material.dart';
 
 import 'process_saw.dart';
+import 'package:provider/provider.dart';
+
+import '../../../providers/kost_provider.dart';
 
 class RecommendationSawPage extends StatefulWidget {
-  const RecommendationSawPage({super.key});
+  final double? destinationLat;
+  final double? destinationLng;
+  final List<Map<String, dynamic>>? kostData;
+
+  const RecommendationSawPage({
+    super.key,
+    this.destinationLat,
+    this.destinationLng,
+    this.kostData,
+  });
 
   @override
   State<RecommendationSawPage> createState() => _RecommendationSawPageState();
 }
 
 class _RecommendationSawPageState extends State<RecommendationSawPage> {
-  // Dummy UI-only data; replace with real SAW results later
-  final List<_KostItem> _items = [
+  // Dummy UI-only data; dipakai jika belum ada data nyata
+  static final List<_KostItem> _dummyItems = [
     _KostItem(
       name: 'Kost Melati Putih',
       address: 'Jl. Melati No. 12, Dekat Kampus',
@@ -50,6 +62,39 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
     ),
   ];
 
+  late final List<_KostItem> _items;
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (widget.kostData != null && widget.kostData!.isNotEmpty) {
+      _items = widget.kostData!.map((m) {
+        final rawIdKost = m['id_kost'];
+        final rawIdFasilitas = m['id_fasilitas'];
+        final distance = (m['distanceKm'] as num?)?.toDouble() ?? 0.0;
+        // sementara: skor sederhana berbasis jarak (semakin dekat semakin tinggi)
+        final score = 1.0 / (1.0 + distance);
+
+        return _KostItem(
+          idKost: rawIdKost is int ? rawIdKost : int.tryParse('$rawIdKost'),
+          idFasilitas: rawIdFasilitas is int
+              ? rawIdFasilitas
+              : int.tryParse('$rawIdFasilitas'),
+          name: (m['name'] as String?) ?? 'Kost',
+          address: (m['address'] as String?) ?? '',
+          pricePerMonth: (m['pricePerMonth'] as num?)?.toInt() ?? 0,
+          distanceKm: distance,
+          score: score,
+          tags: const [],
+          imageUrl: (m['imageUrl'] as String?) ?? '',
+        );
+      }).toList();
+    } else {
+      _items = _dummyItems;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     const double figmaWidth = 402;
@@ -63,7 +108,7 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
     const Color colorTextPrimary = Color(0xFF1F1F1F);
     final Color shadowColor = const Color.fromRGBO(0, 0, 0, 0.06);
 
-    // Sort descending by score for UI display only
+    // Sort descending by score (sementara skor berbasis jarak)
     final sorted = [..._items]..sort((a, b) => b.score.compareTo(a.score));
 
     return Scaffold(
@@ -149,6 +194,8 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
                       colorBackground: colorBackground,
                       colorWhite: colorWhite,
                       shadowColor: shadowColor,
+                      destinationLat: widget.destinationLat,
+                      destinationLng: widget.destinationLng,
                     );
                   },
                 ),
@@ -170,6 +217,8 @@ class _KostCard extends StatelessWidget {
   final Color colorBackground;
   final Color colorWhite;
   final Color shadowColor;
+  final double? destinationLat;
+  final double? destinationLng;
 
   const _KostCard({
     required this.rank,
@@ -180,6 +229,8 @@ class _KostCard extends StatelessWidget {
     required this.colorBackground,
     required this.colorWhite,
     required this.shadowColor,
+    this.destinationLat,
+    this.destinationLng,
   });
 
   @override
@@ -343,7 +394,68 @@ class _KostCard extends StatelessWidget {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton.icon(
-                    onPressed: () {},
+                    onPressed: () {
+                      final idKost = item.idKost;
+                      if (idKost == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content:
+                                Text('Data kost tidak lengkap untuk dibuka.'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      final kostProvider =
+                          Provider.of<KostProvider>(context, listen: false);
+
+                      final List kostList = kostProvider.kostpenyewa.isNotEmpty
+                          ? kostProvider.kostpenyewa
+                          : kostProvider.kost;
+
+                      dynamic selectedKost;
+                      for (final k in kostList) {
+                        if (k.id_kost == idKost) {
+                          selectedKost = k;
+                          break;
+                        }
+                      }
+
+                      if (selectedKost == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Kost tidak ditemukan.'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      dynamic selectedFasilitas;
+                      final List fasilitasList =
+                          kostProvider.kostpenyewa.isNotEmpty
+                              ? kostProvider.fasilitaspenyewa
+                              : kostProvider.faslitas;
+
+                      for (final f in fasilitasList) {
+                        if (f.id_fasilitas == item.idFasilitas) {
+                          selectedFasilitas = f;
+                          break;
+                        }
+                      }
+
+                      Navigator.of(context).pushNamed(
+                        'detail-kost',
+                        arguments: {
+                          'data_kost': selectedKost,
+                          'data_fasilitas': selectedFasilitas,
+                          if (destinationLat != null)
+                            'destinationLat': destinationLat,
+                          if (destinationLng != null)
+                            'destinationLng': destinationLng,
+                          'distanceKm': item.distanceKm,
+                        },
+                      );
+                    },
                     icon: Icon(Icons.remove_red_eye_outlined,
                         size: s(18), color: colorPrimary),
                     label: Text(
@@ -402,6 +514,8 @@ class _KostCard extends StatelessWidget {
 }
 
 class _KostItem {
+  final int? idKost;
+  final int? idFasilitas;
   final String name;
   final String address;
   final int pricePerMonth;
@@ -411,6 +525,8 @@ class _KostItem {
   final String? imageUrl;
 
   const _KostItem({
+    this.idKost,
+    this.idFasilitas,
     required this.name,
     required this.address,
     required this.pricePerMonth,

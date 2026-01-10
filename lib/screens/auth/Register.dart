@@ -61,180 +61,177 @@ class _RegisterPageState extends State<RegisterPage> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Container(
-            height: tinggiLayar,
             width: lebarLayar,
             padding: EdgeInsets.only(top: 200, left: 30, right: 30, bottom: 60),
-            child: Container(
-              // color: Colors.red,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Judul
-                  Text(
-                    "Daftar",
-                    style: TextStyle(
-                      fontSize: fontUkuranJudul,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                      // fontStyle: f
-                    ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Judul
+                Text(
+                  "Daftar",
+                  style: TextStyle(
+                    fontSize: fontUkuranJudul,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                    // fontStyle: f
                   ),
-                  //  SizedBox(height: 4),
-                  Text(
-                    "Tolong Isikan data anda",
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
+                ),
+                //  SizedBox(height: 4),
+                Text(
+                  "Tolong Isikan data anda",
+                  style: TextStyle(color: Colors.grey, fontSize: 14),
+                ),
 
+                SizedBox(
+                  height: 20,
+                ),
+
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: CustomDropdownSearch(
+                    manalistnya: penghubung.roles,
+                    label: penghubung.role,
+                    pilihan: penghubung.role,
+                    fungsi: (value) {
+                      penghubung.pilihrole(value);
+                    },
+                  ),
+                ),
+
+                SizedBox(height: 20),
+                TextInput(
+                  hintText: "Nama",
+                  prefixIcon: Icons.person_outline,
+                  isinya: user,
+                  kelihatan: false,
+                ),
+                SizedBox(height: 20),
+                // TextField Email
+                TextInput(
+                  hintText: "Email",
+                  prefixIcon: Icons.email_outlined,
+                  isinya: email,
+                  kelihatan: false,
+                ),
+                SizedBox(height: 20),
+                // TextField Sandi
+                Consumer<AuthProvider>(
+                  builder: (context, value, child) {
+                    return TextInput(
+                      hintText: "Sandi",
+                      prefixIcon: Icons.lock_outline,
+                      isinya: pas1,
+                      kelihatan: value.kelihatan,
+                      custom: value.kelihatan
+                          ? Icon(Icons.visibility_off)
+                          : Icon(Icons.visibility),
+                      fungsi: () {
+                        value.keadaan();
+                      },
+                    );
+                  },
+                ),
+                SizedBox(height: 20),
+                // TextField Konfirmasi Sandi
+                Consumer<AuthProvider>(
+                  builder: (context, value, child) {
+                    return TextInput(
+                      hintText: "Konfirmasi Sandi",
+                      prefixIcon: Icons.lock_outline,
+                      isinya: pas2,
+                      kelihatan: value.lihat,
+                      custom: value.lihat
+                          ? Icon(Icons.visibility_off)
+                          : Icon(Icons.visibility),
+                      fungsi: () {
+                        value.konfirmasi();
+                      },
+                    );
+                  },
+                ),
+
+                if (message != null) ...[
                   SizedBox(
-                    height: 20,
+                    height: 10,
                   ),
-
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: CustomDropdownSearch(
-                      manalistnya: penghubung.roles,
-                      label: penghubung.role,
-                      pilihan: penghubung.role,
-                      fungsi: (value) {
-                        penghubung.pilihrole(value);
-                      },
-                    ),
-                  ),
-
-                  SizedBox(height: 20),
-                  TextInput(
-                    hintText: "Nama",
-                    prefixIcon: Icons.person_outline,
-                    isinya: user,
-                    kelihatan: false,
-                  ),
-                  SizedBox(height: 20),
-                  // TextField Email
-                  TextInput(
-                    hintText: "Email",
-                    prefixIcon: Icons.email_outlined,
-                    isinya: email,
-                    kelihatan: false,
-                  ),
-                  SizedBox(height: 20),
-                  // TextField Sandi
-                  Consumer<AuthProvider>(
-                    builder: (context, value, child) {
-                      return TextInput(
-                        hintText: "Sandi",
-                        prefixIcon: Icons.lock_outline,
-                        isinya: pas1,
-                        kelihatan: value.kelihatan,
-                        custom: value.kelihatan
-                            ? Icon(Icons.visibility_off)
-                            : Icon(Icons.visibility),
-                        fungsi: () {
-                          value.keadaan();
-                        },
-                      );
-                    },
-                  ),
-                  SizedBox(height: 20),
-                  // TextField Konfirmasi Sandi
-                  Consumer<AuthProvider>(
-                    builder: (context, value, child) {
-                      return TextInput(
-                        hintText: "Konfirmasi Sandi",
-                        prefixIcon: Icons.lock_outline,
-                        isinya: pas2,
-                        kelihatan: value.lihat,
-                        custom: value.lihat
-                            ? Icon(Icons.visibility_off)
-                            : Icon(Icons.visibility),
-                        fungsi: () {
-                          value.konfirmasi();
-                        },
-                      );
-                    },
-                  ),
-
-                  if (message != null) ...[
-                    SizedBox(
-                      height: 10,
-                    ),
-                    Center(
-                      child: Text(
-                        message!,
-                        style: TextStyle(color: Colors.red),
-                      ),
-                    )
-                  ],
-                  SizedBox(height: 30),
-
-                  // Tombol Masuk
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        try {
-                          await penghubung.register(user.text, email.text,
-                              pas1.text, pas2.text, penghubung.role, context);
-                          setState(() {
-                            message = null;
-                          });
-                        } catch (e) {
-                          // showDialog(
-                          //   context: context,
-                          //   builder: (context) {
-                          //     return ShowdialogEror(label: "${e.toString()}");
-                          //   },
-                          // );
-                          setState(() {
-                            message = e.toString();
-                          });
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 40, vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                      ),
-                      child: Text(
-                        "Daftar",
-                        style: TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-
-                  Spacer(),
-
-                  // Teks daftar
                   Center(
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.of(context).pushReplacementNamed("/login");
-                      },
-                      child: RichText(
-                        text: TextSpan(
-                          text: "Sudah Punya Akun? ",
-                          style: TextStyle(color: Colors.grey),
-                          children: [
-                            TextSpan(
-                              text: "Login",
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            )
-                          ],
-                        ),
+                    child: Text(
+                      message!,
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  )
+                ],
+                SizedBox(height: 30),
+
+                // Tombol Masuk
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      try {
+                        await penghubung.register(user.text, email.text,
+                            pas1.text, pas2.text, penghubung.role, context);
+                        setState(() {
+                          message = null;
+                        });
+                      } catch (e) {
+                        // showDialog(
+                        //   context: context,
+                        //   builder: (context) {
+                        //     return ShowdialogEror(label: "${e.toString()}");
+                        //   },
+                        // );
+                        setState(() {
+                          message = e.toString();
+                        });
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 40, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                    child: Text(
+                      "Daftar",
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Teks daftar
+                Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).pushReplacementNamed("/login");
+                    },
+                    child: RichText(
+                      text: TextSpan(
+                        text: "Sudah Punya Akun? ",
+                        style: TextStyle(color: Colors.grey),
+                        children: [
+                          TextSpan(
+                            text: "Login",
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        ],
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

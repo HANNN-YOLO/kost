@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:collection/collection.dart';
 import '../../../providers/kost_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -15,6 +16,7 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
   static Color warnaKartu = Colors.white;
   static Color warnaUtama = Color(0xFF1E3A8A);
   static Color aksenBiru = Color(0xFF007BFF);
+  bool _isDeleting = false;
 
   @override
   Widget build(BuildContext context) {
@@ -64,54 +66,112 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
 
               // Daftar kost
               Expanded(
-                child: penghubung.kostpemilik.isEmpty
-                    // _kostSaya.isEmpty
-                    ? Center(
-                        child: Text(
-                          "Belum ada kost terdaftar",
-                          style: TextStyle(color: Colors.black54),
-                        ),
-                      )
-                    : ListView.separated(
-                        itemCount: penghubung.kostpemilik.length,
-                        // _kostSaya.length,
-                        separatorBuilder: (context, index) =>
-                            SizedBox(height: tinggiLayar * 0.02),
-                        itemBuilder: (context, index) {
-                          final item = penghubung.kostpemilik[index];
-                          final cek = penghubung.fasilitaspemilik.firstWhere(
-                              (element) =>
-                                  element.id_fasilitas == item.id_fasilitas);
+                child: penghubung.isLoadingPemilikKost &&
+                        penghubung.kostpemilik.isEmpty
+                    ? const Center(child: CircularProgressIndicator())
+                    : penghubung.kostpemilik.isEmpty
+                        ? const Center(
+                            child: Text(
+                              "Belum ada kost terdaftar",
+                              style: TextStyle(color: Colors.black54),
+                            ),
+                          )
+                        : ListView.separated(
+                            itemCount: penghubung.kostpemilik.length,
+                            separatorBuilder: (context, index) =>
+                                SizedBox(height: tinggiLayar * 0.02),
+                            itemBuilder: (context, index) {
+                              final item = penghubung.kostpemilik[index];
+                              final cek = penghubung.fasilitaspemilik
+                                  .firstWhereOrNull((element) =>
+                                      element.id_fasilitas ==
+                                      item.id_fasilitas);
 
-                          return _OwnerKostCard(
-                            nama: penghubung.kostpemilik[index].nama_kost!,
-                            gambar: penghubung.kostpemilik[index].gambar_kost!,
-                            harga: penghubung.kostpemilik[index].harga_kost!,
-                            lokasi: penghubung.kostpemilik[index].alamat_kost!,
-                            onTap: () {
-                              Navigator.of(context).pushNamed(
-                                'detail-kost',
-                                arguments: {
-                                  'data_kost': item,
-                                  'data_fasilitas': cek,
+                              if (cek == null) {
+                                // Jika data fasilitas tidak ditemukan, jangan tampilkan kartu
+                                return const SizedBox.shrink();
+                              }
+
+                              return _OwnerKostCard(
+                                nama: penghubung.kostpemilik[index].nama_kost!,
+                                gambar:
+                                    penghubung.kostpemilik[index].gambar_kost!,
+                                harga:
+                                    penghubung.kostpemilik[index].harga_kost!,
+                                lokasi:
+                                    penghubung.kostpemilik[index].alamat_kost!,
+                                onTap: () {
+                                  Navigator.of(context).pushNamed(
+                                    'detail-kost',
+                                    arguments: {
+                                      'data_kost': item,
+                                      'data_fasilitas': cek,
+                                    },
+                                  );
+                                },
+                                onEdit: () {
+                                  Navigator.of(context).pushNamed(
+                                    "/form-house-pemilik",
+                                    arguments:
+                                        penghubung.kostpemilik[index].id_kost,
+                                  );
+                                },
+                                onDelete: () async {
+                                  if (_isDeleting) return;
+
+                                  final konfirmasi = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) {
+                                      return AlertDialog(
+                                        title: const Text('Konfirmasi Hapus'),
+                                        content: const Text(
+                                            'Apakah Anda yakin ingin menghapus kost ini?'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(context)
+                                                    .pop(false),
+                                            child: const Text('Batal'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(context).pop(true),
+                                            child: const Text('Hapus'),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+
+                                  if (konfirmasi != true) return;
+
+                                  setState(() {
+                                    _isDeleting = true;
+                                  });
+
+                                  try {
+                                    await penghubung.deletedatapemilik(
+                                      item.id_fasilitas!,
+                                    );
+                                  } catch (e) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Gagal menghapus kost: $e',
+                                        ),
+                                      ),
+                                    );
+                                  } finally {
+                                    if (mounted) {
+                                      setState(() {
+                                        _isDeleting = false;
+                                      });
+                                    }
+                                  }
                                 },
                               );
                             },
-                            onEdit: () {
-                              Navigator.of(context).pushNamed(
-                                "/form-house-pemilik",
-                                arguments:
-                                    penghubung.kostpemilik[index].id_kost,
-                              );
-                            },
-                            onDelete: () async {
-                              await penghubung.deletedatapemilik(
-                                penghubung.kostpemilik[index].id_fasilitas!,
-                              );
-                            },
-                          );
-                        },
-                      ),
+                          ),
               ),
             ],
           ),
@@ -308,26 +368,7 @@ class _OwnerKostCard extends StatelessWidget {
                       ),
                     ],
                   ),
-
                   SizedBox(height: 12),
-
-                  // Chip pemasukan
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Color(0xFFE5ECFF),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      // "Pemasukan bulan ini: ${_formatRupiah(item.pemasukanBulanIni)}",
-                      "belum terlampirkan",
-                      style: TextStyle(
-                        color: Colors.black87,
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),

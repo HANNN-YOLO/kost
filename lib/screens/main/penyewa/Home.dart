@@ -1,14 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:collection/collection.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/kost_provider.dart';
 
-// ini perubahan irwan
-
-class KostHomePage extends StatelessWidget {
+class KostHomePage extends StatefulWidget {
   static const routeName = '/kost_home';
-  bool keadaan = true;
 
-  KostHomePage({Key? key}) : super(key: key);
+  const KostHomePage({Key? key}) : super(key: key);
+
+  @override
+  State<KostHomePage> createState() => _KostHomePageState();
+}
+
+class _KostHomePageState extends State<KostHomePage> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  String _selectedJenis = 'Semua';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,38 +30,66 @@ class KostHomePage extends StatelessWidget {
     final topPadding = MediaQuery.of(context).padding.top;
     final penghubung = Provider.of<KostProvider>(context);
 
-    // AppBar custom tinggi agar proporsi mudah dihitung
+    // AppBar custom dengan gaya lebih minimalis & modern
     final AppBar appBar = AppBar(
       elevation: 0,
-      toolbarHeight: 100,
+      toolbarHeight: 90,
       backgroundColor: const Color(0xFFF5F7FB),
       foregroundColor: Colors.black,
       centerTitle: false,
       titleSpacing: 0,
       title: Padding(
-        padding: EdgeInsets.only(left: 20, right: 20, bottom: 20, top: 20),
-        child: Text(
-          "Temukan Kost\nPilihan anda",
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 26,
-            fontWeight: FontWeight.bold,
-            height: 1.05,
-          ),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  'Cari kost terbaik',
+                  style: TextStyle(
+                    color: Colors.black54,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Temukan kost idealmu',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    height: 1.05,
+                  ),
+                ),
+              ],
+            ),
+            // Container(
+            //   width: 40,
+            //   height: 40,
+            //   decoration: BoxDecoration(
+            //     color: Colors.white,
+            //     borderRadius: BorderRadius.circular(14),
+            //     boxShadow: const [
+            //       BoxShadow(
+            //         color: Color.fromRGBO(0, 0, 0, 0.06),
+            //         blurRadius: 10,
+            //         offset: Offset(0, 4),
+            //       ),
+            //     ],
+            //   ),
+            //   child: IconButton(
+            //     onPressed: () {},
+            //     icon: const Icon(Icons.notifications_none_rounded, size: 20),
+            //     padding: EdgeInsets.zero,
+            //     color: Colors.black87,
+            //   ),
+            // ),
+          ],
         ),
       ),
-      actions: [
-        Padding(
-          padding: EdgeInsets.only(right: 5),
-          child: IconButton(
-            onPressed: () {},
-            icon: Icon(Icons.notifications_none),
-            color: Colors.black,
-            padding: EdgeInsets.zero,
-            constraints: BoxConstraints(),
-          ),
-        ),
-      ],
     );
 
     final tinggiBody = tinggiLayar - appBar.preferredSize.height - topPadding;
@@ -99,73 +140,146 @@ class KostHomePage extends StatelessWidget {
         child: SafeArea(child: appBar),
       ),
       body: Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 0,
-          bottom: 0,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
 
             // Search field
             Material(
               elevation: 0,
               color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               child: TextField(
-                decoration: InputDecoration(
-                  prefixIcon: Icon(Icons.search),
-                  hintText: "Cari kost...",
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value.trim().toLowerCase();
+                  });
+                },
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.search_rounded),
+                  hintText: 'Cari kost',
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(vertical: 14),
                 ),
               ),
             ),
 
-            SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-            // Expanded area with ListView of cards
+            // Filter chips
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildFilterChip('Semua'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Umum'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Khusus Putri'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Khusus Putra'),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // List kost terfilter
             Expanded(
-              child: ListView.separated(
-                padding: EdgeInsets.only(bottom: 80),
-                itemCount: penghubung.kostpenyewa.length,
-                separatorBuilder: (_, __) => SizedBox(height: 18),
-                itemBuilder: (context, index) {
-                  final tesst = penghubung.kostpenyewa[index];
-                  final yes = penghubung.fasilitaspenyewa.firstWhere(
-                      (element) => element.id_fasilitas == tesst.id_fasilitas);
+              child: Builder(
+                builder: (context) {
+                  if (penghubung.isLoadingPenyewaKost &&
+                      penghubung.kostpenyewa.isEmpty) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                  // Build facility tags from database flags (minimal change)
-                  final List<String> fasilitasTags = [
-                    if (yes.ac) 'AC',
-                    if (yes.wifi) 'WiFi',
-                    if (yes.kamar_mandi_dalam) 'K. Mandi Dalam',
-                    if (yes.tempat_parkir) 'Parkir',
-                    if (yes.dapur_dalam) 'Dapur',
-                  ];
+                  final semuaKost = penghubung.kostpenyewa;
 
-                  return _KostCard(
-                    imageHeight: imageHeight,
-                    radius: cardRadius,
-                    titleFontSize: titleFont,
-                    priceFontSize: priceFont,
-                    // contoh data statis
-                    price: "Rp ${penghubung.kostpenyewa[index].harga_kost}",
-                    title: "${penghubung.kostpenyewa[index].nama_kost}",
-                    location: "${penghubung.kostpenyewa[index].alamat_kost}",
-                    genderLabel: "${penghubung.kostpenyewa[index].jenis_kost}",
-                    gambar: "${penghubung.kostpenyewa[index].gambar_kost}",
-                    fasilitas: fasilitasTags,
-                    fungsitap: () {
-                      Navigator.of(context).pushNamed(
-                        'detail-kost',
-                        arguments:
-                            // penghubung.kostpenyewa[index],
-                            {
-                          'data_kost': tesst,
-                          'data_fasilitas': yes,
+                  final filtered = semuaKost.where((k) {
+                    final nama = (k.nama_kost ?? '').toLowerCase();
+                    final alamat = (k.alamat_kost ?? '').toLowerCase();
+                    final jenis = (k.jenis_kost ?? '').toLowerCase();
+
+                    bool matchesSearch = true;
+                    if (_searchQuery.isNotEmpty) {
+                      matchesSearch = nama.contains(_searchQuery) ||
+                          alamat.contains(_searchQuery) ||
+                          jenis.contains(_searchQuery);
+                    }
+
+                    bool matchesJenis = true;
+                    if (_selectedJenis != 'Semua') {
+                      matchesJenis = (k.jenis_kost ?? '') == _selectedJenis;
+                    }
+
+                    return matchesSearch && matchesJenis;
+                  }).toList();
+
+                  if (filtered.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        'Kost tidak ditemukan. Coba ubah kata kunci atau filter.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.black54),
+                      ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.only(bottom: 80),
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 18),
+                    itemBuilder: (context, index) {
+                      final tesst = filtered[index];
+                      final yes = penghubung.fasilitaspenyewa.firstWhereOrNull(
+                        (element) => element.id_fasilitas == tesst.id_fasilitas,
+                      );
+
+                      // Build facility tags from database flags
+                      final List<String> fasilitasTags = [];
+                      if (yes != null) {
+                        if (yes.ac) fasilitasTags.add('AC');
+                        if (yes.wifi) fasilitasTags.add('WiFi');
+                        if (yes.kamar_mandi_dalam) {
+                          fasilitasTags.add('K. Mandi Dalam');
+                        }
+                        if (yes.tempat_parkir) fasilitasTags.add('Parkir');
+                        if (yes.dapur_dalam) fasilitasTags.add('Dapur');
+                      }
+
+                      return _KostCard(
+                        imageHeight: imageHeight,
+                        radius: cardRadius,
+                        titleFontSize: titleFont,
+                        priceFontSize: priceFont,
+                        price: 'Rp ${tesst.harga_kost}',
+                        title: tesst.nama_kost ?? '-',
+                        location: tesst.alamat_kost ?? '-',
+                        genderLabel: tesst.jenis_kost ?? '-',
+                        gambar: tesst.gambar_kost ?? '',
+                        fasilitas: fasilitasTags,
+                        fungsitap: () {
+                          if (yes == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Data fasilitas kost tidak tersedia.',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+
+                          Navigator.of(context).pushNamed(
+                            'detail-kost',
+                            arguments: {
+                              'data_kost': tesst,
+                              'data_fasilitas': yes,
+                            },
+                          );
                         },
                       );
                     },
@@ -176,6 +290,69 @@ class KostHomePage extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// helper chip untuk filter jenis kost
+class _FilterChipItem extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _FilterChipItem({
+    Key? key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF1C3B98) : const Color(0xFFE9EEF9),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.tune_rounded,
+              size: 14,
+              color: selected ? Colors.white : const Color(0xFF1C3B98),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: selected ? Colors.white : const Color(0xFF1F1F1F),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+extension on _KostHomePageState {
+  Widget _buildFilterChip(String label) {
+    final bool isSelected = _selectedJenis == label;
+    return _FilterChipItem(
+      label: label,
+      selected: isSelected,
+      onTap: () {
+        setState(() {
+          _selectedJenis = label;
+        });
+      },
     );
   }
 }

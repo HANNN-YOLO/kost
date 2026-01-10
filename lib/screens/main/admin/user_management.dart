@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kost_saw/screens/main/admin/detail_user.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/profil_provider.dart';
+import '../../../providers/kost_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:collection/collection.dart';
 
@@ -324,42 +325,180 @@ class UserCard extends StatelessWidget {
 
           SizedBox(height: tinggiLayar * 0.02),
 
-          // 🔹 Tombol Detail
-          SizedBox(
-            width: double.infinity,
-            height: tinggiLayar * 0.055,
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  PageRouteBuilder(
-                    transitionDuration: Duration(milliseconds: 300),
-                    pageBuilder: (_, __, ___) => DetailUser(),
-                    transitionsBuilder:
-                        (context, animation, secondaryAnimation, child) {
-                      return FadeTransition(
-                        opacity: CurvedAnimation(
-                          parent: animation,
-                          curve: Curves.easeInOut,
+          // 🔹 Tombol Aksi: Detail & Hapus
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: tinggiLayar * 0.055,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        PageRouteBuilder(
+                          transitionDuration: Duration(milliseconds: 300),
+                          pageBuilder: (_, __, ___) => DetailUser(),
+                          transitionsBuilder:
+                              (context, animation, secondaryAnimation, child) {
+                            return FadeTransition(
+                              opacity: CurvedAnimation(
+                                parent: animation,
+                                curve: Curves.easeInOut,
+                              ),
+                              child: child,
+                            );
+                          },
+                          settings: RouteSettings(arguments: id),
                         ),
-                        child: child,
                       );
                     },
-                    settings: RouteSettings(arguments: id),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: warnaUtama,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    child: const Text(
+                      "Detail",
+                      style: TextStyle(fontSize: 15, color: Colors.white),
+                    ),
                   ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: warnaUtama,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
                 ),
               ),
-              child: Text(
-                "Detail Pengguna",
-                style: TextStyle(fontSize: 15, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(
+                child: SizedBox(
+                  height: tinggiLayar * 0.055,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final profilProvider = Provider.of<ProfilProvider>(
+                        context,
+                        listen: false,
+                      );
+                      final kostProvider = Provider.of<KostProvider>(
+                        context,
+                        listen: false,
+                      );
+
+                      // Cari data profil untuk mendapatkan id_auth pemilik
+                      final profil = profilProvider.alluser.firstWhere(
+                        (p) => p.id_profil == id,
+                        orElse: () => profilProvider.alluser.first,
+                      );
+
+                      final int? ownerAuthId = profil.id_auth;
+                      int jumlahKost = 0;
+                      List kostPemilik = [];
+
+                      if (ownerAuthId != null) {
+                        // Pastikan data kost terbaru
+                        try {
+                          await kostProvider.readdata();
+                        } catch (_) {}
+
+                        kostPemilik = kostProvider.kost
+                            .where((k) => k.id_auth == ownerAuthId)
+                            .toList();
+                        jumlahKost = kostPemilik.length;
+                      }
+
+                      final konfirmasi = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) {
+                          return AlertDialog(
+                            title: const Text('Hapus Pengguna'),
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Yakin ingin menghapus pengguna "$nama"? Tindakan ini tidak dapat dibatalkan.',
+                                ),
+                                if (jumlahKost > 0) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Pengguna ini memiliki $jumlahKost kost yang terdaftar dalam sistem. Jika pengguna dihapus, seluruh kost tersebut juga akan terhapus.',
+                                    style: const TextStyle(
+                                      color: Colors.redAccent,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(false),
+                                child: const Text('Batal'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(true),
+                                child: const Text(
+                                  'Hapus',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+
+                      if (konfirmasi != true) return;
+
+                      try {
+                        // Hapus semua kost milik pengguna ini (jika ada)
+                        for (final k in kostPemilik) {
+                          if (k.id_kost != null) {
+                            await kostProvider.deletedata(k.id_kost as int);
+                          }
+                        }
+
+                        final provider = Provider.of<ProfilProvider>(
+                          context,
+                          listen: false,
+                        );
+                        await provider.deleteUserByProfilId(id);
+
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                jumlahKost > 0
+                                    ? 'Pengguna dan $jumlahKost kost terkait berhasil dihapus dari sistem.'
+                                    : 'Pengguna berhasil dihapus dari sistem.',
+                              ),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Gagal menghapus pengguna: $e',
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.red,
+                    ),
+                    label: const Text(
+                      'Hapus',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.red),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ],
       ),

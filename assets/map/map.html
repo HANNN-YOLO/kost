@@ -13,8 +13,8 @@
     html, body, #map { height: 100%; margin: 0; padding: 0; width: 100%; }
     .leaflet-container { font-family: sans-serif; }
 
-    /* marker titik biru lokasi saya */
-    .my-location-dot {
+    /* marker titik biru lokasi kost */
+    .kost-location-dot {
       width: 18px;
       height: 18px;
       background: #4285F4;
@@ -23,14 +23,15 @@
       box-shadow: 0 0 10px #4285F4;
     }
 
-    /* marker titik biru lokasi kost (sama gaya dengan lokasi saya) */
-    .kost-location-dot {
+    /* marker titik bulat merah untuk lokasi pilihan (lokasi sekarang / tujuan) */
+    .my-location-dot,
+    .destination-dot {
       width: 18px;
       height: 18px;
-      background: #4285F4;
+      background: #E53935;
       border-radius: 50%;
       border: 3px solid white;
-      box-shadow: 0 0 10px #4285F4;
+      box-shadow: 0 0 10px #E53935;
     }
   </style>
 </head>
@@ -51,13 +52,21 @@
       }).addTo(map);
 
       window._lastClick = null;
-      window._lastMarker = null;
-      window._myLocationMarker = null;
+      window._lastMarker = null;        // marker utama (kost atau titik pilihan)
+      window._myLocationMarker = null;  // marker lokasi saya (biru)
+      window._destinationMarker = null; // marker tujuan (oranye)
+      window._routeLayer = null;        // polyline rute jalan
       window._allKostMarkers = [];
 
       // icon khusus untuk lokasi kost (bulat biru)
       var kostIcon = L.divIcon({
         className: 'kost-location-dot',
+        iconSize: [18, 18]
+      });
+
+      // icon khusus untuk titik lokasi yang dipilih (sekarang/tujuan) bulat merah
+      var destinationIcon = L.divIcon({
+        className: 'destination-dot',
         iconSize: [18, 18]
       });
 
@@ -85,7 +94,7 @@
             map.removeLayer(window._lastMarker);
           }
 
-          window._lastMarker = L.marker([e.latlng.lat, e.latlng.lng]).addTo(map);
+          window._lastMarker = L.marker([e.latlng.lat, e.latlng.lng], { icon: destinationIcon }).addTo(map);
 
           // kirim pesan ke Flutter via channel ToFlutter (webview_flutter)
           try {
@@ -139,13 +148,42 @@
           map.removeLayer(window._myLocationMarker);
         }
 
-        var blueIcon = L.divIcon({
+        var redIcon = L.divIcon({
           className: "my-location-dot",
           iconSize: [18, 18]
         });
 
-        window._myLocationMarker = L.marker([lat, lng], { icon: blueIcon }).addTo(map);
+        window._myLocationMarker = L.marker([lat, lng], { icon: redIcon }).addTo(map);
         map.setView([lat, lng], 16);
+      };
+
+      // set marker khusus lokasi tujuan (ikon oranye)
+      window.setDestinationLocation = function(lat, lng) {
+        if (window._destinationMarker) {
+          map.removeLayer(window._destinationMarker);
+        }
+
+        window._destinationMarker = L.marker([lat, lng], { icon: destinationIcon }).addTo(map);
+      };
+
+      // hapus marker lokasi saya
+      window.clearMyLocation = function() {
+        if (window._myLocationMarker) {
+          try { map.removeLayer(window._myLocationMarker); } catch (e) {}
+          window._myLocationMarker = null;
+        }
+      };
+
+      // hapus marker tujuan (termasuk _lastMarker yang dipakai untuk titik tujuan)
+      window.clearDestination = function() {
+        if (window._destinationMarker) {
+          try { map.removeLayer(window._destinationMarker); } catch (e) {}
+          window._destinationMarker = null;
+        }
+        if (window._lastMarker) {
+          try { map.removeLayer(window._lastMarker); } catch (e) {}
+          window._lastMarker = null;
+        }
       };
 
       // tampilkan semua titik kost (dipanggil dari Flutter)
@@ -181,6 +219,56 @@
           }
         } catch (err) {
           console.warn('showAllKostMarkers error:', err);
+        }
+      };
+
+      // fit bounds untuk marker kost (_lastMarker) dan tujuan (_destinationMarker)
+      window.fitToKostAndDestination = function() {
+        var markers = [];
+        if (window._lastMarker) {
+          markers.push(window._lastMarker);
+        }
+        if (window._destinationMarker) {
+          markers.push(window._destinationMarker);
+        }
+
+        if (markers.length === 0) return;
+
+        var group = L.featureGroup(markers);
+        map.fitBounds(group.getBounds().pad(0.2));
+      };
+
+      // gambar rute jalan antara dua titik (kost dan tujuan)
+      // menggunakan OSRM public routing API (driving)
+      window.drawRouteBetweenPoints = function(fromLat, fromLng, toLat, toLng) {
+        try {
+          if (window._routeLayer) {
+            try { map.removeLayer(window._routeLayer); } catch (e) {}
+            window._routeLayer = null;
+          }
+
+          var url = 'https://router.project-osrm.org/route/v1/driving/' +
+            fromLng + ',' + fromLat + ';' + toLng + ',' + toLat +
+            '?overview=full&geometries=geojson';
+
+          fetch(url)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              if (!data || !data.routes || !data.routes.length) return;
+              var geom = data.routes[0].geometry;
+              window._routeLayer = L.geoJSON(geom, {
+                style: {
+                  color: '#1C3B98',
+                  weight: 4,
+                  opacity: 0.9
+                }
+              }).addTo(map);
+            })
+            .catch(function(err) {
+              console.warn('drawRouteBetweenPoints error:', err);
+            });
+        } catch (err2) {
+          console.warn('drawRouteBetweenPoints outer error:', err2);
         }
       };
 

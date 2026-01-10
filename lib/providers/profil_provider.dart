@@ -119,7 +119,7 @@ class ProfilProvider with ChangeNotifier {
 
   Future<void> updateprofil(
     XFile? foto,
-    String linklama,
+    String? linklama,
     DateTime tgllahir,
     String jkl,
     int hp,
@@ -127,20 +127,28 @@ class ProfilProvider with ChangeNotifier {
     final edit = DateTime.now();
     await readdata(_accesstoken!, id_auth!);
     try {
-      if (linklama != null && foto == null) {
+      final bool hasOldLink = linklama != null && linklama.isNotEmpty;
+
+      if (foto == null) {
+        // Tidak ada foto baru, hanya update data lain.
         await _ref.updateprofil(
           id_profil!,
           _accesstoken!,
-          linklama,
+          hasOldLink ? linklama! : '',
           tgllahir,
           jkl,
           hp,
           edit,
         );
       } else {
-        await _ref.hapusgambar(linklama, _accesstoken!);
+        // Ada foto baru
+        if (hasOldLink) {
+          // Jika ada foto lama, hapus dulu dari storage
+          await _ref.hapusgambar(linklama!, _accesstoken!);
+        }
+
         final link = await _ref.uploadfoto(
-          foto!,
+          foto,
           _accesstoken!,
         );
         if (link != null) {
@@ -198,6 +206,35 @@ class ProfilProvider with ChangeNotifier {
       throw e;
     }
     notifyListeners();
+  }
+
+  Future<void> adminUpdateUserProfil({
+    required int idProfil,
+    String? jkl,
+    int? kontak,
+    DateTime? tgllahir,
+  }) async {
+    try {
+      await _ref.adminUpdateProfil(
+        idProfil: idProfil,
+        jkl: jkl,
+        kontak: kontak,
+        tgllahir: tgllahir,
+      );
+      await readuser();
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  Future<void> deleteUserByProfilId(int idProfil) async {
+    try {
+      await _ref.deleteProfilById(idProfil);
+      // refresh daftar pengguna setelah hapus
+      await readuser();
+    } catch (e) {
+      throw e;
+    }
   }
 
   // state halaman keluar

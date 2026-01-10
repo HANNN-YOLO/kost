@@ -9,7 +9,10 @@ class KostService {
   Future<String> uploadgambar(XFile gambar) async {
     print("inisiasi modul storage");
 
-    final siapa = "${gambar.name}";
+    // Gunakan nama file unik agar tidak terjadi konflik "Duplicate" di Supabase
+    final sanitizedName = gambar.name.replaceAll(' ', '_');
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final siapa = "${timestamp}_$sanitizedName";
     print("upload gambar 1 kost");
 
     var url = Uri.parse(
@@ -173,13 +176,13 @@ class KostService {
       url,
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apisecret},',
+        'apikey': '${SupabaseApiConfig.apisecret}',
         'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
       },
     );
     print("data hapus 2 kost");
 
-    if (delete.statusCode == 204) {
+    if (delete.statusCode == 200 || delete.statusCode == 204) {
       print("done hapus data kost");
     } else {
       print("error hapus data kost");

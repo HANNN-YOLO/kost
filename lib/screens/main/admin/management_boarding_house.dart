@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kost_saw/screens/custom/showdialog_eror.dart';
 import 'form_house.dart';
 import 'package:provider/provider.dart';
+import 'package:collection/collection.dart';
 import '../../../providers/kost_provider.dart';
 
 class ManagementBoardingHouse extends StatelessWidget {
@@ -139,49 +140,64 @@ class ManagementBoardingHouse extends StatelessWidget {
               SizedBox(height: tinggiLayar * 0.03),
 
               Expanded(
-                child: ListView.separated(
-                  itemCount: penghubung.kost.length,
-                  separatorBuilder: (context, index) =>
-                      SizedBox(height: tinggiLayar * 0.02),
-                  itemBuilder: (context, index) {
-                    return KostCard(
-                      gambar: "${penghubung.kost[index].gambar_kost}",
-                      harga: "${penghubung.kost[index].harga_kost}",
-                      nama: "${penghubung.kost[index].nama_kost}",
-                      lokasi: "${penghubung.kost[index].alamat_kost}",
-                      tampilkanEdit: true,
-                      tampilkanHapus: true,
-                      fungsihapus: () {
-                        penghubung.deletedata(
-                          int.parse(penghubung.kost[index].id_kost.toString()),
-                        );
-                      },
-                      fungsitap: () {
-                        final test = penghubung.kost[index];
+                child: penghubung.isLoadingAdminKost && penghubung.kost.isEmpty
+                    ? const Center(child: CircularProgressIndicator())
+                    : ListView.separated(
+                        itemCount: penghubung.kost.length,
+                        separatorBuilder: (context, index) =>
+                            SizedBox(height: tinggiLayar * 0.02),
+                        itemBuilder: (context, index) {
+                          return KostCard(
+                            gambar: "${penghubung.kost[index].gambar_kost}",
+                            harga: "${penghubung.kost[index].harga_kost}",
+                            nama: "${penghubung.kost[index].nama_kost}",
+                            lokasi: "${penghubung.kost[index].alamat_kost}",
+                            tampilkanEdit: true,
+                            tampilkanHapus: true,
+                            fungsihapus: () {
+                              penghubung.deletedata(
+                                int.parse(
+                                    penghubung.kost[index].id_kost.toString()),
+                              );
+                            },
+                            fungsitap: () {
+                              final test = penghubung.kost[index];
 
-                        final cek =
-                            Provider.of<KostProvider>(context, listen: false)
-                                .faslitas
-                                .firstWhere((element) =>
-                                    element.id_fasilitas == test.id_fasilitas);
+                              final cek = Provider.of<KostProvider>(context,
+                                      listen: false)
+                                  .faslitas
+                                  .firstWhereOrNull((element) =>
+                                      element.id_fasilitas ==
+                                      test.id_fasilitas);
 
-                        Navigator.of(context)
-                            .pushNamed("detail-kost", arguments: {
-                          'data_kost': penghubung.kost[index],
-                          'data_fasilitas': cek,
-                        });
-                      },
-                      fungsiupdated: () {
-                        Navigator.of(context).pushNamed(
-                          "/form-house-admin",
-                          arguments: penghubung.kost[index].id_kost,
-                        );
-                      },
-                    );
-                    // SizedBox(height: tinggiLayar * 0.02);
-                  },
-                ),
-              )
+                              if (cek == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Data fasilitas kost tidak tersedia.',
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              Navigator.of(context)
+                                  .pushNamed("detail-kost", arguments: {
+                                'data_kost': penghubung.kost[index],
+                                'data_fasilitas': cek,
+                              });
+                            },
+                            fungsiupdated: () {
+                              Navigator.of(context).pushNamed(
+                                "/form-house-admin",
+                                arguments: penghubung.kost[index].id_kost,
+                              );
+                            },
+                          );
+                          // SizedBox(height: tinggiLayar * 0.02);
+                        },
+                      ),
+              ),
             ],
           ),
         ),
