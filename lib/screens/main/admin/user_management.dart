@@ -3,6 +3,7 @@ import 'package:kost_saw/screens/main/admin/detail_user.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/profil_provider.dart';
 import '../../../providers/kost_provider.dart';
+import '../../../providers/auth_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:collection/collection.dart';
 
@@ -42,6 +43,7 @@ class _UserManagementState extends State<UserManagement> {
   @override
   Widget build(BuildContext context) {
     final penghubung = Provider.of<ProfilProvider>(context, listen: false);
+    final penghubung2 = Provider.of<AuthProvider>(context);
     final tinggiLayar = MediaQuery.of(context).size.height;
     final lebarLayar = MediaQuery.of(context).size.width;
     const warnaLatar = Color(0xFFF5F7FB);
@@ -201,6 +203,7 @@ class _UserManagementState extends State<UserManagement> {
 
                             final user = authuser?.username ?? "tidak ada";
                             final email = authuser?.Email ?? "tidak ada";
+                            final uid = authuser?.UID ?? "";
 
                             return UserCard(
                               nama: "$user",
@@ -211,6 +214,12 @@ class _UserManagementState extends State<UserManagement> {
                               foto: "${value.alluser[index].foto}",
                               id: int.parse(
                                   value.alluser[index].id_profil.toString()),
+                              fungsihapus: () async {
+                                await penghubung2.deletedata(
+                                    value.alluser[index].id_auth!, uid);
+                                await penghubung.deletegambaradmin(
+                                    value.alluser[index].foto!);
+                              },
                             );
                           },
                         );
@@ -233,6 +242,7 @@ class UserCard extends StatelessWidget {
   final String tanggalBergabung;
   final String foto;
   final int id;
+  final VoidCallback? fungsihapus;
 
   UserCard({
     super.key,
@@ -243,6 +253,7 @@ class UserCard extends StatelessWidget {
     required this.tanggalBergabung,
     required this.foto,
     required this.id,
+    this.fungsihapus,
   });
 
   @override
@@ -358,14 +369,14 @@ class UserCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(6),
                       ),
                     ),
-                    child: const Text(
+                    child: Text(
                       "Detail",
                       style: TextStyle(fontSize: 15, color: Colors.white),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Expanded(
                 child: SizedBox(
                   height: tinggiLayar * 0.055,
@@ -406,7 +417,7 @@ class UserCard extends StatelessWidget {
                         context: context,
                         builder: (ctx) {
                           return AlertDialog(
-                            title: const Text('Hapus Pengguna'),
+                            title: Text('Hapus Pengguna'),
                             content: Column(
                               mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,10 +426,10 @@ class UserCard extends StatelessWidget {
                                   'Yakin ingin menghapus pengguna "$nama"? Tindakan ini tidak dapat dibatalkan.',
                                 ),
                                 if (jumlahKost > 0) ...[
-                                  const SizedBox(height: 8),
+                                  SizedBox(height: 8),
                                   Text(
                                     'Pengguna ini memiliki $jumlahKost kost yang terdaftar dalam sistem. Jika pengguna dihapus, seluruh kost tersebut juga akan terhapus.',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: Colors.redAccent,
                                       fontSize: 13,
                                     ),
@@ -429,11 +440,14 @@ class UserCard extends StatelessWidget {
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.of(ctx).pop(false),
-                                child: const Text('Batal'),
+                                child: Text('Batal'),
                               ),
                               TextButton(
-                                onPressed: () => Navigator.of(ctx).pop(true),
-                                child: const Text(
+                                onPressed: () async {
+                                  fungsihapus?.call();
+                                  Navigator.of(ctx).pop(true);
+                                },
+                                child: Text(
                                   'Hapus',
                                   style: TextStyle(color: Colors.red),
                                 ),
@@ -457,7 +471,8 @@ class UserCard extends StatelessWidget {
                           context,
                           listen: false,
                         );
-                        await provider.deleteUserByProfilId(id);
+                        // await provider.deleteUserByProfilId(id);
+                        fungsihapus?.call();
 
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -481,16 +496,16 @@ class UserCard extends StatelessWidget {
                         );
                       }
                     },
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.delete_outline,
                       color: Colors.red,
                     ),
-                    label: const Text(
+                    label: Text(
                       'Hapus',
                       style: TextStyle(color: Colors.red),
                     ),
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.red),
+                      side: BorderSide(color: Colors.red),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(6),
                       ),

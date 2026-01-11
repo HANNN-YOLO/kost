@@ -16,7 +16,7 @@ class MainNavigationAdmin extends StatefulWidget {
 }
 
 class _MainNavigationAdminState extends State<MainNavigationAdmin> {
-  int _selectedIndex = 3;
+  int _selectedIndex = 2;
   final List<int> _history = [1]; // menyimpan urutan tab terakhir
 
   // Fungsi untuk menampilkan halaman sesuai index

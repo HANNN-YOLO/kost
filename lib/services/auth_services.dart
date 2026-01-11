@@ -188,4 +188,40 @@ class AuthServices {
     }
     return hasilnya;
   }
+
+  Future<void> deletedatarest(int id_auth) async {
+    var url = Uri.parse(
+        "${SupabaseApiConfig.masterurl}/rest/v1/auth?id_auth=eq.$id_auth");
+
+    var hapus = await htpp.delete(url, headers: {
+      'Content-Type': 'application/json',
+      'apikey': '${SupabaseApiConfig.apisecret}',
+      'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+    });
+
+    if (hapus.statusCode == 204) {
+      print("berhasil hapus data user di modul rest ${hapus.body}");
+    } else {
+      print("gagal hapus data user di modul rest${hapus.body}");
+      throw "gagal hapus data user di modul rest${hapus.body}";
+    }
+  }
+
+  Future<void> deletedatauath(String UID) async {
+    var url =
+        Uri.parse("${SupabaseApiConfig.masterurl}/auth/v1/admin/users/$UID");
+
+    var hapus = await htpp.delete(url, headers: {
+      'Content-Type': 'application/json',
+      'apikey': '${SupabaseApiConfig.apisecret}',
+      'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+    });
+
+    if (hapus.statusCode == 200) {
+      print("done hapus data user di modul auth");
+    } else {
+      print("gagal hapus data user di modul auth karena ${hapus.body}");
+      throw "gagal hapus data user di modul auth karena ${hapus.body}";
+    }
+  }
 }

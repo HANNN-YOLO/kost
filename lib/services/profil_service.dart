@@ -81,6 +81,28 @@ class ProfilService {
     }
   }
 
+  Future<void> deletegambaradmin(String link) async {
+    var inilink = Uri.parse("$link");
+
+    final namanya = inilink.pathSegments.last;
+
+    var url = Uri.parse(
+        "${SupabaseApiConfig.masterurl}/storage/v1/object/profil/$namanya");
+
+    var delete = await htpp.delete(url, headers: {
+      'Content-Type': '/images/$namanya.jpg',
+      'apikey': '${SupabaseApiConfig.apisecret}',
+      'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+    });
+
+    if (delete.statusCode == 200) {
+      print("berhasil hapus gambar user di Admin ${delete.statusCode}");
+    } else {
+      print("gagal hapus data user di admin dengan kendala ${delete.body}");
+      throw "gagal hapus data user di admin dengan kendala ${delete.body}";
+    }
+  }
+
   // CRUD data
   Future<List<ProfilModel>> readdata(String token, int idAuth) async {
     List<ProfilModel> hasilnya = [];

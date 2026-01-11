@@ -221,21 +221,32 @@ class ProfilProvider with ChangeNotifier {
         kontak: kontak,
         tgllahir: tgllahir,
       );
-      await readuser();
     } catch (e) {
       throw e;
     }
+    await readuser();
+    notifyListeners();
   }
 
-  Future<void> deleteUserByProfilId(int idProfil) async {
+  Future<void> deletegambaradmin(String link) async {
     try {
-      await _ref.deleteProfilById(idProfil);
-      // refresh daftar pengguna setelah hapus
-      await readuser();
+      await _ref.deletegambaradmin(link);
     } catch (e) {
       throw e;
     }
+    await readuser();
+    notifyListeners();
   }
+
+  // Future<void> deleteUserByProfilId(int idProfil) async {
+  //   try {
+  //     await _ref.deleteProfilById(idProfil);
+  //     // refresh daftar pengguna setelah hapus
+  //     await readuser();
+  //   } catch (e) {
+  //     throw e;
+  //   }
+  // }
 
   // state halaman keluar
   void reset() {

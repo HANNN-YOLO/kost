@@ -124,6 +124,17 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> deletedata(int id_auth, String UID) async {
+    try {
+      await _ref.deletedatauath(UID);
+      await _ref.deletedatarest(id_auth);
+    } catch (e) {
+      throw e;
+    }
+    await readrole();
+    notifyListeners();
+  }
+
   // UI State Memori
   Timer? waktunya;
 

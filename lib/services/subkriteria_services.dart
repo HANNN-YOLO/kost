@@ -8,7 +8,7 @@ class SubkriteriaServices {
   Future<List<SubkriteriaModels>> readdata() async {
     List<SubkriteriaModels> hasilnya = [];
 
-    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/subkriteria");
+    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/sub_kriteria");
 
     var simpan = await htpp.get(
       url,
