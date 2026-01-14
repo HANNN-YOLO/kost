@@ -3,22 +3,22 @@ class ProfilModel {
   String? foto, jkl;
   DateTime? tgllahir, createdAt, updatedAt;
 
-  ProfilModel(
-      {this.id_profil,
-      this.id_auth,
-      required this.foto,
-      required this.tgllahir,
-      required this.jkl,
-      required this.kontak,
-      this.createdAt,
-      this.updatedAt});
+  ProfilModel({
+    this.id_profil,
+    this.id_auth,
+    required this.foto,
+    required this.tgllahir,
+    required this.jkl,
+    this.kontak,
+    this.createdAt,
+    this.updatedAt,
+  });
 
   Map<String, dynamic> toJson() {
     final data = <String, dynamic>{
       'foto': foto,
       'tgllahir': tgllahir!.toIso8601String(),
       'jkl': jkl,
-      'kontak': kontak
     };
 
     if (id_profil != null) {
@@ -27,6 +27,10 @@ class ProfilModel {
 
     if (id_auth != null) {
       data['id_auth'] = id_auth;
+    }
+
+    if (kontak != null) {
+      data['kontak'] = kontak;
     }
 
     if (createdAt != null) {

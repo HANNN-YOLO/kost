@@ -40,6 +40,7 @@ class _ProfilePemilikPageState extends State<ProfilePemilikPage> {
 
   bool keadaan = true;
 
+  // button done
   Future<void> _showSuccessDialog(
     BuildContext context, {
     required String title,
@@ -50,9 +51,9 @@ class _ProfilePemilikPageState extends State<ProfilePemilikPage> {
       barrierDismissible: true,
       barrierLabel: 'Success',
       barrierColor: Colors.black.withOpacity(0.25),
-      transitionDuration: const Duration(milliseconds: 260),
+      transitionDuration: Duration(milliseconds: 260),
       pageBuilder: (context, animation, secondaryAnimation) {
-        return const SizedBox.shrink();
+        return SizedBox.shrink();
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         final curved = CurvedAnimation(
@@ -67,8 +68,7 @@ class _ProfilePemilikPageState extends State<ProfilePemilikPage> {
             child: Center(
               child: Container(
                 width: MediaQuery.of(context).size.width * 0.78,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(22),
@@ -76,7 +76,7 @@ class _ProfilePemilikPageState extends State<ProfilePemilikPage> {
                     BoxShadow(
                       color: Colors.black.withOpacity(0.12),
                       blurRadius: 24,
-                      offset: const Offset(0, 12),
+                      offset: Offset(0, 12),
                     ),
                   ],
                 ),
@@ -91,49 +91,49 @@ class _ProfilePemilikPageState extends State<ProfilePemilikPage> {
                         gradient: LinearGradient(
                           colors: [
                             ProfilePemilikPage.warnaUtama,
-                            const Color(0xFF3B82F6)
+                            Color(0xFF3B82F6)
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.check,
                         color: Colors.white,
                         size: 30,
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    SizedBox(height: 14),
                     Text(
                       title,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
                         color: Color(0xFF111827),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    SizedBox(height: 6),
                     Text(
                       message,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         color: Color(0xFF6B7280),
                         height: 1.4,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       child: CupertinoButton(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        padding: EdgeInsets.symmetric(vertical: 8),
                         borderRadius: BorderRadius.circular(14),
                         color: ProfilePemilikPage.warnaUtama,
                         onPressed: () {
                           Navigator.of(context).pop();
                         },
-                        child: const Text(
+                        child: Text(
                           'Oke',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
@@ -152,6 +152,7 @@ class _ProfilePemilikPageState extends State<ProfilePemilikPage> {
     );
   }
 
+  // set up fungsi read
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -179,6 +180,7 @@ class _ProfilePemilikPageState extends State<ProfilePemilikPage> {
     }
   }
 
+  // tidak terpakai part 1
   void _toast(BuildContext context, String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -192,7 +194,7 @@ class _ProfilePemilikPageState extends State<ProfilePemilikPage> {
   Widget build(BuildContext context) {
     // Gunakan UI & fungsi yang sama seperti profil penyewa,
     // tetapi tanpa menampilkan tombol "Keluar Akun".
-    return const UserProfilePage(showLogoutButton: false);
+    return UserProfilePage(showLogoutButton: false);
   }
 }
 
@@ -592,7 +594,7 @@ class _GenderFieldCard extends StatelessWidget {
   final VoidCallback onCancel;
   final ValueChanged<String> onChanged;
 
-  const _GenderFieldCard({
+  _GenderFieldCard({
     required this.value,
     required this.isEditing,
     required this.onEdit,
@@ -720,176 +722,3 @@ class _GenderFieldCard extends StatelessWidget {
     );
   }
 }
-
-
-// sementara
-// inputan tgl
-                    // _InfoFieldCard(
-                    //   icon: Icons.date_range_outlined,
-                    //   label: 'tgl lahir',
-                    //   controller: _tgllahir,
-                    //   isEditing: _editgllahir,
-                    //   onEdit: () async {
-                    //     // setState(() {
-
-                    //     // });
-                    //     final waktunya = await showDatePicker(
-                    //       context: context,
-                    //       firstDate: DateTime(1000),
-                    //       lastDate: DateTime(9000),
-                    //       initialDate: DateTime.now(),
-                    //     );
-                    //     // final waktu = waktunya;
-                    //     _tgllahir.text =
-                    //         "${waktunya!.day.toString().padLeft(2, '0')}-"
-                    //         "${waktunya.month.toString().padLeft(2, '0')}-"
-                    //         "${waktunya.year.toString()}";
-
-                    //     // waktu = DateTime.parse(_tgllahir.text);
-                    //     waktu = DateFormat('dd-MM-yyyy').parse(_tgllahir.text);
-                    //     _backuptgllahir = _tgllahir.text;
-                    //     _editgllahir = true;
-                    //   },
-                    //   onCancel: () => setState(() {
-                    //     _tgllahir.text = _backuptgllahir ?? '';
-                    //     _editgllahir = false;
-                    //   }),
-                    // ),
-
-// inputan jenis kelamin
-                    // _InfoFieldCard(
-                    //   icon: FontAwesomeIcons.venusMars,
-                    //   label: 'Jenis Kelamin',
-                    //   controller: _namaController,
-                    //   isEditing: _editUsername,
-                    //   onEdit: () => setState(() {
-                    //     _backupUsername = _namaController.text;
-                    //     _editUsername = true;
-                    //   }),
-                    //   onCancel: () => setState(() {
-                    //     _namaController.text =
-                    //         _backupUsername ?? _namaController.text;
-                    //     _editUsername = false;
-                    //   }),
-                    // ),
-
-                    // SizedBox(
-                    //   height: 20,
-                    // ),
-
-                    // DropdownSearch<(IconData, String)>(
-                    //   selectedItem: (
-                    //     FontAwesomeIcons.venusMars,
-                    //     'Jenis Kelamin'
-                    //   ),
-                    //   compareFn: (item1, item2) => item1.$1 == item2.$2,
-                    //   items: (f, cs) => [
-                    //     (Icons.male, 'Laki Laki'),
-                    //     (Icons.female, 'Perempuan'),
-                    //   ],
-                    //   decoratorProps: DropDownDecoratorProps(
-                    //     decoration: InputDecoration(
-                    //       contentPadding: EdgeInsets.symmetric(vertical: 6),
-                    //       filled: true,
-                    //       fillColor: Colors.white,
-                    //       border: OutlineInputBorder(
-                    //         borderSide: BorderSide(color: Colors.transparent),
-                    //         borderRadius: BorderRadius.circular(8),
-                    //       ),
-                    //       focusedBorder: OutlineInputBorder(
-                    //         borderSide: BorderSide(color: Colors.transparent),
-                    //         borderRadius: BorderRadius.circular(8),
-                    //       ),
-                    //       enabledBorder: OutlineInputBorder(
-                    //         borderSide: BorderSide(color: Colors.transparent),
-                    //         borderRadius: BorderRadius.circular(8),
-                    //       ),
-                    //     ),
-                    //   ),
-                    //   dropdownBuilder: (context, selectedItem) {
-                    //     return ListTile(
-                    //       leading: Icon(selectedItem!.$1, color: Colors.white),
-                    //       title: Text(
-                    //         selectedItem.$2,
-                    //         style: TextStyle(
-                    //           color: Colors.black54,
-                    //         ),
-                    //       ),
-                    //     );
-                    //   },
-                    //   popupProps: PopupProps.menu(
-                    //     itemBuilder: (context, item, isDisabled, isSelected) {
-                    //       return ListTile(
-                    //         contentPadding: EdgeInsets.symmetric(
-                    //             vertical: 8, horizontal: 12),
-                    //         leading: Icon(item.$1, color: Colors.white),
-                    //         title: Text(
-                    //           item.$2,
-                    //           style: TextStyle(
-                    //             color: Colors.black54,
-                    //           ),
-                    //         ),
-                    //       );
-                    //     },
-                    //     fit: FlexFit.loose,
-                    //     menuProps: MenuProps(
-                    //       backgroundColor: Colors.transparent,
-                    //       elevation: 0,
-                    //       margin: EdgeInsets.only(top: 16),
-                    //     ),
-                    //     containerBuilder: (ctx, popupWidget) {
-                    //       return Column(
-                    //         mainAxisSize: MainAxisSize.min,
-                    //         crossAxisAlignment: CrossAxisAlignment.end,
-                    //         children: [
-                    //           // Padding(
-                    //           //   padding: const EdgeInsets.only(right: 12),
-                    //           //   child: Image.asset(
-                    //           //     'lib/assets/arrow_up.jpg',
-                    //           //     color: Color(0xFF1eb98f),
-                    //           //     height: 14,
-                    //           //   ),
-                    //           // ),
-                    //           Flexible(
-                    //             child: Container(
-                    //               decoration: BoxDecoration(
-                    //                 color: Colors.white,
-                    //                 shape: BoxShape.rectangle,
-                    //                 borderRadius: BorderRadius.circular(8),
-                    //               ),
-                    //               child: popupWidget,
-                    //             ),
-                    //           ),
-                    //         ],
-                    //       );
-                    //     },
-                    //   ),
-                    // ),
-
-// ini akan digunakan untuk kondisi foto
-                                  // versi baru
-                                  // Consumer<ProfilProvider>(
-                                  //   builder: (context, value, child) {
-                                  //     return penghubung2.mydata.isNotEmpty
-                                  //         ? custom_editfotostack(
-                                  //             fungsi: () {
-                                  //               penghubung2.uploadfoto();
-                                  //             },
-                                  //             path: penghubung2.isinya?.path,
-                                  //             pathlama:
-                                  //                 penghubung2.isinya?.path,
-                                  //             tinggi: 50,
-                                  //             panjang: 50,
-                                  //           )
-                                  //         : CustomUploadfotoStack(
-                                  //             panjang: 50,
-                                  //             tinggi: 50,
-                                  //             fungsi: () {
-                                  //               penghubung2.uploadfoto();
-                                  //             },
-                                  //             path: penghubung2.isinya?.path,
-                                  //             warnautama: warnaUtama,
-                                  //           );
-                                  //     // :
-                                  //   },
-                                  // ),

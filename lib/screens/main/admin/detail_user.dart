@@ -130,7 +130,8 @@ class DetailUser extends StatelessWidget {
                           infoBar("Nama", "${isinya.username}"),
                           infoBar("Email", "${isinya.Email}"),
                           infoBar("Jenis Kelamin", "${pakai.jkl}"),
-                          infoBar("No. handphone", "${pakai.kontak}"),
+                          infoBar("No. handphone",
+                              "${pakai.kontak == 0 ? "Tidak di publish" : pakai.kontak}"),
                           infoBar(
                               "Tanggal Lahir",
                               // "${DateFormat('dd-MM-yyyy').parse(pakai.tgllahir.toString())}",

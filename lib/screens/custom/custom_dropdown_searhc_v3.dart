@@ -31,7 +31,7 @@ class CustomDropdownSearchv3 extends StatelessWidget {
             fillColor: Color(0xFFE5ECFF),
             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             hintText: label,
-            hintStyle: TextStyle(color: Colors.grey),
+            hintStyle: TextStyle(fontWeight: FontWeight.w500),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide.none,

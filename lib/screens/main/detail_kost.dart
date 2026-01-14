@@ -36,34 +36,6 @@ class DetailKost extends StatelessWidget {
     if (rawDestLat is num) destinationLat = rawDestLat.toDouble();
     if (rawDestLng is num) destinationLng = rawDestLng.toDouble();
     if (rawDistanceKm is num) distanceKm = rawDistanceKm.toDouble();
-    // final terima = {
-    //   ModalRoute.of(context)?.settings.arguments as KostModel,
-    //   ModalRoute.of(context)?.settings.arguments as int
-    // };
-
-    // final terima = ModalRoute.of(context)?.settings.arguments as KostModel;
-    // final test = ModalRoute.of(context)?.settings.arguments as FasilitasModel;
-
-    // final pakai = Provider.of<KostProvider>(context).
-
-    // admin
-    // final pakai = Provider.of<KostProvider>(context)
-    //         .kost
-    //         .firstWhere((element) => element.id_kost == terima) ??
-    //     Provider.of<KostProvider>(context)
-    //         .kostpemilik
-    //         .firstWhere((element) => element.id_kost == terima) ??
-    //     Provider.of<KostProvider>(context)
-    //         .kostpenyewa
-    //         .firstWhere((element) => element.id_kost == terima);
-
-    // final cek = Provider.of<KostProvider>(context).faslitas.firstWhere(
-    //         (element) => element.id_fasilitas == terima.id_fasilitas) ??
-    //     Provider.of<KostProvider>(context).fasilitaspemilik.firstWhere(
-    //         (element) => element.id_fasilitas == terima.id_fasilitas) ??
-    //     Provider.of<KostProvider>(context).fasilitaspenyewa.firstWhere(
-    //         (element) => element.id_fasilitas == terima.id_fasilitas);
-    // Large circular back button overlay (top-left)
     Positioned(
       left: 12,
       top: 12,
@@ -98,24 +70,6 @@ class DetailKost extends StatelessWidget {
       ),
     );
 
-    // // pemilik
-    // final pakaipemilik = Provider.of<KostProvider>(context)
-    //     .kostpemilik
-    //     .firstWhere((element) => element.id_kost == terima);
-    // final cekpemilik = Provider.of<KostProvider>(context)
-    //     .fasilitaspemilik
-    //     .firstWhere(
-    //         (element) => element.id_fasilitas == pakaipemilik.id_fasilitas);
-
-    // // Penyewa
-    // final pakaipenyewa = Provider.of<KostProvider>(context)
-    //     .kostpenyewa
-    //     .firstWhere((element) => element.id_kost == terima);
-    // final cekpenyewa = Provider.of<KostProvider>(context)
-    //     .fasilitaspenyewa
-    //     .firstWhere(
-    //         (element) => element.id_fasilitas == pakaipenyewa.id_fasilitas);
-
     return Scaffold(
       backgroundColor: warnaLatar,
       body: SingleChildScrollView(
@@ -124,24 +78,7 @@ class DetailKost extends StatelessWidget {
           children: [
             _DetailHeader(
               imageUrl: terima.gambar_kost,
-              //  pakai.gambar_kost,
-              // pakai != null
-              //     ? pakai.gambar_kost.toString()
-              //     : pakaipemilik != null
-              //         ? pakaipemilik.gambar_kost.toString()
-              //         : pakaipenyewa != null
-              //             ? pakaipenyewa.gambar_kost.toString()
-              //             : "https://i.pinimg.com/originals/98/1d/6b/981d6b2e0ccb5e968a0618c8d47671da.jpg",
-              //
               price: terima.harga_kost.toString(),
-              // pakai.harga_kost?.toString() ?? '-',
-              // pakai != null
-              //     ? pakai.harga_kost.toString()
-              //     : pakaipemilik != null
-              //         ? pakaipemilik.harga_kost.toString()
-              //         : pakaipenyewa != null
-              //             ? pakaipenyewa.harga_kost.toString()
-              //             : "0",
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -150,14 +87,6 @@ class DetailKost extends StatelessWidget {
                 children: [
                   Text(
                     terima.nama_kost ?? "-",
-                    // pakai.nama_kost ?? '-',
-                    // pakai != null
-                    //     ? pakai.nama_kost.toString()
-                    //     : pakaipemilik != null
-                    //         ? pakaipemilik.nama_kost.toString()
-                    //         : pakaipenyewa != null
-                    //             ? pakaipenyewa.nama_kost.toString()
-                    //             : "-",
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
@@ -173,14 +102,6 @@ class DetailKost extends StatelessWidget {
                       Expanded(
                         child: Text(
                           terima.alamat_kost ?? "-",
-                          // pakai.alamat_kost ?? '-',
-                          // pakai != null
-                          //     ? pakai.alamat_kost.toString()
-                          //     : pakaipemilik != null
-                          //         ? pakaipemilik.alamat_kost.toString()
-                          //         : pakaipenyewa != null
-                          //             ? pakaipenyewa.alamat_kost.toString()
-                          //             : "-",
                           style: const TextStyle(color: Colors.black54),
                         ),
                       ),
@@ -195,40 +116,15 @@ class DetailKost extends StatelessWidget {
                         icon: Icons.sell_outlined,
                         label: 'Harga',
                         value: terima.harga_kost.toString(),
-                        // pakai.harga_kost?.toString() ?? '-',
-                        // pakai != null
-                        //     ? pakai.harga_kost.toString()
-                        //     : pakaipemilik != null
-                        //         ? pakaipemilik.harga_kost.toString()
-                        //         : pakaipenyewa != null
-                        //             ? pakaipenyewa.harga_kost.toString()
-                        //             : "0",
                       ),
                       _StatChip(
                           icon: Icons.king_bed_outlined,
                           label: 'Ukuran',
-                          value: "${terima.panjang} x ${terima.lebar}"
-                          // "${pakai.panjang} x ${pakai.lebar}",
-                          // pakai != null
-                          //     ? "${pakai.panjang} x ${pakai.lebar}"
-                          //     : pakaipemilik != null
-                          //         ? "${pakaipemilik.panjang} x ${pakaipemilik.lebar}"
-                          //         : pakaipenyewa != null
-                          //             ? "${pakaipenyewa.panjang} x ${pakaipenyewa.lebar}"
-                          //             : "tidal terdedifinisi",
-                          ),
+                          value: "${terima.panjang} x ${terima.lebar}"),
                       _StatChip(
                         icon: Icons.home_work_outlined,
                         label: 'Jenis',
                         value: terima.jenis_kost.toString(),
-                        // pakai.jenis_kost ?? '-',
-                        // pakai != null
-                        //     ? pakai.jenis_kost!
-                        //     : pakaipemilik != null
-                        //         ? pakaipemilik.jenis_kost!
-                        //         : pakaipenyewa != null
-                        //             ? pakaipenyewa.jenis_kost!
-                        //             : "-",
                       ),
                     ],
                   ),
@@ -240,53 +136,20 @@ class DetailKost extends StatelessWidget {
                         icon: Icons.person_outline,
                         label: 'Pemilik',
                         value: terima.pemilik_kost.toString(),
-                        // pakai.pemilik_kost ?? '-',
-                        // pakai != null
-                        //     ? pakai.pemilik_kost!
-                        //     : pakaipemilik != null
-                        //         ? pakaipemilik.pemilik_kost!
-                        //         : pakaipenyewa != null
-                        //             ? pakaipenyewa.pemilik_kost!
-                        //             : "-",
                       ),
                       _InfoTile(
                         icon: Icons.phone_outlined,
                         label: 'Kontak',
                         value: terima.notlp_kost.toString(),
-                        // pakai.notlp_kost?.toString() ?? '-',
-                        // pakai != null
-                        //     ? pakai.notlp_kost.toString()
-                        //     : pakaipemilik != null
-                        //         ? pakaipemilik.notlp_kost.toString()
-                        //         : pakaipenyewa != null
-                        //             ? pakaipenyewa.notlp_kost.toString()
-                        //             : "tidak terdaftar",
                       ),
                       _InfoTile(
                           icon: Icons.king_bed_outlined,
                           label: 'Ukuran Kamar',
-                          value: "${terima.panjang} x ${terima.lebar}"
-                          // "${pakai.panjang} x ${pakai.lebar}",
-                          // pakai != null
-                          //     ? "${pakai.panjang} x ${pakai.lebar}"
-                          //     : pakaipemilik != null
-                          //         ? "${pakaipemilik.panjang} x ${pakaipemilik.lebar}"
-                          //         : pakaipenyewa != null
-                          //             ? "${pakaipenyewa.panjang} x ${pakaipenyewa.lebar}"
-                          //             : "tidal terdedifinisi",
-                          ),
+                          value: "${terima.panjang} x ${terima.lebar}"),
                       _InfoTile(
                         icon: Icons.home_work_outlined,
                         label: 'Jenis Kost',
                         value: terima.jenis_kost.toString(),
-                        // pakai.jenis_kost ?? '-',
-                        // pakai != null
-                        //     ? pakai.jenis_kost.toString()
-                        //     : pakaipemilik != null
-                        //         ? pakaipemilik.jenis_kost.toString()
-                        //         : pakaipenyewa != null
-                        //             ? pakaipenyewa.jenis_kost.toString()
-                        //             : "-",
                       ),
                     ],
                   ),
@@ -298,42 +161,16 @@ class DetailKost extends StatelessWidget {
                         icon: Icons.flash_on_outlined,
                         label: 'Jenis Listrik',
                         value: terima.jenis_listrik.toString(),
-                        // pakai.jenis_listrik ?? '-',
-                        // pakai != null
-                        //     ? pakai.jenis_listrik.toString()
-                        //     : pakaipemilik != null
-                        //         ? pakaipemilik.jenis_listrik.toString()
-                        //         : pakaipenyewa != null
-                        //             ? pakaipenyewa.jenis_listrik.toString()
-                        //             : "tidak ada listrik tersedia",
                       ),
                       _InfoTile(
                         icon: Icons.water_drop_outlined,
                         label: 'Pembayaran Air',
                         value: terima.jenis_pembayaran_air.toString(),
-                        // pakai.jenis_pembayaran_air ?? '-',
-                        // pakai != null
-                        //     ? pakai.jenis_pembayaran_air.toString()
-                        //     : pakaipemilik != null
-                        //         ? pakaipemilik.jenis_pembayaran_air
-                        //             .toString()
-                        //         : pakaipenyewa != null
-                        //             ? pakaipenyewa.jenis_pembayaran_air
-                        //                 .toString()
-                        //             : "tidak ada air berseih",
                       ),
                       _InfoTile(
                         icon: Icons.security_outlined,
                         label: 'Keamanan',
                         value: terima.keamanan.toString(),
-                        // pakai.keamanan ?? '-',
-                        // pakai != null
-                        //     ? pakai.keamanan.toString()
-                        //     : pakaipemilik != null
-                        //         ? pakaipemilik.keamanan.toString()
-                        //         : pakaipenyewa != null
-                        //             ? pakaipenyewa.keamanan.toString()
-                        //             : "tidak ada keamanan",
                       ),
                       _FacilityList(fasilitas: pakai),
                     ],

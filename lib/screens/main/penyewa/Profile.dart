@@ -18,8 +18,7 @@ class UserProfilePage extends StatefulWidget {
   /// Default: true (untuk profil penyewa).
   final bool showLogoutButton;
 
-  const UserProfilePage({Key? key, this.showLogoutButton = true})
-      : super(key: key);
+  UserProfilePage({Key? key, this.showLogoutButton = true}) : super(key: key);
 
   @override
   State<UserProfilePage> createState() => _UserProfilePageState();
@@ -58,7 +57,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
+        builder: (context) => Center(
           child: CircularProgressIndicator(),
         ),
       );
@@ -164,9 +163,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
       barrierLabel: 'PhotoOptions',
       // Hilangkan overlay gelap, hanya blur halus di belakang
       barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 260),
+      transitionDuration: Duration(milliseconds: 260),
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
-        return const SizedBox.shrink();
+        return SizedBox.shrink();
       },
       transitionBuilder: (dialogContext, animation, secondaryAnimation, child) {
         final curved = CurvedAnimation(
@@ -193,9 +192,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   child: Material(
                     color: Colors.transparent,
                     child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 24),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 18),
+                      margin: EdgeInsets.symmetric(horizontal: 24),
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(24),
@@ -203,7 +202,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           BoxShadow(
                             color: Colors.black.withOpacity(0.08),
                             blurRadius: 20,
-                            offset: const Offset(0, 10),
+                            offset: Offset(0, 10),
                           ),
                         ],
                       ),
@@ -218,8 +217,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
-                          const SizedBox(height: 10),
-                          const Text(
+                          SizedBox(height: 10),
+                          Text(
                             'Kelola Foto Profil',
                             style: TextStyle(
                               fontSize: 15,
@@ -227,8 +226,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
                               color: Color(0xFF111827),
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          const Text(
+                          SizedBox(height: 4),
+                          Text(
                             'Pilih aksi untuk mengubah atau menghapus foto profil Anda.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
@@ -236,23 +235,23 @@ class _UserProfilePageState extends State<UserProfilePage> {
                               color: Color(0xFF6B7280),
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          SizedBox(height: 12),
                           ListTile(
                             contentPadding: EdgeInsets.zero,
                             leading: Container(
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: const Color(0xFFE0ECFF),
+                                color: Color(0xFFE0ECFF),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.photo_camera_back_outlined,
                                 color: Color(0xFF1E3A8A),
                               ),
                             ),
-                            title: const Text('Upload Foto Profil'),
-                            subtitle: const Text(
+                            title: Text('Upload Foto Profil'),
+                            subtitle: Text(
                               'Pilih gambar dari galeri perangkat.',
                               style: TextStyle(fontSize: 12),
                             ),
@@ -270,7 +269,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                               height: 40,
                               decoration: BoxDecoration(
                                 color: hasFoto
-                                    ? const Color(0xFFFEE2E2)
+                                    ? Color(0xFFFEE2E2)
                                     : Colors.grey.shade200,
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -279,8 +278,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
                                 color: hasFoto ? Colors.red : Colors.grey,
                               ),
                             ),
-                            title: const Text('Hapus Foto Profil'),
-                            subtitle: const Text(
+                            title: Text('Hapus Foto Profil'),
+                            subtitle: Text(
                               'Kembalikan ke avatar default.',
                               style: TextStyle(fontSize: 12),
                             ),
@@ -301,7 +300,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                                       if (!mounted) return;
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(
-                                        const SnackBar(
+                                        SnackBar(
                                           content: Text(
                                             'Foto profil berhasil dihapus.',
                                           ),
@@ -311,7 +310,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                                       if (!mounted) return;
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(
-                                        const SnackBar(
+                                        SnackBar(
                                           content: Text(
                                             'Gagal menghapus foto profil. Silakan coba lagi.',
                                           ),
@@ -326,10 +325,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
                                   }
                                 : null,
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4),
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(),
-                            child: const Text(
+                            child: Text(
                               'Batal',
                               style: TextStyle(
                                 color: Color(0xFF111827),
@@ -360,9 +359,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
       barrierDismissible: true,
       barrierLabel: 'Success',
       barrierColor: Colors.black.withOpacity(0.25),
-      transitionDuration: const Duration(milliseconds: 260),
+      transitionDuration: Duration(milliseconds: 260),
       pageBuilder: (context, animation, secondaryAnimation) {
-        return const SizedBox.shrink();
+        return SizedBox.shrink();
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         final curved = CurvedAnimation(
@@ -377,8 +376,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
             child: Center(
               child: Container(
                 width: MediaQuery.of(context).size.width * 0.78,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(22),
@@ -386,7 +384,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                     BoxShadow(
                       color: Colors.black.withOpacity(0.12),
                       blurRadius: 24,
-                      offset: const Offset(0, 12),
+                      offset: Offset(0, 12),
                     ),
                   ],
                 ),
@@ -396,7 +394,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                     Container(
                       width: 50,
                       height: 50,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: LinearGradient(
                           colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
@@ -404,43 +402,43 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           end: Alignment.bottomRight,
                         ),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.check,
                         color: Colors.white,
                         size: 30,
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    SizedBox(height: 14),
                     Text(
                       title,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
                         color: Color(0xFF111827),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    SizedBox(height: 6),
                     Text(
                       message,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         color: Color(0xFF6B7280),
                         height: 1.4,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       child: CupertinoButton(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        padding: EdgeInsets.symmetric(vertical: 8),
                         borderRadius: BorderRadius.circular(14),
-                        color: const Color(0xFF1E3A8A),
+                        color: Color(0xFF1E3A8A),
                         onPressed: () {
                           Navigator.of(context).pop();
                         },
-                        child: const Text(
+                        child: Text(
                           'Oke',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
@@ -467,10 +465,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
     final penghubung3 = Provider.of<KostProvider>(context, listen: false);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: Color(0xFFF5F7FB),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 24),
+          padding: EdgeInsets.only(bottom: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -480,7 +478,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   Container(
                     height: 180,
                     width: double.infinity,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
                         begin: Alignment.topLeft,
@@ -513,10 +511,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                    padding: EdgeInsets.fromLTRB(16, 14, 16, 16),
                     child: Column(
                       children: [
-                        const Center(
+                        Center(
                           child: Text(
                             'Details',
                             style: TextStyle(
@@ -526,10 +524,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 14),
+                        SizedBox(height: 14),
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
+                          padding: EdgeInsets.symmetric(
                               horizontal: 20, vertical: 18),
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -538,7 +536,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.08),
                                 blurRadius: 10,
-                                offset: const Offset(0, 6),
+                                offset: Offset(0, 6),
                               )
                             ],
                           ),
@@ -596,7 +594,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                                             width: 24,
                                             height: 24,
                                             decoration: BoxDecoration(
-                                              color: const Color(0xFF1E3A8A),
+                                              color: Color(0xFF1E3A8A),
                                               borderRadius:
                                                   BorderRadius.circular(999),
                                               boxShadow: [
@@ -604,11 +602,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
                                                   color: Colors.black
                                                       .withOpacity(0.25),
                                                   blurRadius: 6,
-                                                  offset: const Offset(0, 3),
+                                                  offset: Offset(0, 3),
                                                 ),
                                               ],
                                             ),
-                                            child: const Icon(
+                                            child: Icon(
                                               Icons.edit,
                                               size: 14,
                                               color: Colors.white,
@@ -620,7 +618,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                                   );
                                 },
                               ),
-                              const SizedBox(width: 16),
+                              SizedBox(width: 16),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -628,16 +626,16 @@ class _UserProfilePageState extends State<UserProfilePage> {
                                   children: [
                                     Text(
                                       penghubung.mydata[index].username ?? '-',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         color: Color(0xFF111827),
                                         fontWeight: FontWeight.w800,
                                         fontSize: 16,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
+                                    SizedBox(height: 4),
                                     Text(
                                       penghubung.mydata[index].Email ?? '-',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         color: Colors.black54,
                                         fontSize: 12,
                                       ),
@@ -655,12 +653,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
               ),
 
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Informasi Akun',
                       style: TextStyle(
                         fontSize: 15,
@@ -668,7 +665,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                         color: Colors.black87,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     _IconTextField(
                       controller: namaController,
                       label: 'Nama',
@@ -709,7 +706,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                                 _recomputeHasChanges();
                               },
                             ),
-                            const SizedBox(height: 20),
+                            SizedBox(height: 20),
                             _IconTextField(
                               controller: noHpController,
                               label: 'No. Hp',
@@ -729,15 +726,15 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       keyboardType: TextInputType.emailAddress,
                     ),
                     if (mesaage != null) ...[
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       Center(
                         child: Text(
                           mesaage!,
-                          style: const TextStyle(color: Colors.green),
+                          style: TextStyle(color: Colors.green),
                         ),
                       )
                     ],
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     if (widget.showLogoutButton)
                       ElevatedButton.icon(
                         onPressed: () async {
@@ -764,8 +761,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        icon: const Icon(Icons.logout),
-                        label: const Text(
+                        icon: Icon(Icons.logout),
+                        label: Text(
                           'Keluar Akun',
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
@@ -779,7 +776,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+          padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
           child: SizedBox(
             width: double.infinity,
             height: 48,
@@ -789,13 +786,12 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   : () async {
                       // Validasi input dasar
                       if (tglLahirController.text.isEmpty ||
-                          noHpController.text.isEmpty ||
                           penghubung2.defaults == null ||
                           penghubung2.defaults == 'Jenis Kelamin') {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
+                          SnackBar(
                             content: Text(
-                              'Lengkapi tanggal lahir, jenis kelamin, dan nomor HP.',
+                              'Lengkapi tanggal lahir,  dan jenis kelamin.',
                             ),
                           ),
                         );
@@ -803,14 +799,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       }
 
                       final int? hp = int.tryParse(noHpController.text.trim());
-                      if (hp == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Nomor HP harus berupa angka.'),
-                          ),
-                        );
-                        return;
-                      }
+                      // if (hp == null) {
+                      //   ScaffoldMessenger.of(context).showSnackBar(
+                      //     SnackBar(
+                      //       content: Text('Nomor HP harus berupa angka.'),
+                      //     ),
+                      //   );
+                      //   return;
+                      // }
 
                       try {
                         setState(() {
@@ -823,7 +819,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                         if (penghubung2.mydata.isEmpty) {
                           if (penghubung2.isinya == null) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
+                              SnackBar(
                                 content: Text(
                                   'Silakan unggah foto profil terlebih dahulu.',
                                 ),
@@ -836,7 +832,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
                             penghubung2.isinya!,
                             tgl,
                             penghubung2.defaults!,
-                            hp,
+                            int.parse(noHpController.text),
+                            // int.tryParse(noHpController.text)!,
                           );
 
                           setState(() {
@@ -866,7 +863,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
                             penghubung2.mydata[index].foto,
                             tgl,
                             penghubung2.defaults!,
-                            hp,
+                            int.parse(noHpController.text),
+                            // int.tryParse(noHpController.text)!,
                           );
 
                           setState(() {
@@ -908,14 +906,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       }
                     },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1E3A8A),
+                backgroundColor: Color(0xFF1E3A8A),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
               icon: _isSaving
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
@@ -923,10 +921,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
-                  : const Icon(Icons.save_outlined),
+                  : Icon(Icons.save_outlined),
               label: Text(
                 _isSaving ? 'Menyimpan...' : 'Simpan Perubahan Data',
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                style: TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
           ),

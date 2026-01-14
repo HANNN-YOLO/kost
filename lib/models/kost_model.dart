@@ -42,7 +42,6 @@ class KostModel {
       'nama_kost': nama_kost,
       'pemilik_kost': pemilik_kost,
       'alamat_kost': alamat_kost,
-      'notlp_kost': notlp_kost,
       'harga_kost': harga_kost,
       'batas_jam_malam': batas_jam_malam,
       'jenis_listrik': jenis_listrik,
@@ -58,6 +57,10 @@ class KostModel {
 
     if (id_kost != null) {
       data['id_kost'] = id_kost;
+    }
+
+    if (notlp_kost != null) {
+      data['notlp_kost'] = notlp_kost;
     }
 
     if (createdAt != null) {

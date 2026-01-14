@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kost_saw/screens/main/admin/criteria_management.dart';
 import 'package:kost_saw/screens/main/admin/management_boarding_house.dart';
 import 'package:kost_saw/screens/main/admin/user_management.dart';
+import 'package:kost_saw/screens/main/admin/sementara.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/kost_provider.dart';
@@ -28,6 +29,7 @@ class _MainNavigationAdminState extends State<MainNavigationAdmin> {
         return CriteriaManagement();
       case 2:
         return SubcriteriaManagement();
+      // Sementara();
       case 3:
         return UserManagement();
       default:

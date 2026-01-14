@@ -208,7 +208,11 @@ class _UserManagementState extends State<UserManagement> {
                             return UserCard(
                               nama: "$user",
                               email: "$email",
-                              telepon: "${value.alluser[index].kontak}",
+                              telepon:
+                                  // "${value.alluser[index].kontak}",
+                                  value.alluser[index].kontak == 0
+                                      ? "Tidak di publish"
+                                      : "${value.alluser[index].kontak}",
                               tanggalBergabung:
                                   "${DateFormat('dd-MM-yyyy').format(DateTime.parse(value.alluser[index].createdAt.toString()))}",
                               foto: "${value.alluser[index].foto}",

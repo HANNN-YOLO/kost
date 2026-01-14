@@ -15,7 +15,7 @@ class SubkriteriaServices {
       headers: {
         'Content-Type': 'application/json',
         'apikey': '${SupabaseApiConfig.apisecret}',
-        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
       },
     );
 
@@ -31,5 +31,67 @@ class SubkriteriaServices {
       throw "gagal ambil data subkriteria ${simpan.body}";
     }
     return hasilnya;
+  }
+
+  Future<void> createdata(List<Map<String, dynamic>> mana) async {
+    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/sub_kriteria");
+
+    var upload = await htpp.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apisecret}',
+        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        'Prefer': 'return=repsentation',
+      },
+      body: json.encode(mana),
+    );
+
+    if (upload.statusCode == 200 || upload.statusCode == 201) {
+      print("done simpan data subkriteria dengan sebanyak ${upload.body}");
+    } else {
+      print("gagal upload data karena ${upload.body}");
+      throw "gagal upload data karena ${upload.body}";
+    }
+  }
+
+  Future<void> deletedata(int id_subkriteria) async {
+    var url = Uri.parse(
+        "${SupabaseApiConfig.masterurl}/rest/v1/sub_kriteria?id_subkriteria=eq.$id_subkriteria");
+
+    var delete = await htpp.delete(url, headers: {
+      'Content-Type': 'application/json',
+      'apikey': '${SupabaseApiConfig.apisecret}',
+      'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+    });
+
+    if (delete.statusCode == 204) {
+      print("hapus data sub_kriteria berhasil pada id $id_subkriteria");
+    } else {
+      print("gagal hapus data sub_kriteria karena kendala ${delete.body}");
+      throw "gagal hapus data sub kriteria karena kendala ${delete.body}";
+    }
+  }
+
+  Future<void> updateddata(List<Map<String, dynamic>> mana) async {
+    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/sub_kriteria");
+
+    var editan = await htpp.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apisecret}',
+        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: json.encode(mana),
+    );
+
+    if (editan.statusCode <= 205) {
+      print("done updated data sub kriteria dengan data ${editan.body}");
+    } else {
+      print("gagal update data subkriteria dikarenakan ${editan.body}");
+      throw "gagal update data subkriteria dikarenakan ${editan.body}";
+    }
   }
 }
