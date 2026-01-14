@@ -200,10 +200,12 @@ class KriteriaProvider with ChangeNotifier {
           'kategori': item['kategori'],
           'atribut': item['atribut'],
           'bobot': item['bobot'],
+          'bobot_decimal': item['bobot_decimal'], // Tambahkan bobot desimal
           'ranking': item['ranking'],
           'updatedAt': editan.toIso8601String(),
         });
-        print("   📝 UPDATE: ${item['kategori']} → Bobot: ${item['bobot']}%");
+        print(
+            "   📝 UPDATE: ${item['kategori']} → Bobot: ${item['bobot']}% (Decimal: ${item['bobot_decimal']})");
       } else {
         // Data baru - perlu create
         newdata.add({
@@ -211,9 +213,11 @@ class KriteriaProvider with ChangeNotifier {
           'kategori': item['kategori'],
           'atribut': item['atribut'],
           'bobot': item['bobot'],
+          'bobot_decimal': item['bobot_decimal'], // Tambahkan bobot desimal
           'ranking': item['ranking'],
         });
-        print("   ➕ CREATE: ${item['kategori']} → Bobot: ${item['bobot']}%");
+        print(
+            "   ➕ CREATE: ${item['kategori']} → Bobot: ${item['bobot']}% (Decimal: ${item['bobot_decimal']})");
       }
     }
 
@@ -319,11 +323,12 @@ class KriteriaProvider with ChangeNotifier {
         'kategori': item['kategori'],
         'atribut': item['atribut'],
         'bobot': item['bobot'],
+        'bobot_decimal': item['bobot_decimal'], // Tambahkan bobot desimal
         'ranking': item['ranking'],
         'updatedAt': editan.toIso8601String(),
       });
       print(
-          "   ✨ ${item['kategori']} → Bobot baru: ${item['bobot']}% (Ranking: ${item['ranking']})");
+          "   ✨ ${item['kategori']} → Bobot: ${item['bobot']}% | Decimal: ${item['bobot_decimal']} (Ranking: ${item['ranking']})");
     }
 
     // Update ke database
@@ -399,7 +404,7 @@ class KriteriaProvider with ChangeNotifier {
           'id_auth': element.id_auth,
           'id_kriteria': element.id_kriteria,
           'kategori': element.kategori.text,
-          'bobot': element.bobot.text
+          'bobot': element.bobot.text,
         });
       }
     }

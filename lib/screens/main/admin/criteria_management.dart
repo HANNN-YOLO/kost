@@ -398,30 +398,42 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
                                             SizedBox(width: 8),
                                             // Delete Button
                                             GestureDetector(
-                                              onTap: () {
-                                                setState(() {
-                                                  _listKriteria[index]
-                                                      .dispose();
-                                                  if (penghubung
-                                                          .mydata.isEmpty ||
-                                                      item.id_kriteria ==
-                                                          null) {
+                                              onTap: () async {
+                                                _listKriteria[index].dispose();
+
+                                                if (penghubung.mydata.isEmpty ||
+                                                    item.id_kriteria == null) {
+                                                  // Data belum ada di DB, hapus dari list lokal saja
+                                                  setState(() {
                                                     _listKriteria
                                                         .removeAt(index);
-                                                  } else {
-                                                    penghubung.deletedata(
-                                                        item.id_kriteria!);
-                                                    _listKriteria
-                                                        .removeAt(index);
-                                                  }
-                                                  // Update ranking setelah hapus
-                                                  for (int i = 0;
-                                                      i < _listKriteria.length;
-                                                      i++) {
-                                                    _listKriteria[i].ranking =
-                                                        i + 1;
-                                                  }
-                                                });
+                                                    // Update ranking setelah hapus
+                                                    for (int i = 0;
+                                                        i <
+                                                            _listKriteria
+                                                                .length;
+                                                        i++) {
+                                                      _listKriteria[i].ranking =
+                                                          i + 1;
+                                                    }
+                                                  });
+                                                } else {
+                                                  // Data ada di DB, hapus dari DB lalu refresh UI
+                                                  await penghubung.deletedata(
+                                                      item.id_kriteria!);
+
+                                                  // Reset inisiasi agar data di-load ulang dari DB
+                                                  // (termasuk bobot_decimal yang sudah di-recalculate)
+                                                  setState(() {
+                                                    inisiasi = false;
+                                                    _listKriteria.clear();
+                                                    _penghubung = Provider.of<
+                                                                KriteriaProvider>(
+                                                            context,
+                                                            listen: false)
+                                                        .readdata();
+                                                  });
+                                                }
                                               },
                                               child: Container(
                                                 padding: EdgeInsets.all(6),
@@ -558,19 +570,20 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
                       borderRadius: BorderRadius.circular(50)),
                 ),
                 onPressed: () async {
-                  // cara 3
+                  // Simpan/Update data
+                  if (penghubung.mydata.isEmpty) {
+                    await penghubung.savemassal(_listKriteria);
+                  } else {
+                    await penghubung.updatedmassal(_listKriteria);
+                  }
+
+                  // Reset inisiasi agar data dari DB di-load ulang ke _listKriteria
                   setState(() {
-                    penghubung.mydata.isEmpty
-                        ? penghubung.savemassal(_listKriteria)
-                        : penghubung.updatedmassal(_listKriteria);
-                    // penghubung.readdata();
-                    setState(() {
-                      // penghubung.readdata();
-                      // _perbaruidata();
-                      _penghubung =
-                          Provider.of<KriteriaProvider>(context, listen: false)
-                              .readdata();
-                    });
+                    inisiasi = false;
+                    _listKriteria.clear();
+                    _penghubung =
+                        Provider.of<KriteriaProvider>(context, listen: false)
+                            .readdata();
                   });
                 },
                 child: penghubung.mydata.isEmpty
