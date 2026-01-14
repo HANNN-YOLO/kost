@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import '../algoritma/rank_order_centroid.dart';
 import '../models/kriteria_models.dart';
 import '../models/subkriteria_models.dart';
 import '../services/kriteria_services.dart';
@@ -94,19 +95,46 @@ class KriteriaProvider with ChangeNotifier {
   // cek = _mydaz
 
   Future<void> savemassal(List<dynamic> mana) async {
-    print("inisiasisi");
-    final inimi = mana
-        .map((e) => {
-              'id_auth': int.tryParse(_id_auth.toString()),
-              'kategori': e.nama,
-              'atribut': e.atribut.value,
-              'bobot': int.tryParse(e.bobotController.text),
-            })
-        .toList();
-    print("eh bisanih");
+    print("\n" + "=" * 50);
+    print("🚀 INISIASI SIMPAN MASSAL KRITERIA DENGAN ROC");
+    print("=" * 50);
 
-    await createdata(inimi);
-    print("cihuy");
+    // STEP 1: Buat list data kriteria dengan ranking
+    // Ranking berdasarkan urutan input (index + 1)
+    final List<Map<String, dynamic>> dataKriteria = [];
+
+    for (int i = 0; i < mana.length; i++) {
+      var e = mana[i];
+      dataKriteria.add({
+        'id_auth': int.tryParse(_id_auth.toString()),
+        'kategori': e.nama,
+        'atribut': e.atribut.value,
+        'ranking': i + 1, // Ranking berdasarkan urutan
+      });
+    }
+
+    print("\n📋 Data sebelum ROC:");
+    for (var item in dataKriteria) {
+      print("   - ${item['kategori']} (Ranking: ${item['ranking']})");
+    }
+
+    // STEP 2: Aplikasikan bobot ROC
+    print("\n🔢 Menghitung bobot dengan Rank Order Centroid...");
+    final List<Map<String, dynamic>> datadenganROC =
+        RankOrderCentroid.aplikasikanBobot(dataKriteria);
+
+    print("\n📋 Data setelah ROC:");
+    for (var item in datadenganROC) {
+      print(
+          "   - ${item['kategori']} → Bobot: ${item['bobot']}% (Ranking: ${item['ranking']})");
+    }
+
+    // STEP 3: Simpan ke database via service
+    print("\n💾 Menyimpan ke database...");
+    await createdata(datadenganROC);
+
+    print("✅ SELESAI: Data kriteria berhasil disimpan dengan bobot ROC!");
+    print("=" * 50 + "\n");
   }
 
   Future<void> createdata(List<Map<String, dynamic>> manami) async {
@@ -132,42 +160,78 @@ class KriteriaProvider with ChangeNotifier {
   }
 
   Future<void> updatedmassal(List<dynamic> manalisnya) async {
+    print("\n" + "=" * 50);
+    print("🔄 INISIASI UPDATE MASSAL KRITERIA DENGAN ROC");
+    print("=" * 50);
+
     final editan = DateTime.now();
 
+    // STEP 1: Pisahkan data baru dan data lama
+    final List<Map<String, dynamic>> semuaData = [];
     final List<Map<String, dynamic>> lastdata = [];
     final List<Map<String, dynamic>> newdata = [];
 
-    for (var element in manalisnya) {
-      if (element.id_kriteria != null) {
+    // Buat list semua data dengan ranking
+    for (int i = 0; i < manalisnya.length; i++) {
+      var element = manalisnya[i];
+      semuaData.add({
+        'id_auth': int.tryParse(_id_auth.toString()),
+        'id_kriteria': element.id_kriteria,
+        'kategori': element.nama,
+        'atribut': element.atribut.value,
+        'ranking': i + 1, // Ranking berdasarkan urutan tampilan
+      });
+    }
+
+    print("\n📋 Total kriteria yang akan diproses: ${semuaData.length}");
+
+    // STEP 2: Aplikasikan bobot ROC ke SEMUA data
+    print("\n🔢 Menghitung bobot dengan Rank Order Centroid...");
+    final List<Map<String, dynamic>> datadenganROC =
+        RankOrderCentroid.aplikasikanBobot(semuaData);
+
+    // STEP 3: Pisahkan data baru dan yang perlu update
+    for (var item in datadenganROC) {
+      if (item['id_kriteria'] != null) {
+        // Data lama - perlu update
         lastdata.add({
-          'id_auth': int.tryParse(_id_auth.toString()),
-          'id_kriteria': int.tryParse(element.id_kriteria.toString()),
-          'kategori': element.nama,
-          'atribut': element.atribut.value,
-          'bobot': int.tryParse(element.bobotController.text),
+          'id_auth': item['id_auth'],
+          'id_kriteria': int.tryParse(item['id_kriteria'].toString()),
+          'kategori': item['kategori'],
+          'atribut': item['atribut'],
+          'bobot': item['bobot'],
+          'ranking': item['ranking'],
           'updatedAt': editan.toIso8601String(),
         });
+        print("   📝 UPDATE: ${item['kategori']} → Bobot: ${item['bobot']}%");
       } else {
+        // Data baru - perlu create
         newdata.add({
-          'id_auth': int.tryParse(_id_auth.toString()),
-          'kategori': element.nama,
-          'atribut': element.atribut.value,
-          'bobot': int.tryParse(element.bobotController.text),
+          'id_auth': item['id_auth'],
+          'kategori': item['kategori'],
+          'atribut': item['atribut'],
+          'bobot': item['bobot'],
+          'ranking': item['ranking'],
         });
+        print("   ➕ CREATE: ${item['kategori']} → Bobot: ${item['bobot']}%");
       }
     }
 
-    if (newdata != null) {
+    // STEP 4: Simpan ke database
+    if (newdata.isNotEmpty) {
+      print("\n💾 Menyimpan ${newdata.length} data baru...");
       await createdata(newdata);
       await readdata();
     }
 
-    if (lastdata != null) {
+    if (lastdata.isNotEmpty) {
+      print("\n💾 Mengupdate ${lastdata.length} data lama...");
       await updateddata(lastdata);
       await readdata();
     }
 
-    // await updateddata(ambil);
+    print("\n✅ SELESAI: Update massal berhasil dengan bobot ROC!");
+    print("=" * 50 + "\n");
   }
 
   Future<void> updateddata(List<Map<String, dynamic>> mana) async {
@@ -181,13 +245,93 @@ class KriteriaProvider with ChangeNotifier {
   }
 
   Future<void> deletedata(int id_kriteria) async {
+    print("\n" + "=" * 50);
+    print("🗑️ PROSES HAPUS KRITERIA & RECALCULATE ROC");
+    print("=" * 50);
+
     try {
+      // STEP 1: Hapus kriteria dari database
+      print("\n📌 Menghapus kriteria dengan ID: $id_kriteria");
       await _ref.deletedata(id_kriteria);
+      print("   ✅ Berhasil dihapus dari database");
+
+      // STEP 2: Baca ulang data terbaru
+      await readdata();
+      print("\n📊 Jumlah kriteria tersisa: ${_mydata.length}");
+
+      // STEP 3: Jika masih ada kriteria, recalculate ROC
+      if (_mydata.isNotEmpty) {
+        await _recalculateROC();
+      } else {
+        print("\n⚠️ Tidak ada kriteria tersisa, skip recalculate ROC");
+      }
+
+      print("\n✅ SELESAI: Hapus kriteria dan recalculate ROC berhasil!");
+      print("=" * 50 + "\n");
     } catch (e) {
+      print("❌ Error saat hapus kriteria: $e");
       throw e;
     }
-    await readdata();
     notifyListeners();
+  }
+
+  /// Method untuk menghitung ulang bobot ROC setelah ada perubahan jumlah kriteria
+  Future<void> _recalculateROC() async {
+    print("\n" + "-" * 40);
+    print("🔄 RECALCULATE ROC - Menyesuaikan bobot");
+    print("-" * 40);
+
+    final editan = DateTime.now();
+
+    // Urutkan berdasarkan ranking yang ada (atau id jika ranking null)
+    List<KriteriaModels> dataUrut = List.from(_mydata);
+    dataUrut.sort((a, b) {
+      int rankA = a.ranking ?? a.id_kriteria ?? 999;
+      int rankB = b.ranking ?? b.id_kriteria ?? 999;
+      return rankA.compareTo(rankB);
+    });
+
+    // Buat list data dengan ranking baru (1, 2, 3, ...)
+    final List<Map<String, dynamic>> dataKriteria = [];
+    for (int i = 0; i < dataUrut.length; i++) {
+      var item = dataUrut[i];
+      dataKriteria.add({
+        'id_auth': item.id_auth,
+        'id_kriteria': item.id_kriteria,
+        'kategori': item.kategori,
+        'atribut': item.atribut,
+        'ranking': i + 1, // Ranking baru: 1, 2, 3, ...
+      });
+      print("   📌 ${item.kategori} → Ranking baru: ${i + 1}");
+    }
+
+    // Aplikasikan ROC
+    print("\n🔢 Menghitung bobot baru dengan ROC...");
+    final List<Map<String, dynamic>> datadenganROC =
+        RankOrderCentroid.aplikasikanBobot(dataKriteria);
+
+    // Siapkan data untuk update ke database
+    final List<Map<String, dynamic>> updateData = [];
+    for (var item in datadenganROC) {
+      updateData.add({
+        'id_auth': item['id_auth'],
+        'id_kriteria': item['id_kriteria'],
+        'kategori': item['kategori'],
+        'atribut': item['atribut'],
+        'bobot': item['bobot'],
+        'ranking': item['ranking'],
+        'updatedAt': editan.toIso8601String(),
+      });
+      print(
+          "   ✨ ${item['kategori']} → Bobot baru: ${item['bobot']}% (Ranking: ${item['ranking']})");
+    }
+
+    // Update ke database
+    print("\n💾 Menyimpan bobot baru ke database...");
+    await _ref.updateddata(updateData);
+    await readdata();
+
+    print("-" * 40);
   }
 
   Future<void> readdatasubkriteria() async {

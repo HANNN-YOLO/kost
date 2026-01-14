@@ -8,6 +8,8 @@ class KriteriaItem {
   final int? id_auth;
   String nama;
   AtributType atribut;
+  int ranking; // Ranking untuk ROC (1 = paling penting)
+  double bobotDecimal; // Bobot desimal dari database (0.0 - 1.0)
   final TextEditingController bobotController;
 
   KriteriaItem({
@@ -15,6 +17,8 @@ class KriteriaItem {
     this.id_auth,
     required this.nama,
     this.atribut = AtributType.Benefit,
+    this.ranking = 0,
+    this.bobotDecimal = 0.0,
     String bobotAwal = "0",
   }) : bobotController = TextEditingController(text: bobotAwal);
 
@@ -81,6 +85,20 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
     super.dispose();
   }
 
+  /// Warna badge ranking berdasarkan posisi prioritas
+  Color _getRankingColor(int ranking) {
+    switch (ranking) {
+      case 1:
+        return Colors.green; // Ranking 1 = Paling penting
+      case 2:
+        return Colors.blue;
+      case 3:
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final tinggiLayar = MediaQuery.of(context).size.height;
@@ -108,17 +126,24 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
           if (!inisiasi && penghubung.mydata.isNotEmpty) {
             _listKriteria.clear();
 
-            for (var data in penghubung.mydata) {
+            for (int i = 0; i < penghubung.mydata.length; i++) {
+              var data = penghubung.mydata[i];
               _listKriteria.add(
                 KriteriaItem(
                   id_auth: data.id_auth,
                   id_kriteria: data.id_kriteria,
                   nama: data.kategori!,
                   atribut: AtributType.fromString(data.atribut!),
+                  ranking: data.ranking ??
+                      (i + 1), // Gunakan ranking dari DB atau urutan
+                  bobotDecimal:
+                      data.bobot_decimal ?? 0.0, // Ambil bobot desimal dari DB
                   bobotAwal: data.bobot.toString(),
                 ),
               );
             }
+            // Urutkan berdasarkan ranking
+            _listKriteria.sort((a, b) => a.ranking.compareTo(b.ranking));
             inisiasi = true;
           }
 
@@ -171,9 +196,16 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
                           onSubmitted: (value) {
                             if (value.trim().isNotEmpty) {
                               setState(() {
-                                _listKriteria
-                                    .add(KriteriaItem(nama: value.trim()));
+                                // Ranking baru = posisi terakhir + 1
+                                final newRanking = _listKriteria.length + 1;
+                                _listKriteria.add(KriteriaItem(
+                                  nama: value.trim(),
+                                  ranking: newRanking,
+                                ));
                                 _inputBaruController.clear();
+
+                                print(
+                                    "➕ Kriteria baru: ${value.trim()} (Ranking: $newRanking)");
                               });
                             }
                           },
@@ -183,8 +215,7 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
 
                     SizedBox(height: tinggiLayar * 0.03),
 
-                    // Kartu 1: Daftar Kriteria yang ditambahkan
-                    // _buildKriteriaCard(lebarLayar, tinggiLayar, warnaKartu),
+                    // Kartu: Daftar Kriteria dengan ROC (All-in-One)
                     Container(
                       width: double.infinity,
                       padding: EdgeInsets.symmetric(
@@ -202,199 +233,312 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("Kriteria yang ditambahkan",
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 15)),
-                          Divider(height: 25),
-                          Column(
-                            children:
-                                List.generate(_listKriteria.length, (index) {
-                              final item = _listKriteria[index];
-                              return Padding(
-                                padding: EdgeInsets.only(
-                                    bottom: tinggiLayar * 0.015),
-                                child:
-                                    // _buildKriteriaItem(lebar, tinggi, item, warnaKartu, index),
-                                    Container(
-                                  padding: EdgeInsets.symmetric(
-                                      vertical: tinggiLayar * 0.015,
-                                      horizontal: lebarLayar * 0.04),
-                                  decoration: BoxDecoration(
-                                      color: warnaKartu,
-                                      borderRadius: BorderRadius.circular(10)),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Expanded(
-                                        child: _editingIndex == index
-                                            ? TextField(
-                                                controller: _editController,
-                                                autofocus: true,
-                                                decoration: InputDecoration(
-                                                    isDense: true,
-                                                    border: InputBorder.none),
-                                                onSubmitted: (val) {
-                                                  setState(() {
-                                                    item.nama = val.trim();
-                                                    _editingIndex = null;
-                                                  });
-                                                },
-                                              )
-                                            : Text(item.nama,
-                                                style: TextStyle(
-                                                    fontWeight:
-                                                        FontWeight.w500)),
-                                      ),
-                                      Row(
-                                        children: [
-                                          GestureDetector(
-                                            onTap: () {
-                                              setState(() {
-                                                if (_editingIndex == index) {
-                                                  item.nama =
-                                                      _editController.text;
-                                                  _editingIndex = null;
-                                                } else {
-                                                  _editingIndex = index;
-                                                  _editController.text =
-                                                      item.nama;
-                                                }
-                                              });
-                                            },
-                                            child: Icon(
-                                                _editingIndex == index
-                                                    ? Icons.check
-                                                    : Icons.edit,
-                                                color: Colors.green,
-                                                size: 20),
-                                          ),
-                                          SizedBox(width: 15),
-                                          GestureDetector(
-                                            onTap: () {
-                                              setState(() {
-                                                _listKriteria[index].dispose();
+                          // Header
+                          Row(
+                            children: [
+                              Icon(Icons.format_list_numbered,
+                                  color: Colors.blue, size: 20),
+                              SizedBox(width: 8),
+                              Text("Daftar Kriteria (ROC)",
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15)),
+                            ],
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            "💡 Geser untuk mengubah urutan prioritas\n"
+                            "Posisi 1 = Paling Penting (bobot tertinggi)",
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                          Divider(height: 20),
 
-                                                penghubung.mydata.isEmpty
-                                                    ? _listKriteria
-                                                        .removeAt(index)
-                                                    : setState(() {
-                                                        penghubung.deletedata(
-                                                            penghubung
-                                                                .mydata[index]
-                                                                .id_kriteria!);
-                                                        _listKriteria
-                                                            .removeAt(index);
-                                                      });
-                                                ;
-                                              });
-                                            },
-                                            child: Icon(Icons.delete,
-                                                color: Colors.red, size: 20),
-                                          ),
-                                        ],
-                                      )
-                                    ],
+                          // ReorderableListView untuk drag & drop
+                          ReorderableListView.builder(
+                            shrinkWrap: true,
+                            physics: NeverScrollableScrollPhysics(),
+                            itemCount: _listKriteria.length,
+                            onReorder: (oldIndex, newIndex) {
+                              setState(() {
+                                if (newIndex > oldIndex) {
+                                  newIndex -= 1;
+                                }
+                                final item = _listKriteria.removeAt(oldIndex);
+                                _listKriteria.insert(newIndex, item);
+
+                                // Update ranking sesuai posisi baru
+                                for (int i = 0; i < _listKriteria.length; i++) {
+                                  _listKriteria[i].ranking = i + 1;
+                                }
+
+                                print("\n🔄 Urutan berubah:");
+                                for (var k in _listKriteria) {
+                                  print("   Ranking ${k.ranking}: ${k.nama}");
+                                }
+                              });
+                            },
+                            itemBuilder: (context, index) {
+                              final item = _listKriteria[index];
+                              return Container(
+                                key: ValueKey(item.nama + index.toString()),
+                                margin: EdgeInsets.only(
+                                    bottom: tinggiLayar * 0.012),
+                                padding: EdgeInsets.symmetric(
+                                    vertical: tinggiLayar * 0.012,
+                                    horizontal: lebarLayar * 0.03),
+                                decoration: BoxDecoration(
+                                  color: warnaKartu,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: _getRankingColor(index + 1)
+                                        .withOpacity(0.3),
+                                    width: 1.5,
                                   ),
                                 ),
-                              );
-                            }),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    SizedBox(height: tinggiLayar * 0.03),
-
-                    // Kartu 2: Penempatan TextEditor untuk Bobot (Sesuai Desain Gambar)
-                    // _buildBobotCard(lebarLayar, tinggiLayar, warnaKartu),
-                    Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.symmetric(
-                          horizontal: lebarLayar * 0.04,
-                          vertical: tinggiLayar * 0.02),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 3)
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("Bobot Kriteria (isi dengan angka)",
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 15)),
-                          Divider(height: 25),
-                          Column(
-                            children: _listKriteria.map((item) {
-                              return Padding(
-                                padding: EdgeInsets.only(
-                                    bottom: tinggiLayar * 0.015),
-                                child: Row(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Expanded(
-                                      child: Text(
-                                        item.nama,
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.w500),
-                                      ),
-                                    ),
+                                    // Baris 1: Ranking + Nama + Actions
+                                    Row(
+                                      children: [
+                                        // Badge Ranking
+                                        Container(
+                                          width: 28,
+                                          height: 28,
+                                          decoration: BoxDecoration(
+                                            color: _getRankingColor(index + 1),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              "${index + 1}",
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(width: 10),
 
-                                    // Dropdown Atribut
-                                    // _buildDropdown(item, warnaKartu),
-                                    Container(
-                                      height: 35,
-                                      padding:
-                                          EdgeInsets.symmetric(horizontal: 8),
-                                      decoration: BoxDecoration(
-                                          color: warnaKartu,
-                                          borderRadius:
-                                              BorderRadius.circular(8)),
-                                      child: DropdownButtonHideUnderline(
-                                        child: DropdownButton<AtributType>(
-                                          value: item.atribut,
-                                          items: [
-                                            DropdownMenuItem(
-                                                value: AtributType.Benefit,
-                                                child: Text("Benefit")),
-                                            DropdownMenuItem(
-                                                value: AtributType.Cost,
-                                                child: Text("Cost")),
+                                        // Nama Kriteria (editable)
+                                        Expanded(
+                                          child: _editingIndex == index
+                                              ? TextField(
+                                                  controller: _editController,
+                                                  autofocus: true,
+                                                  style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      fontSize: 14),
+                                                  decoration: InputDecoration(
+                                                    isDense: true,
+                                                    border: InputBorder.none,
+                                                    contentPadding:
+                                                        EdgeInsets.zero,
+                                                  ),
+                                                  onSubmitted: (val) {
+                                                    setState(() {
+                                                      item.nama = val.trim();
+                                                      _editingIndex = null;
+                                                    });
+                                                  },
+                                                )
+                                              : Text(
+                                                  item.nama,
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                        ),
+
+                                        // Action Buttons
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            // Edit Button
+                                            GestureDetector(
+                                              onTap: () {
+                                                setState(() {
+                                                  if (_editingIndex == index) {
+                                                    item.nama =
+                                                        _editController.text;
+                                                    _editingIndex = null;
+                                                  } else {
+                                                    _editingIndex = index;
+                                                    _editController.text =
+                                                        item.nama;
+                                                  }
+                                                });
+                                              },
+                                              child: Container(
+                                                padding: EdgeInsets.all(6),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.green
+                                                      .withOpacity(0.1),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                ),
+                                                child: Icon(
+                                                  _editingIndex == index
+                                                      ? Icons.check
+                                                      : Icons.edit,
+                                                  color: Colors.green,
+                                                  size: 16,
+                                                ),
+                                              ),
+                                            ),
+                                            SizedBox(width: 8),
+                                            // Delete Button
+                                            GestureDetector(
+                                              onTap: () {
+                                                setState(() {
+                                                  _listKriteria[index]
+                                                      .dispose();
+                                                  if (penghubung
+                                                          .mydata.isEmpty ||
+                                                      item.id_kriteria ==
+                                                          null) {
+                                                    _listKriteria
+                                                        .removeAt(index);
+                                                  } else {
+                                                    penghubung.deletedata(
+                                                        item.id_kriteria!);
+                                                    _listKriteria
+                                                        .removeAt(index);
+                                                  }
+                                                  // Update ranking setelah hapus
+                                                  for (int i = 0;
+                                                      i < _listKriteria.length;
+                                                      i++) {
+                                                    _listKriteria[i].ranking =
+                                                        i + 1;
+                                                  }
+                                                });
+                                              },
+                                              child: Container(
+                                                padding: EdgeInsets.all(6),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.red
+                                                      .withOpacity(0.1),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                ),
+                                                child: Icon(Icons.delete,
+                                                    color: Colors.red,
+                                                    size: 16),
+                                              ),
+                                            ),
+                                            SizedBox(width: 8),
+                                            // Drag Handle
+                                            Icon(Icons.drag_handle,
+                                                color: Colors.grey[500],
+                                                size: 20),
                                           ],
-                                          onChanged: (v) =>
-                                              setState(() => item.atribut = v!),
                                         ),
-                                      ),
+                                      ],
                                     ),
-                                    SizedBox(width: 10),
 
-                                    SizedBox(
-                                      width: 80,
-                                      height: 35,
-                                      child: TextField(
-                                        controller: item.bobotController,
-                                        keyboardType: TextInputType.number,
-                                        textAlign: TextAlign.center,
-                                        decoration: InputDecoration(
-                                          filled: true,
-                                          fillColor: warnaKartu,
-                                          border: OutlineInputBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                              borderSide: BorderSide.none),
-                                          contentPadding: EdgeInsets.zero,
+                                    SizedBox(height: 10),
+
+                                    // Baris 2: Bobot + Atribut
+                                    Row(
+                                      children: [
+                                        // Bobot Desimal (Read-Only)
+                                        Container(
+                                          padding: EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey[200],
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            border: Border.all(
+                                                color: Colors.grey[400]!),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.percent,
+                                                  size: 14,
+                                                  color: Colors.grey[600]),
+                                              SizedBox(width: 4),
+                                              Text(
+                                                item.bobotDecimal
+                                                    .toStringAsFixed(2),
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.grey[700],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
+                                        SizedBox(width: 10),
+
+                                        // Dropdown Atribut
+                                        Container(
+                                          height: 32,
+                                          padding: EdgeInsets.symmetric(
+                                              horizontal: 10),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            border: Border.all(
+                                                color: Colors.grey[300]!),
+                                          ),
+                                          child: DropdownButtonHideUnderline(
+                                            child: DropdownButton<AtributType>(
+                                              value: item.atribut,
+                                              isDense: true,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.black87,
+                                              ),
+                                              items: [
+                                                DropdownMenuItem(
+                                                    value: AtributType.Benefit,
+                                                    child: Text("Benefit")),
+                                                DropdownMenuItem(
+                                                    value: AtributType.Cost,
+                                                    child: Text("Cost")),
+                                              ],
+                                              onChanged: (v) => setState(
+                                                  () => item.atribut = v!),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
                               );
-                            }).toList(),
+                            },
                           ),
+
+                          // Info jika kosong
+                          if (_listKriteria.isEmpty)
+                            Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(20),
+                                child: Text(
+                                  "Belum ada kriteria.\nMasukkan kriteria baru di atas.",
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.grey[500],
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
