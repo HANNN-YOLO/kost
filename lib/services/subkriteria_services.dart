@@ -8,7 +8,9 @@ class SubkriteriaServices {
   Future<List<SubkriteriaModels>> readdata() async {
     List<SubkriteriaModels> hasilnya = [];
 
-    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/sub_kriteria");
+    // Urutkan berdasarkan id_kriteria lalu bobot untuk konsistensi
+    var url = Uri.parse(
+        "${SupabaseApiConfig.masterurl}/rest/v1/sub_kriteria?order=id_kriteria.asc,bobot.desc");
 
     var simpan = await htpp.get(
       url,
@@ -25,6 +27,7 @@ class SubkriteriaServices {
         var item = SubkriteriaModels.fromJson(value);
         hasilnya.add(item);
       });
+      print("✅ Subkriteria diurutkan (${hasilnya.length} data)");
     } else {
       hasilnya = [];
       print("gagal ambil data subkriteria ${simpan.body}");

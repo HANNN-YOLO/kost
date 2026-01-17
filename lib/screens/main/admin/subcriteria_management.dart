@@ -1168,6 +1168,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
 
   late Future<void> _penghubung;
   List<SubcriteriaItem> _isinya = [];
+  bool _isInitialized = false; // Flag untuk memastikan hanya dipanggil sekali
 
   static Color _warnaLatar = Color(0xFFF5F7FB);
   static Color _warnaKartu = Colors.white;
@@ -1176,9 +1177,13 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    keadaan = false;
-    _penghubung = Provider.of<KriteriaProvider>(context, listen: false)
-        .readdatasubkriteria();
+    // Hanya panggil sekali saat pertama kali masuk halaman
+    if (!_isInitialized) {
+      _isInitialized = true;
+      keadaan = false;
+      _penghubung = Provider.of<KriteriaProvider>(context, listen: false)
+          .readdatasubkriteria();
+    }
   }
 
   @override

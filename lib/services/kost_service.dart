@@ -143,7 +143,9 @@ class KostService {
 
   Future<List<KostModel>> readdata() async {
     List<KostModel> hasilnya = [];
-    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/kost");
+    // Urutkan berdasarkan id_kost ascending untuk konsistensi alternatif A1, A2, A3, dst
+    var url = Uri.parse(
+        "${SupabaseApiConfig.masterurl}/rest/v1/kost?order=id_kost.asc");
     var simpan = await htpp.get(
       url,
       headers: {
@@ -158,6 +160,8 @@ class KostService {
         var take = KostModel.fromJson(value);
         hasilnya.add(take);
       });
+      print(
+          "✅ Data kost diurutkan berdasarkan id_kost (${hasilnya.length} data)");
     } else {
       print("error ambil data ${simpan.body}");
       throw "error ambil data ${simpan.body}";

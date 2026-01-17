@@ -4,8 +4,13 @@ import '../models/kost_model.dart';
 import '../models/fasilitas_model.dart';
 import '../models/profil_model.dart';
 import '../models/auth_model.dart';
+import '../models/kriteria_models.dart';
+import '../models/subkriteria_models.dart';
 import '../services/kost_service.dart';
 import '../services/fasilitas_service.dart';
+import '../services/kriteria_services.dart';
+import '../services/subkriteria_services.dart';
+import '../algoritma/simple_additive_weighting.dart';
 
 class KostProvider with ChangeNotifier {
   // state penting
@@ -147,9 +152,9 @@ class KostProvider with ChangeNotifier {
 
   // batas jam malam
   List<String> _jenisbatasjammalam = [
-    '21.00',
-    '22.00',
-    '23.00 -24.00',
+    '21:00',
+    '22:00',
+    '23:00 -24:00',
     'beri kunci pagar'
   ];
   List<String> get jenisbatasjammalam => _jenisbatasjammalam;
@@ -738,5 +743,263 @@ class KostProvider with ChangeNotifier {
     }
     await readdatapemilik(id_authnya!, token!);
     notifyListeners();
+  }
+
+  // ============================================
+  // STATE DAN METHOD UNTUK SAW (Simple Additive Weighting)
+  // ============================================
+
+  // Service untuk kriteria dan subkriteria
+  final KriteriaServices _kriteriaService = KriteriaServices();
+  final SubkriteriaServices _subkriteriaService = SubkriteriaServices();
+
+  // State untuk data kriteria dan subkriteria
+  List<KriteriaModels> _listKriteria = [];
+  List<KriteriaModels> get listKriteria => _listKriteria;
+
+  List<SubkriteriaModels> _listSubkriteria = [];
+  List<SubkriteriaModels> get listSubkriteria => _listSubkriteria;
+
+  // State untuk hasil SAW
+  HasilSAW? _hasilSAW;
+  HasilSAW? get hasilSAW => _hasilSAW;
+
+  // State untuk lokasi user (untuk kriteria jarak)
+  double? _userLat;
+  double? _userLng;
+  double? get userLat => _userLat;
+  double? get userLng => _userLng;
+
+  // Map untuk menyimpan jarak per kost (id_kost -> jarak dalam km)
+  // Ini digunakan untuk mengambil jarak yang sudah dihitung dari halaman sebelumnya
+  Map<int, double> _jarakKostMap = {};
+  Map<int, double> get jarakKostMap => _jarakKostMap;
+
+  // Loading flag untuk SAW
+  bool _isLoadingSAW = false;
+  bool get isLoadingSAW => _isLoadingSAW;
+
+  // Error message untuk SAW
+  String? _errorSAW;
+  String? get errorSAW => _errorSAW;
+
+  /// Set lokasi user untuk perhitungan kriteria jarak
+  void setUserLocation(double lat, double lng) {
+    _userLat = lat;
+    _userLng = lng;
+    print("📍 Lokasi user di-set: ($_userLat, $_userLng)");
+    notifyListeners();
+  }
+
+  /// Set jarak kost yang sudah dihitung dari halaman sebelumnya
+  /// [jarakMap] = Map dari id_kost ke jarak dalam km
+  void setJarakKostMap(Map<int, double> jarakMap) {
+    _jarakKostMap = jarakMap;
+    print("📏 Jarak kost di-set: ${_jarakKostMap.length} kost");
+    for (var entry in _jarakKostMap.entries) {
+      print("   id_kost=${entry.key} → ${entry.value.toStringAsFixed(2)} km");
+    }
+    notifyListeners();
+  }
+
+  /// Clear jarak kost map
+  void clearJarakKostMap() {
+    _jarakKostMap = {};
+    notifyListeners();
+  }
+
+  /// Clear lokasi user
+  void clearUserLocation() {
+    _userLat = null;
+    _userLng = null;
+    notifyListeners();
+  }
+
+  /// Mengambil data kriteria dari database
+  Future<void> fetchKriteria() async {
+    print("\n📋 Mengambil data kriteria...");
+    try {
+      _listKriteria = await _kriteriaService.readdata();
+      print("✅ Berhasil mengambil ${_listKriteria.length} kriteria");
+    } catch (e) {
+      print("❌ Gagal mengambil kriteria: $e");
+      _listKriteria = [];
+    }
+    notifyListeners();
+  }
+
+  /// Mengambil data subkriteria dari database
+  Future<void> fetchSubkriteria() async {
+    print("\n📋 Mengambil data subkriteria...");
+    try {
+      _listSubkriteria = await _subkriteriaService.readdata();
+      print("✅ Berhasil mengambil ${_listSubkriteria.length} subkriteria");
+    } catch (e) {
+      print("❌ Gagal mengambil subkriteria: $e");
+      _listSubkriteria = [];
+    }
+    notifyListeners();
+  }
+
+  /// Menjalankan perhitungan SAW untuk penyewa
+  /// Menggunakan data kost penyewa dan kriteria yang tersedia
+  /// [userLat] dan [userLng] opsional untuk kriteria jarak
+  Future<void> hitungSAW({double? userLat, double? userLng}) async {
+    print("\n" + "=" * 60);
+    print("🚀 INISIASI PERHITUNGAN SAW DARI PROVIDER");
+    print("=" * 60);
+
+    // Set lokasi user jika ada
+    if (userLat != null && userLng != null) {
+      setUserLocation(userLat, userLng);
+    }
+
+    _isLoadingSAW = true;
+    _errorSAW = null;
+    notifyListeners();
+
+    try {
+      // Ambil data kriteria dan subkriteria terlebih dahulu
+      await fetchKriteria();
+      await fetchSubkriteria();
+
+      // Validasi data
+      if (_kostpenyewa.isEmpty) {
+        throw "Tidak ada data kost untuk dihitung!";
+      }
+      if (_listKriteria.isEmpty) {
+        throw "Tidak ada data kriteria! Silakan tambah kriteria terlebih dahulu.";
+      }
+
+      print("📊 Data untuk SAW:");
+      print("   - Jumlah Kost: ${_kostpenyewa.length}");
+      print("   - Jumlah Fasilitas: ${_fasilitaspenyewa.length}");
+      print("   - Jumlah Kriteria: ${_listKriteria.length}");
+      print("   - Jumlah Subkriteria: ${_listSubkriteria.length}");
+      print("   - Lokasi User: ($_userLat, $_userLng)");
+      print("   - Jarak Kost Map: ${_jarakKostMap.length} kost");
+
+      // Debug: Tampilkan detail kost dan id_fasilitas nya
+      print("\n📦 DEBUG KOST DAN ID_FASILITAS:");
+      for (var kost in _kostpenyewa) {
+        print(
+            "   Kost: ${kost.nama_kost} (id_kost=${kost.id_kost}, id_fasilitas=${kost.id_fasilitas})");
+      }
+
+      // Debug: Tampilkan detail fasilitas
+      print("\n📦 DEBUG FASILITAS TERSEDIA:");
+      for (var f in _fasilitaspenyewa) {
+        print(
+            "   Fasilitas: id_fasilitas=${f.id_fasilitas}, id_auth=${f.id_auth}");
+      }
+
+      // Jalankan perhitungan SAW dengan lokasi user DAN jarak yang sudah dihitung
+      _hasilSAW = SimpleAdditiveWeighting.hitungSAW(
+        listKost: _kostpenyewa,
+        listFasilitas: _fasilitaspenyewa,
+        listKriteria: _listKriteria,
+        listSubkriteria: _listSubkriteria,
+        userLat: _userLat,
+        userLng: _userLng,
+        jarakKostMap: _jarakKostMap, // Kirim jarak yang sudah dihitung
+      );
+
+      if (_hasilSAW == null) {
+        throw "Gagal melakukan perhitungan SAW!";
+      }
+
+      print("\n✅ PERHITUNGAN SAW BERHASIL!");
+      print(
+          "   Hasil ranking terbaik: ${_hasilSAW!.hasilRanking.first.namaKost}");
+    } catch (e) {
+      print("❌ ERROR SAW: $e");
+      _errorSAW = e.toString();
+      _hasilSAW = null;
+    } finally {
+      _isLoadingSAW = false;
+      notifyListeners();
+    }
+  }
+
+  /// Menjalankan perhitungan SAW untuk Admin (dengan semua data kost)
+  Future<void> hitungSAWAdmin({double? userLat, double? userLng}) async {
+    print("\n" + "=" * 60);
+    print("🚀 INISIASI PERHITUNGAN SAW ADMIN DARI PROVIDER");
+    print("=" * 60);
+
+    if (userLat != null && userLng != null) {
+      setUserLocation(userLat, userLng);
+    }
+
+    _isLoadingSAW = true;
+    _errorSAW = null;
+    notifyListeners();
+
+    try {
+      await fetchKriteria();
+      await fetchSubkriteria();
+
+      if (_kost.isEmpty) {
+        throw "Tidak ada data kost untuk dihitung!";
+      }
+      if (_listKriteria.isEmpty) {
+        throw "Tidak ada data kriteria! Silakan tambah kriteria terlebih dahulu.";
+      }
+
+      _hasilSAW = SimpleAdditiveWeighting.hitungSAW(
+        listKost: _kost,
+        listFasilitas: _fasilitas,
+        listKriteria: _listKriteria,
+        listSubkriteria: _listSubkriteria,
+        userLat: _userLat,
+        userLng: _userLng,
+      );
+
+      if (_hasilSAW == null) {
+        throw "Gagal melakukan perhitungan SAW!";
+      }
+
+      print("\n✅ PERHITUNGAN SAW ADMIN BERHASIL!");
+    } catch (e) {
+      print("❌ ERROR SAW ADMIN: $e");
+      _errorSAW = e.toString();
+      _hasilSAW = null;
+    } finally {
+      _isLoadingSAW = false;
+      notifyListeners();
+    }
+  }
+
+  /// Reset hasil SAW
+  void resetSAW() {
+    _hasilSAW = null;
+    _errorSAW = null;
+    notifyListeners();
+  }
+
+  /// Mendapatkan kost berdasarkan ID dari hasil ranking
+  KostModel? getKostById(int idKost) {
+    try {
+      return _kostpenyewa.firstWhere((k) => k.id_kost == idKost);
+    } catch (e) {
+      try {
+        return _kost.firstWhere((k) => k.id_kost == idKost);
+      } catch (e) {
+        return null;
+      }
+    }
+  }
+
+  /// Mendapatkan fasilitas berdasarkan ID
+  FasilitasModel? getFasilitasById(int idFasilitas) {
+    try {
+      return _fasilitaspenyewa.firstWhere((f) => f.id_fasilitas == idFasilitas);
+    } catch (e) {
+      try {
+        return _fasilitas.firstWhere((f) => f.id_fasilitas == idFasilitas);
+      } catch (e) {
+        return null;
+      }
+    }
   }
 }

@@ -4,6 +4,7 @@ import 'process_saw.dart';
 import 'package:provider/provider.dart';
 
 import '../../../providers/kost_provider.dart';
+import '../../../algoritma/simple_additive_weighting.dart';
 
 class RecommendationSawPage extends StatefulWidget {
   final double? destinationLat;
@@ -22,77 +23,16 @@ class RecommendationSawPage extends StatefulWidget {
 }
 
 class _RecommendationSawPageState extends State<RecommendationSawPage> {
-  // Dummy UI-only data; dipakai jika belum ada data nyata
-  static final List<_KostItem> _dummyItems = [
-    _KostItem(
-      name: 'Kost Melati Putih',
-      address: 'Jl. Melati No. 12, Dekat Kampus',
-      pricePerMonth: 850000,
-      distanceKm: 0.75,
-      score: 0.892,
-      tags: const ['AC', 'WiFi', 'K. Mandi Dalam'],
-      imageUrl: 'https://via.placeholder.com/800x450?text=Kost+Melati+Putih',
-    ),
-    _KostItem(
-      name: 'Kost Mawar Asri',
-      address: 'Jl. Mawar No. 5, Timur Kampus',
-      pricePerMonth: 700000,
-      distanceKm: 1.2,
-      score: 0.854,
-      tags: const ['WiFi', 'Parkir'],
-      imageUrl: 'https://via.placeholder.com/800x450?text=Kost+Mawar+Asri',
-    ),
-    _KostItem(
-      name: 'Kost Kenanga',
-      address: 'Jl. Kenanga No. 20',
-      pricePerMonth: 950000,
-      distanceKm: 0.5,
-      score: 0.812,
-      tags: const ['AC', 'WiFi'],
-      imageUrl: 'https://via.placeholder.com/800x450?text=Kost+Kenanga',
-    ),
-    _KostItem(
-      name: 'Kost Sakura',
-      address: 'Jl. Sakura No. 2',
-      pricePerMonth: 650000,
-      distanceKm: 1.8,
-      score: 0.777,
-      tags: const ['Dapur', 'Parkir'],
-      imageUrl: 'https://via.placeholder.com/800x450?text=Kost+Sakura',
-    ),
-  ];
-
-  late final List<_KostItem> _items;
-
   @override
   void initState() {
     super.initState();
-
-    if (widget.kostData != null && widget.kostData!.isNotEmpty) {
-      _items = widget.kostData!.map((m) {
-        final rawIdKost = m['id_kost'];
-        final rawIdFasilitas = m['id_fasilitas'];
-        final distance = (m['distanceKm'] as num?)?.toDouble() ?? 0.0;
-        // sementara: skor sederhana berbasis jarak (semakin dekat semakin tinggi)
-        final score = 1.0 / (1.0 + distance);
-
-        return _KostItem(
-          idKost: rawIdKost is int ? rawIdKost : int.tryParse('$rawIdKost'),
-          idFasilitas: rawIdFasilitas is int
-              ? rawIdFasilitas
-              : int.tryParse('$rawIdFasilitas'),
-          name: (m['name'] as String?) ?? 'Kost',
-          address: (m['address'] as String?) ?? '',
-          pricePerMonth: (m['pricePerMonth'] as num?)?.toInt() ?? 0,
-          distanceKm: distance,
-          score: score,
-          tags: const [],
-          imageUrl: (m['imageUrl'] as String?) ?? '',
-        );
-      }).toList();
-    } else {
-      _items = _dummyItems;
-    }
+    // Jalankan perhitungan SAW saat halaman dibuka
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<KostProvider>().hitungSAW(
+            userLat: widget.destinationLat,
+            userLng: widget.destinationLng,
+          );
+    });
   }
 
   @override
@@ -107,9 +47,6 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
     const Color colorWhite = Colors.white;
     const Color colorTextPrimary = Color(0xFF1F1F1F);
     final Color shadowColor = const Color.fromRGBO(0, 0, 0, 0.06);
-
-    // Sort descending by score (sementara skor berbasis jarak)
-    final sorted = [..._items]..sort((a, b) => b.score.compareTo(a.score));
 
     return Scaffold(
       backgroundColor: colorBackground,
@@ -134,7 +71,10 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const ProcessSawPage(),
+                  builder: (_) => ProcessSawPage(
+                    userLat: widget.destinationLat,
+                    userLng: widget.destinationLng,
+                  ),
                 ),
               );
             },
@@ -142,75 +82,221 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
           SizedBox(width: s(4)),
         ],
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: s(16), vertical: s(8)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+      body: Consumer<KostProvider>(
+        builder: (context, provider, child) {
+          // Loading state
+          if (provider.isLoadingSAW) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    width: s(36),
-                    height: s(36),
-                    decoration: BoxDecoration(
-                      color: colorWhite,
-                      borderRadius: BorderRadius.circular(s(12)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: shadowColor,
-                          blurRadius: s(8),
-                          offset: Offset(0, s(3)),
-                        ),
-                      ],
-                    ),
-                    child: Icon(Icons.star_rate_rounded,
-                        color: colorPrimary, size: s(20)),
-                  ),
-                  SizedBox(width: s(10)),
+                  const CircularProgressIndicator(),
+                  SizedBox(height: s(16)),
                   Text(
-                    'Daftar Kost Tertinggi (SAW)',
+                    'Menghitung rekomendasi...',
                     style: TextStyle(
-                      fontSize: s(16),
-                      fontWeight: FontWeight.w600,
+                      fontSize: s(14),
                       color: colorTextPrimary,
                     ),
                   ),
                 ],
               ),
-              SizedBox(height: s(12)),
-              Expanded(
-                child: ListView.separated(
-                  itemCount: sorted.length,
-                  separatorBuilder: (_, __) => SizedBox(height: s(12)),
-                  itemBuilder: (context, index) {
-                    final item = sorted[index];
-                    return _KostCard(
-                      rank: index + 1,
-                      item: item,
-                      s: s,
-                      colorPrimary: colorPrimary,
-                      colorTextPrimary: colorTextPrimary,
-                      colorBackground: colorBackground,
-                      colorWhite: colorWhite,
-                      shadowColor: shadowColor,
-                      destinationLat: widget.destinationLat,
-                      destinationLng: widget.destinationLng,
-                    );
-                  },
+            );
+          }
+
+          // Error state
+          if (provider.errorSAW != null) {
+            return Center(
+              child: Padding(
+                padding: EdgeInsets.all(s(24)),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline_rounded,
+                      size: s(64),
+                      color: Colors.red,
+                    ),
+                    SizedBox(height: s(16)),
+                    Text(
+                      'Terjadi Kesalahan',
+                      style: TextStyle(
+                        fontSize: s(18),
+                        fontWeight: FontWeight.w600,
+                        color: Colors.red,
+                      ),
+                    ),
+                    SizedBox(height: s(8)),
+                    Text(
+                      provider.errorSAW!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: s(14),
+                        color: colorTextPrimary,
+                      ),
+                    ),
+                    SizedBox(height: s(24)),
+                    ElevatedButton.icon(
+                      onPressed: () => provider.hitungSAW(
+                        userLat: widget.destinationLat,
+                        userLng: widget.destinationLng,
+                      ),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Coba Lagi'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colorPrimary,
+                        foregroundColor: colorWhite,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ),
+            );
+          }
+
+          // Tidak ada hasil
+          if (provider.hasilSAW == null) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.search_off_rounded,
+                    size: s(64),
+                    color: colorPrimary.withOpacity(0.5),
+                  ),
+                  SizedBox(height: s(16)),
+                  Text(
+                    'Belum ada hasil rekomendasi',
+                    style: TextStyle(
+                      fontSize: s(16),
+                      color: colorTextPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // Ambil hasil ranking dari SAW
+          final hasilSAW = provider.hasilSAW!;
+          final rankings = hasilSAW.hasilRanking;
+
+          // Build list of kost items from ranking
+          final kostList = provider.kostpenyewa.isNotEmpty
+              ? provider.kostpenyewa
+              : provider.kost;
+
+          return SafeArea(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: s(16), vertical: s(8)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: s(36),
+                        height: s(36),
+                        decoration: BoxDecoration(
+                          color: colorWhite,
+                          borderRadius: BorderRadius.circular(s(12)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: shadowColor,
+                              blurRadius: s(8),
+                              offset: Offset(0, s(3)),
+                            ),
+                          ],
+                        ),
+                        child: Icon(Icons.emoji_events_rounded,
+                            color: Colors.amber, size: s(20)),
+                      ),
+                      SizedBox(width: s(10)),
+                      Text(
+                        'Peringkat Kost (SAW)',
+                        style: TextStyle(
+                          fontSize: s(16),
+                          fontWeight: FontWeight.w600,
+                          color: colorTextPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: s(12)),
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: rankings.length,
+                      separatorBuilder: (_, __) => SizedBox(height: s(12)),
+                      itemBuilder: (context, index) {
+                        final ranking = rankings[index];
+
+                        // Cari data kost berdasarkan idKost dari ranking
+                        final kost = kostList.firstWhere(
+                          (k) => k.id_kost == ranking.idKost,
+                          orElse: () => kostList.first,
+                        );
+
+                        // Cari jarak dari kostData jika tersedia
+                        double? distanceKm;
+                        if (widget.kostData != null) {
+                          final kostDataItem = widget.kostData!.firstWhere(
+                            (m) => m['id_kost'] == ranking.idKost,
+                            orElse: () => {},
+                          );
+                          if (kostDataItem.isNotEmpty) {
+                            distanceKm = (kostDataItem['distanceKm'] as num?)
+                                ?.toDouble();
+                          }
+                        }
+
+                        return _RankingCard(
+                          rank: ranking.peringkat,
+                          namaKost: ranking.namaKost,
+                          skor: ranking.skor,
+                          harga: kost.harga_kost ?? 0,
+                          distanceKm: distanceKm,
+                          luasKamar: (kost.panjang ?? 0) * (kost.lebar ?? 0),
+                          panjang: kost.panjang ?? 0,
+                          lebar: kost.lebar ?? 0,
+                          imageUrl: kost.gambar_kost,
+                          idKost: ranking.idKost,
+                          idFasilitas: kost.id_fasilitas,
+                          s: s,
+                          colorPrimary: colorPrimary,
+                          colorTextPrimary: colorTextPrimary,
+                          colorBackground: colorBackground,
+                          colorWhite: colorWhite,
+                          shadowColor: shadowColor,
+                          destinationLat: widget.destinationLat,
+                          destinationLng: widget.destinationLng,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 }
 
-class _KostCard extends StatelessWidget {
+/// Widget Card untuk menampilkan ranking kost
+class _RankingCard extends StatelessWidget {
   final int rank;
-  final _KostItem item;
+  final String namaKost;
+  final double skor;
+  final int harga;
+  final double? distanceKm;
+  final int luasKamar;
+  final int panjang;
+  final int lebar;
+  final String? imageUrl;
+  final int idKost;
+  final int? idFasilitas;
   final double Function(double) s;
   final Color colorPrimary;
   final Color colorTextPrimary;
@@ -220,9 +306,18 @@ class _KostCard extends StatelessWidget {
   final double? destinationLat;
   final double? destinationLng;
 
-  const _KostCard({
+  const _RankingCard({
     required this.rank,
-    required this.item,
+    required this.namaKost,
+    required this.skor,
+    required this.harga,
+    this.distanceKm,
+    required this.luasKamar,
+    required this.panjang,
+    required this.lebar,
+    this.imageUrl,
+    required this.idKost,
+    this.idFasilitas,
     required this.s,
     required this.colorPrimary,
     required this.colorTextPrimary,
@@ -235,6 +330,29 @@ class _KostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Warna badge berdasarkan peringkat
+    Color rankColor;
+    Color rankBgColor;
+    IconData rankIcon;
+
+    if (rank == 1) {
+      rankColor = const Color(0xFFFFD700); // Gold
+      rankBgColor = const Color(0xFFFFF8E1);
+      rankIcon = Icons.emoji_events_rounded;
+    } else if (rank == 2) {
+      rankColor = const Color(0xFFC0C0C0); // Silver
+      rankBgColor = const Color(0xFFF5F5F5);
+      rankIcon = Icons.emoji_events_rounded;
+    } else if (rank == 3) {
+      rankColor = const Color(0xFFCD7F32); // Bronze
+      rankBgColor = const Color(0xFFFBE9E7);
+      rankIcon = Icons.emoji_events_rounded;
+    } else {
+      rankColor = colorPrimary;
+      rankBgColor = const Color(0xFFE3F2FD);
+      rankIcon = Icons.tag;
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: colorWhite,
@@ -246,30 +364,33 @@ class _KostCard extends StatelessWidget {
             offset: Offset(0, s(4)),
           ),
         ],
+        border: rank == 1
+            ? Border.all(color: const Color(0xFFFFD700), width: 2)
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image banner (mirip pemilik)
+          // Image banner dengan badge peringkat
           ClipRRect(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(s(16))),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(s(14))),
             child: Stack(
               children: [
                 AspectRatio(
                   aspectRatio: 16 / 9,
-                  child: item.imageUrl == null || item.imageUrl!.isEmpty
+                  child: imageUrl == null || imageUrl!.isEmpty
                       ? Container(
                           color: const Color(0xFFE5ECFF),
                           child: Center(
                             child: Icon(
-                              Icons.image_outlined,
+                              Icons.home_rounded,
                               color: Colors.grey,
-                              size: s(32),
+                              size: s(48),
                             ),
                           ),
                         )
                       : Image.network(
-                          item.imageUrl!,
+                          imageUrl!,
                           width: double.infinity,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) =>
@@ -279,12 +400,48 @@ class _KostCard extends StatelessWidget {
                               child: Icon(
                                 Icons.image_not_supported_outlined,
                                 color: Colors.grey,
-                                size: s(32),
+                                size: s(48),
                               ),
                             ),
                           ),
                         ),
                 ),
+                // Badge Peringkat (kiri atas)
+                Positioned(
+                  left: s(12),
+                  top: s(12),
+                  child: Container(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: s(12), vertical: s(8)),
+                    decoration: BoxDecoration(
+                      color: rankBgColor,
+                      borderRadius: BorderRadius.circular(s(12)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: s(4),
+                          offset: Offset(0, s(2)),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(rankIcon, size: s(18), color: rankColor),
+                        SizedBox(width: s(4)),
+                        Text(
+                          '#$rank',
+                          style: TextStyle(
+                            fontSize: s(14),
+                            fontWeight: FontWeight.w800,
+                            color: rank <= 3 ? rankColor : colorPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Badge Harga (kanan atas)
                 Positioned(
                   right: s(12),
                   top: s(12),
@@ -292,50 +449,15 @@ class _KostCard extends StatelessWidget {
                     padding:
                         EdgeInsets.symmetric(horizontal: s(10), vertical: s(6)),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFDDE6FF).withOpacity(0.95),
-                      borderRadius: BorderRadius.circular(s(10)),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.sell_outlined,
-                            size: s(16), color: colorPrimary),
-                        SizedBox(width: s(6)),
-                        Text(
-                          _formatCurrency(item.pricePerMonth),
-                          style: TextStyle(
-                            color: colorPrimary,
-                            fontWeight: FontWeight.w800,
-                            fontSize: s(12),
-                          ),
-                        ),
-                        Text(
-                          ' / bulan',
-                          style: TextStyle(
-                            color: colorPrimary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: s(11),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: s(12),
-                  top: s(12),
-                  child: Container(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: s(10), vertical: s(6)),
-                    decoration: BoxDecoration(
-                      color: colorWhite.withOpacity(0.95),
+                      color: colorPrimary.withOpacity(0.95),
                       borderRadius: BorderRadius.circular(s(10)),
                     ),
                     child: Text(
-                      '#$rank',
+                      _formatCurrency(harga),
                       style: TextStyle(
+                        color: colorWhite,
+                        fontWeight: FontWeight.w700,
                         fontSize: s(12),
-                        fontWeight: FontWeight.w800,
-                        color: colorPrimary,
                       ),
                     ),
                   ),
@@ -344,130 +466,85 @@ class _KostCard extends StatelessWidget {
             ),
           ),
 
+          // Content
           Padding(
             padding: EdgeInsets.all(s(14)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Nama Kost
                 Text(
-                  item.name,
+                  namaKost,
                   style: TextStyle(
                     fontSize: s(16),
                     fontWeight: FontWeight.w700,
                     color: colorTextPrimary,
                   ),
                 ),
-                SizedBox(height: s(4)),
+                SizedBox(height: s(12)),
+
+                // Info Grid: Skor, Jarak, Luas
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.location_on_outlined,
-                        size: s(16), color: Colors.grey),
-                    SizedBox(width: s(6)),
+                    // Skor SAW
                     Expanded(
-                      child: Text(
-                        item.address,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: s(12.5),
-                          color: colorTextPrimary.withOpacity(0.7),
-                        ),
+                      child: _infoChip(
+                        icon: Icons.analytics_rounded,
+                        label: 'Skor',
+                        value: skor.toStringAsFixed(2),
+                        color: const Color(0xFF4CAF50),
+                      ),
+                    ),
+                    SizedBox(width: s(8)),
+                    // Jarak
+                    Expanded(
+                      child: _infoChip(
+                        icon: Icons.route_rounded,
+                        label: 'Jarak',
+                        value: distanceKm != null
+                            ? '${distanceKm!.toStringAsFixed(2)} km'
+                            : '-',
+                        color: const Color(0xFF2196F3),
+                      ),
+                    ),
+                    SizedBox(width: s(8)),
+                    // Luas Kamar
+                    Expanded(
+                      child: _infoChip(
+                        icon: Icons.square_foot_rounded,
+                        label: 'Luas',
+                        value: '${panjang}x${lebar} m²',
+                        color: const Color(0xFFFF9800),
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: s(8)),
-                Wrap(
-                  spacing: s(6),
-                  runSpacing: s(6),
-                  children: [
-                    _chip('Skor: ${item.score.toStringAsFixed(3)}',
-                        Icons.leaderboard_outlined),
-                    _chip('${item.distanceKm.toStringAsFixed(2)} km',
-                        Icons.social_distance_outlined),
-                    for (final tag in item.tags)
-                      _chip(tag, Icons.check_circle_outline),
-                  ],
-                ),
-                SizedBox(height: s(10)),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: () {
-                      final idKost = item.idKost;
-                      if (idKost == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content:
-                                Text('Data kost tidak lengkap untuk dibuka.'),
-                          ),
-                        );
-                        return;
-                      }
 
-                      final kostProvider =
-                          Provider.of<KostProvider>(context, listen: false);
+                SizedBox(height: s(12)),
 
-                      final List kostList = kostProvider.kostpenyewa.isNotEmpty
-                          ? kostProvider.kostpenyewa
-                          : kostProvider.kost;
-
-                      dynamic selectedKost;
-                      for (final k in kostList) {
-                        if (k.id_kost == idKost) {
-                          selectedKost = k;
-                          break;
-                        }
-                      }
-
-                      if (selectedKost == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Kost tidak ditemukan.'),
-                          ),
-                        );
-                        return;
-                      }
-
-                      dynamic selectedFasilitas;
-                      final List fasilitasList =
-                          kostProvider.kostpenyewa.isNotEmpty
-                              ? kostProvider.fasilitaspenyewa
-                              : kostProvider.faslitas;
-
-                      for (final f in fasilitasList) {
-                        if (f.id_fasilitas == item.idFasilitas) {
-                          selectedFasilitas = f;
-                          break;
-                        }
-                      }
-
-                      Navigator.of(context).pushNamed(
-                        'detail-kost',
-                        arguments: {
-                          'data_kost': selectedKost,
-                          'data_fasilitas': selectedFasilitas,
-                          if (destinationLat != null)
-                            'destinationLat': destinationLat,
-                          if (destinationLng != null)
-                            'destinationLng': destinationLng,
-                          'distanceKm': item.distanceKm,
-                        },
-                      );
-                    },
-                    icon: Icon(Icons.remove_red_eye_outlined,
-                        size: s(18), color: colorPrimary),
+                // Button Lihat Detail
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _navigateToDetail(context),
+                    icon: Icon(Icons.visibility_rounded, size: s(18)),
                     label: Text(
                       'Lihat Detail',
                       style: TextStyle(
                         fontSize: s(13),
                         fontWeight: FontWeight.w600,
-                        color: colorPrimary,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colorPrimary,
+                      foregroundColor: colorWhite,
+                      padding: EdgeInsets.symmetric(vertical: s(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(s(10)),
                       ),
                     ),
                   ),
-                )
+                ),
               ],
             ),
           ),
@@ -476,28 +553,88 @@ class _KostCard extends StatelessWidget {
     );
   }
 
-  Widget _chip(String text, IconData icon) {
+  Widget _infoChip({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: s(10), vertical: s(6)),
+      padding: EdgeInsets.symmetric(vertical: s(10), horizontal: s(8)),
       decoration: BoxDecoration(
-        color: colorBackground,
-        borderRadius: BorderRadius.circular(s(20)),
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(s(10)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Column(
         children: [
-          Icon(icon, size: s(14), color: colorPrimary),
-          SizedBox(width: s(6)),
+          Icon(icon, size: s(20), color: color),
+          SizedBox(height: s(4)),
           Text(
-            text,
+            label,
             style: TextStyle(
-              fontSize: s(12),
-              color: colorTextPrimary.withOpacity(0.75),
+              fontSize: s(10),
+              color: colorTextPrimary.withOpacity(0.6),
               fontWeight: FontWeight.w500,
             ),
-          )
+          ),
+          SizedBox(height: s(2)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: s(12),
+              color: colorTextPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
+    );
+  }
+
+  void _navigateToDetail(BuildContext context) {
+    final kostProvider = Provider.of<KostProvider>(context, listen: false);
+
+    final List kostList = kostProvider.kostpenyewa.isNotEmpty
+        ? kostProvider.kostpenyewa
+        : kostProvider.kost;
+
+    dynamic selectedKost;
+    for (final k in kostList) {
+      if (k.id_kost == idKost) {
+        selectedKost = k;
+        break;
+      }
+    }
+
+    if (selectedKost == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kost tidak ditemukan.')),
+      );
+      return;
+    }
+
+    dynamic selectedFasilitas;
+    final List fasilitasList = kostProvider.kostpenyewa.isNotEmpty
+        ? kostProvider.fasilitaspenyewa
+        : kostProvider.faslitas;
+
+    for (final f in fasilitasList) {
+      if (f.id_fasilitas == idFasilitas) {
+        selectedFasilitas = f;
+        break;
+      }
+    }
+
+    Navigator.of(context).pushNamed(
+      'detail-kost',
+      arguments: {
+        'data_kost': selectedKost,
+        'data_fasilitas': selectedFasilitas,
+        if (destinationLat != null) 'destinationLat': destinationLat,
+        if (destinationLng != null) 'destinationLng': destinationLng,
+        if (distanceKm != null) 'distanceKm': distanceKm,
+      },
     );
   }
 
@@ -511,28 +648,4 @@ class _KostCard extends StatelessWidget {
     final grouped = parts.join('.').split('').reversed.join();
     return 'Rp $grouped';
   }
-}
-
-class _KostItem {
-  final int? idKost;
-  final int? idFasilitas;
-  final String name;
-  final String address;
-  final int pricePerMonth;
-  final double distanceKm;
-  final double score;
-  final List<String> tags;
-  final String? imageUrl;
-
-  const _KostItem({
-    this.idKost,
-    this.idFasilitas,
-    required this.name,
-    required this.address,
-    required this.pricePerMonth,
-    required this.distanceKm,
-    required this.score,
-    required this.tags,
-    this.imageUrl,
-  });
 }

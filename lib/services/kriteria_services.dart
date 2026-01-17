@@ -34,7 +34,9 @@ class KriteriaServices {
   Future<List<KriteriaModels>> readdata() async {
     List<KriteriaModels> hasilnya = [];
 
-    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/kriteria");
+    // Query dengan order by ranking untuk urutan kriteria yang benar
+    var url = Uri.parse(
+        "${SupabaseApiConfig.masterurl}/rest/v1/kriteria?order=ranking.asc");
 
     var baca = await htpp.get(url, headers: {
       'Content-Type': 'application/json',
@@ -48,6 +50,10 @@ class KriteriaServices {
         var item = KriteriaModels.fromJjson(value);
         hasilnya.add(item);
       });
+      print("✅ Kriteria diurutkan berdasarkan ranking");
+      for (var k in hasilnya) {
+        print("   C${k.ranking}: ${k.kategori} - Bobot: ${k.bobot_decimal}");
+      }
     } else {
       print("gagal buat data kriteria ${baca.body}");
       throw "gagal buat data kriteria ${baca.body}";
