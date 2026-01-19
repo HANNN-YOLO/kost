@@ -1170,6 +1170,10 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
   List<SubcriteriaItem> _isinya = [];
   bool _isInitialized = false; // Flag untuk memastikan hanya dipanggil sekali
 
+  // Flag perubahan & loading untuk tombol simpan
+  bool _hasChanges = false;
+  bool _isSaving = false;
+
   static Color _warnaLatar = Color(0xFFF5F7FB);
   static Color _warnaKartu = Colors.white;
   static Color _warnaUtama = Color(0xFF1E3A8A);
@@ -1207,6 +1211,21 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
           // --- LOGIKA SINKRONISASI DATA ( DATABASE KE LIST UI ) ---
           if (!keadaan) {
             _isinya.clear();
+            // Jika belum ada kriteria terpilih, pilih otomatis kriteria pertama.
+            // Gunakan post-frame callback agar tidak memanggil notifyListeners
+            // (melalui pilihkriteria) langsung saat build FutureBuilder.
+            if ((penghubung.nama == null || penghubung.nama!.isEmpty) &&
+                penghubung.kategoriall.isNotEmpty) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                // Cek lagi untuk menghindari pemanggilan ganda jika state sudah berubah.
+                if ((penghubung.nama == null || penghubung.nama!.isEmpty) &&
+                    penghubung.kategoriall.isNotEmpty) {
+                  penghubung.pilihkriteria(penghubung.kategoriall.first);
+                }
+              });
+            }
+
             final kriteriaTerpilih = penghubung.mydata.firstWhereOrNull(
                 (element) => element.kategori == penghubung.nama);
 
@@ -1228,6 +1247,8 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
             }
             keadaan =
                 true; // Dikunci agar saat klik Simpan/Tambah, list lokal tidak dihapus
+            // Setelah sinkron dari database, anggap tidak ada perubahan lokal
+            _hasChanges = false;
           }
 
           return Scaffold(
@@ -1321,6 +1342,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                           ));
                                           namacontroller.clear();
                                           bobotcontroller.clear();
+                                          _hasChanges = true;
                                           Navigator.pop(context);
                                         });
                                       },
@@ -1372,16 +1394,24 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                     child: Icon(Icons.category_outlined,
                                         color: Color(0xFF1E3A8A))),
                                 SizedBox(width: 10),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text("Terpilih",
-                                        style: TextStyle(fontSize: 15)),
-                                    Text(penghubung.nama!,
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text("Terpilih",
+                                          style: TextStyle(fontSize: 15)),
+                                      Text(
+                                        penghubung.nama!,
                                         style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold)),
-                                  ],
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -1595,6 +1625,8 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                             .text =
                                                                         bobotcontroller
                                                                             .text;
+                                                                    _hasChanges =
+                                                                        true;
                                                                     Navigator.pop(
                                                                         context);
                                                                   });
@@ -1623,6 +1655,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                         }
                                                         setState(() {
                                                           _isinya.removeAt(idx);
+                                                          _hasChanges = true;
                                                         });
                                                       }),
                                                 ],
@@ -1649,36 +1682,80 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                     minimumSize: Size(double.infinity, tinggiLayar * 0.065),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(50))),
-                onPressed: () async {
-                  // Jika data di database (inidata) kosong untuk kriteria ini, panggil savemassal
-                  final kSekarang = penghubung.mydata
-                      .firstWhereOrNull((e) => e.kategori == penghubung.nama);
-                  final dataDb = penghubung.inidata
-                      .where((e) => e.id_kriteria == kSekarang?.id_kriteria);
+                onPressed: (!_hasChanges || _isSaving)
+                    ? null
+                    : () async {
+                        setState(() {
+                          _isSaving = true;
+                        });
 
-                  if (dataDb.isEmpty) {
-                    await penghubung.savemassalsubkriteria(_isinya);
-                  } else {
-                    await penghubung.updatedmassalsubkriteria(_isinya);
-                  }
+                        try {
+                          // Jika data di database (inidata) kosong untuk kriteria ini, panggil savemassal
+                          final kSekarang = penghubung.mydata.firstWhereOrNull(
+                              (e) => e.kategori == penghubung.nama);
+                          final dataDb = penghubung.inidata.where(
+                              (e) => e.id_kriteria == kSekarang?.id_kriteria);
 
-                  // Refresh UI setelah simpan database
-                  setState(() {
-                    keadaan = false;
-                  });
-                },
-                child: Text(
-                  // Cek apakah ada data di database untuk kriteria terpilih ini
-                  penghubung.inidata.any((element) {
-                    final kTerpilih = penghubung.mydata
-                        .firstWhereOrNull((e) => e.kategori == penghubung.nama);
-                    return element.id_kriteria == kTerpilih?.id_kriteria;
-                  })
-                      ? "Simpan Perubahan Data"
-                      : "Simpan Data",
-                  style: TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold),
-                ),
+                          if (dataDb.isEmpty) {
+                            await penghubung.savemassalsubkriteria(_isinya);
+                          } else {
+                            await penghubung.updatedmassalsubkriteria(_isinya);
+                          }
+
+                          // Refresh UI setelah simpan database
+                          if (!mounted) return;
+                          setState(() {
+                            keadaan = false;
+                            _isSaving = false;
+                          });
+                        } catch (e) {
+                          if (!mounted) return;
+                          setState(() {
+                            _isSaving = false;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'Gagal menyimpan subkriteria: ${e.toString()}'),
+                            ),
+                          );
+                        }
+                      },
+                child: _isSaving
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Menyimpan...',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        // Cek apakah ada data di database untuk kriteria terpilih ini
+                        penghubung.inidata.any((element) {
+                          final kTerpilih = penghubung.mydata.firstWhereOrNull(
+                              (e) => e.kategori == penghubung.nama);
+                          return element.id_kriteria == kTerpilih?.id_kriteria;
+                        })
+                            ? "Simpan Perubahan Data"
+                            : "Simpan Data",
+                        style: TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
               ),
             ),
           );

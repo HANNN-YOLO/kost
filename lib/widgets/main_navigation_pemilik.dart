@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:kost_saw/screens/main/pemilik/dashboard_income.dart';
 import 'package:kost_saw/screens/main/pemilik/management_kost_pemilik.dart';
 import 'package:kost_saw/screens/main/pemilik/profile_pemilik.dart';
 import 'package:provider/provider.dart';
@@ -22,11 +21,7 @@ class _MainNavigationPemilikState extends State<MainNavigationPemilik> {
       case 0:
         return ManagementKostPemilik();
       case 1:
-        return DashboardIncome();
-      case 2:
         return ProfilePemilikPage();
-      case 3:
-        return SizedBox.shrink(); // handled by logout
       default:
         return ManagementKostPemilik();
     }
@@ -62,7 +57,7 @@ class _MainNavigationPemilikState extends State<MainNavigationPemilik> {
   }
 
   void _onItemTapped(int index) {
-    if (index == 3) {
+    if (index == 2) {
       _showLogoutConfirmation();
       return;
     }
@@ -99,10 +94,6 @@ class _MainNavigationPemilikState extends State<MainNavigationPemilik> {
             BottomNavigationBarItem(
               icon: Icon(Icons.other_houses_outlined),
               label: 'Daftar Kost Anda',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_outlined),
-              label: 'Ringkasan',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),

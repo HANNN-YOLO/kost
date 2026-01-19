@@ -50,8 +50,20 @@ class custom_editfoto extends StatelessWidget {
             ClipOval(
           child: path != null
               ? Image.file(File(path!), fit: BoxFit.cover)
-              : (pathlama != null
-                  ? Image.network(pathlama!, fit: BoxFit.cover)
+              : (pathlama != null && pathlama!.isNotEmpty
+                  ? Image.network(
+                      pathlama!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Center(
+                          child: Icon(
+                            Icons.add_a_photo,
+                            size: 40,
+                            color: Colors.grey[700],
+                          ),
+                        );
+                      },
+                    )
                   : Center(
                       child: Icon(
                         Icons.add_a_photo,

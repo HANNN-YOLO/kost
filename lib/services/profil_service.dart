@@ -25,9 +25,10 @@ class ProfilService {
     var simpan = await htpp.post(
       url,
       headers: {
+        // Samakan header dengan modul upload gambar kost yang sudah stabil
         'Content-Type': '/images/$si.jpg',
-        'apikey': '${SupabaseApiConfig.apipublic}',
-        'Authorization': 'Bearer $token',
+        'apikey': '${SupabaseApiConfig.apisecret}',
+        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
       },
       body: namanya,
     );
@@ -60,9 +61,9 @@ class ProfilService {
     var hapus = await htpp.delete(
       arah,
       headers: {
-        'Content-Type': '/images/$akhir.jpg',
-        'apikey': '${SupabaseApiConfig.apipublic}',
-        'Authorization': 'Bearer $token'
+        'Content-Type': 'application/octet-stream',
+        'apikey': '${SupabaseApiConfig.apisecret}',
+        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
       },
     );
     print("hapus gambar 4 profil");

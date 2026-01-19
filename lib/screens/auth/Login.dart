@@ -14,6 +14,14 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController pass = TextEditingController();
 
   String? mesaage;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    email.dispose();
+    pass.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -152,18 +160,31 @@ class _LoginPageState extends State<LoginPage> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: ElevatedButton(
-                      onPressed: () async {
-                        try {
-                          await penghubung.login(email.text, pass.text);
-                          setState(() {
-                            mesaage = null;
-                          });
-                        } catch (e) {
-                          setState(() {
-                            mesaage = e.toString();
-                          });
-                        }
-                      },
+                      onPressed: _isLoading
+                          ? null
+                          : () async {
+                              setState(() {
+                                mesaage = null;
+                                _isLoading = true;
+                              });
+
+                              try {
+                                await penghubung.login(
+                                  email.text.trim(),
+                                  pass.text,
+                                );
+                              } catch (e) {
+                                if (!mounted) return;
+                                setState(() {
+                                  mesaage = e.toString();
+                                });
+                              } finally {
+                                if (!mounted) return;
+                                setState(() {
+                                  _isLoading = false;
+                                });
+                              }
+                            },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.black,
                         padding:
@@ -172,11 +193,36 @@ class _LoginPageState extends State<LoginPage> {
                           borderRadius: BorderRadius.circular(30),
                         ),
                       ),
-                      child: Text(
-                        "Masuk",
-                        style: TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
+                      child: _isLoading
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white),
+                                  ),
+                                ),
+                                SizedBox(width: 12),
+                                Text(
+                                  "Masuk...",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : const Text(
+                              "Masuk",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                   ),
 

@@ -46,7 +46,10 @@ class KostProvider with ChangeNotifier {
       } else if (cek.role == "Penyewa") {
         readdatapenyewa(_token!);
       } else if (cek.role == "Pemilik") {
-        readdatapemilik(id_auth, _token!);
+        // Hindari reload berulang jika isi() terpanggil berkali-kali (ProxyProvider)
+        final bool shouldForce =
+            !_hasLoadedPemilikKost || _loadedPemilikAuthId != id_auth;
+        readdatapemilik(id_auth, _token!, force: shouldForce);
       } else {
         print("gagal verifikasi role login");
         throw "Gagal verifikasi role login";
@@ -58,14 +61,14 @@ class KostProvider with ChangeNotifier {
 
   void inilist(List<ProfilModel>? mana) {
     _dataku = mana!;
-    if (_dataku != null) {
+    if (_dataku != null && id_authnya != null && token != null) {
       readdatapemilik(id_authnya!, token!);
     }
   }
 
   void isiprofil(List<ProfilModel> manawoi) {
     _dataku = manawoi;
-    if (dataku.isNotEmpty) {
+    if (dataku.isNotEmpty && id_authnya != null && token != null) {
       readdatapemilik(id_authnya!, token!);
     }
   }
@@ -196,6 +199,8 @@ class KostProvider with ChangeNotifier {
     _expires_in = null;
     _listauth = [];
     id_authnya = null;
+    _hasLoadedPemilikKost = false;
+    _loadedPemilikAuthId = null;
     notifyListeners();
   }
 
@@ -224,6 +229,13 @@ class KostProvider with ChangeNotifier {
 
   List<FasilitasModel> _fasilitaspemilik = [];
   List<FasilitasModel> get fasilitaspemilik => _fasilitaspemilik;
+
+  // Flag untuk menandai apakah data kost pemilik sudah pernah di-load
+  bool _hasLoadedPemilikKost = false;
+  bool get hasLoadedPemilikKost => _hasLoadedPemilikKost;
+
+  // Cache id_auth pemilik terakhir yang sudah di-load
+  int? _loadedPemilikAuthId;
 
   // Loading flags untuk daftar kost
   bool _isLoadingAdminKost = false;
@@ -491,15 +503,27 @@ class KostProvider with ChangeNotifier {
       _fasilitaspenyewa = inifasilitas;
       _kostpenyewa = inikost;
     } catch (e) {
-      throw e;
+      debugPrint('Error ambil data kost sebagai penyewa: $e');
     } finally {
       _isLoadingPenyewaKost = false;
       notifyListeners();
     }
   }
 
-  Future<void> readdatapemilik(int id_auth, String token) async {
+  Future<void> readdatapemilik(int id_auth, String token,
+      {bool force = false}) async {
+    // Cegah request ganda saat masih loading
+    if (_isLoadingPemilikKost) {
+      return;
+    }
+
+    // Jika sudah pernah load dan tidak dipaksa, jangan fetch lagi
+    if (_hasLoadedPemilikKost && !force && _loadedPemilikAuthId == id_auth) {
+      return;
+    }
+
     _isLoadingPemilikKost = true;
+    _loadedPemilikAuthId = id_auth;
     notifyListeners();
 
     try {
@@ -513,6 +537,7 @@ class KostProvider with ChangeNotifier {
       throw e;
     } finally {
       _isLoadingPemilikKost = false;
+      _hasLoadedPemilikKost = true;
       notifyListeners();
     }
   }
@@ -596,7 +621,7 @@ class KostProvider with ChangeNotifier {
     } catch (e) {
       throw e;
     }
-    await readdatapemilik(id_authnya!, token);
+    await readdatapemilik(id_authnya!, token, force: true);
     notifyListeners();
   }
 
@@ -731,7 +756,7 @@ class KostProvider with ChangeNotifier {
     } catch (e) {
       throw e;
     }
-    await readdatapemilik(id_authnya!, token!);
+    await readdatapemilik(id_authnya!, token!, force: true);
     notifyListeners();
   }
 
@@ -741,7 +766,7 @@ class KostProvider with ChangeNotifier {
     } catch (e) {
       throw e;
     }
-    await readdatapemilik(id_authnya!, token!);
+    await readdatapemilik(id_authnya!, token!, force: true);
     notifyListeners();
   }
 

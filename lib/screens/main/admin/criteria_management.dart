@@ -44,11 +44,35 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
 
   final List<KriteriaItem> _listKriteria = [];
 
+  // Menyimpan urutan awal kriteria (berdasarkan id_kriteria)
+  List<int?> _initialOrder = [];
+
+  // Flag untuk menandai apakah urutan sudah diubah
+  bool _hasOrderChanged = false;
+
+  // Flag loading ketika menyimpan perubahan
+  bool _isSaving = false;
+
   int? _editingIndex;
 
   bool inisiasi = false;
 
   late Future<void> _penghubung;
+
+  void _setInitialOrder() {
+    _initialOrder = _listKriteria.map((k) => k.id_kriteria).toList();
+    _hasOrderChanged = false;
+  }
+
+  bool _isSameOrderAsInitial() {
+    if (_initialOrder.length != _listKriteria.length) return false;
+    for (int i = 0; i < _listKriteria.length; i++) {
+      if (_listKriteria[i].id_kriteria != _initialOrder[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   void _perbaruidata() {
     setState(() {
@@ -144,6 +168,8 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
             }
             // Urutkan berdasarkan ranking
             _listKriteria.sort((a, b) => a.ranking.compareTo(b.ranking));
+            // Simpan urutan awal untuk mendeteksi perubahan urutan
+            _setInitialOrder();
             inisiasi = true;
           }
 
@@ -168,50 +194,6 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
                                 fontWeight: FontWeight.bold, fontSize: 20),
                           ),
                     SizedBox(height: tinggiLayar * 0.03),
-
-                    // Bagian Input Kriteria Baru
-                    Text("Masukkan Kriteria",
-                        style: TextStyle(fontWeight: FontWeight.w500)),
-                    SizedBox(height: tinggiLayar * 0.012),
-
-                    // _buildInputBaru(tinggiLayar, lebarLayar),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 2)
-                        ],
-                      ),
-                      child: Padding(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: lebarLayar * 0.04),
-                        child: TextField(
-                          controller: _inputBaruController,
-                          decoration: InputDecoration(
-                              border: InputBorder.none,
-                              hintText: "Tulis nama kriteria..."),
-                          onSubmitted: (value) {
-                            if (value.trim().isNotEmpty) {
-                              setState(() {
-                                // Ranking baru = posisi terakhir + 1
-                                final newRanking = _listKriteria.length + 1;
-                                _listKriteria.add(KriteriaItem(
-                                  nama: value.trim(),
-                                  ranking: newRanking,
-                                ));
-                                _inputBaruController.clear();
-
-                                print(
-                                    "➕ Kriteria baru: ${value.trim()} (Ranking: $newRanking)");
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                    ),
 
                     SizedBox(height: tinggiLayar * 0.03),
 
@@ -275,6 +257,9 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
                                   _listKriteria[i].ranking = i + 1;
                                 }
 
+                                // Cek apakah urutan berbeda dengan urutan awal
+                                _hasOrderChanged = !_isSameOrderAsInitial();
+
                                 print("\n🔄 Urutan berubah:");
                                 for (var k in _listKriteria) {
                                   print("   Ranking ${k.ranking}: ${k.nama}");
@@ -327,129 +312,21 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
                                         ),
                                         SizedBox(width: 10),
 
-                                        // Nama Kriteria (editable)
+                                        // Nama Kriteria (read-only)
                                         Expanded(
-                                          child: _editingIndex == index
-                                              ? TextField(
-                                                  controller: _editController,
-                                                  autofocus: true,
-                                                  style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      fontSize: 14),
-                                                  decoration: InputDecoration(
-                                                    isDense: true,
-                                                    border: InputBorder.none,
-                                                    contentPadding:
-                                                        EdgeInsets.zero,
-                                                  ),
-                                                  onSubmitted: (val) {
-                                                    setState(() {
-                                                      item.nama = val.trim();
-                                                      _editingIndex = null;
-                                                    });
-                                                  },
-                                                )
-                                              : Text(
-                                                  item.nama,
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.w600,
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
+                                          child: Text(
+                                            item.nama,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 14,
+                                            ),
+                                          ),
                                         ),
 
-                                        // Action Buttons
+                                        // Hanya tampilkan handle drag (tanpa edit/hapus)
                                         Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            // Edit Button
-                                            GestureDetector(
-                                              onTap: () {
-                                                setState(() {
-                                                  if (_editingIndex == index) {
-                                                    item.nama =
-                                                        _editController.text;
-                                                    _editingIndex = null;
-                                                  } else {
-                                                    _editingIndex = index;
-                                                    _editController.text =
-                                                        item.nama;
-                                                  }
-                                                });
-                                              },
-                                              child: Container(
-                                                padding: EdgeInsets.all(6),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.green
-                                                      .withOpacity(0.1),
-                                                  borderRadius:
-                                                      BorderRadius.circular(6),
-                                                ),
-                                                child: Icon(
-                                                  _editingIndex == index
-                                                      ? Icons.check
-                                                      : Icons.edit,
-                                                  color: Colors.green,
-                                                  size: 16,
-                                                ),
-                                              ),
-                                            ),
-                                            SizedBox(width: 8),
-                                            // Delete Button
-                                            GestureDetector(
-                                              onTap: () async {
-                                                _listKriteria[index].dispose();
-
-                                                if (penghubung.mydata.isEmpty ||
-                                                    item.id_kriteria == null) {
-                                                  // Data belum ada di DB, hapus dari list lokal saja
-                                                  setState(() {
-                                                    _listKriteria
-                                                        .removeAt(index);
-                                                    // Update ranking setelah hapus
-                                                    for (int i = 0;
-                                                        i <
-                                                            _listKriteria
-                                                                .length;
-                                                        i++) {
-                                                      _listKriteria[i].ranking =
-                                                          i + 1;
-                                                    }
-                                                  });
-                                                } else {
-                                                  // Data ada di DB, hapus dari DB lalu refresh UI
-                                                  await penghubung.deletedata(
-                                                      item.id_kriteria!);
-
-                                                  // Reset inisiasi agar data di-load ulang dari DB
-                                                  // (termasuk bobot_decimal yang sudah di-recalculate)
-                                                  setState(() {
-                                                    inisiasi = false;
-                                                    _listKriteria.clear();
-                                                    _penghubung = Provider.of<
-                                                                KriteriaProvider>(
-                                                            context,
-                                                            listen: false)
-                                                        .readdata();
-                                                  });
-                                                }
-                                              },
-                                              child: Container(
-                                                padding: EdgeInsets.all(6),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.red
-                                                      .withOpacity(0.1),
-                                                  borderRadius:
-                                                      BorderRadius.circular(6),
-                                                ),
-                                                child: Icon(Icons.delete,
-                                                    color: Colors.red,
-                                                    size: 16),
-                                              ),
-                                            ),
-                                            SizedBox(width: 8),
-                                            // Drag Handle
                                             Icon(Icons.drag_handle,
                                                 color: Colors.grey[500],
                                                 size: 20),
@@ -523,8 +400,14 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
                                                     value: AtributType.Cost,
                                                     child: Text("Cost")),
                                               ],
-                                              onChanged: (v) => setState(
-                                                  () => item.atribut = v!),
+                                              onChanged: (v) {
+                                                if (v == null) return;
+                                                setState(() {
+                                                  item.atribut = v;
+                                                  // Anggap sebagai perubahan yang perlu disimpan
+                                                  _hasOrderChanged = true;
+                                                });
+                                              },
                                             ),
                                           ),
                                         ),
@@ -569,32 +452,73 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(50)),
                 ),
-                onPressed: () async {
-                  // Simpan/Update data
-                  if (penghubung.mydata.isEmpty) {
-                    await penghubung.savemassal(_listKriteria);
-                  } else {
-                    await penghubung.updatedmassal(_listKriteria);
-                  }
+                onPressed: (!_hasOrderChanged || _isSaving)
+                    ? null
+                    : () async {
+                        setState(() {
+                          _isSaving = true;
+                        });
 
-                  // Reset inisiasi agar data dari DB di-load ulang ke _listKriteria
-                  setState(() {
-                    inisiasi = false;
-                    _listKriteria.clear();
-                    _penghubung =
-                        Provider.of<KriteriaProvider>(context, listen: false)
-                            .readdata();
-                  });
-                },
-                child: penghubung.mydata.isEmpty
-                    ? Text(
-                        "Simpan",
+                        try {
+                          // Simpan/Update data
+                          if (penghubung.mydata.isEmpty) {
+                            await penghubung.savemassal(_listKriteria);
+                          } else {
+                            await penghubung.updatedmassal(_listKriteria);
+                          }
+
+                          // Reset inisiasi agar data dari DB di-load ulang ke _listKriteria
+                          if (!mounted) return;
+                          setState(() {
+                            inisiasi = false;
+                            _listKriteria.clear();
+                            _penghubung = Provider.of<KriteriaProvider>(context,
+                                    listen: false)
+                                .readdata();
+                            _isSaving = false;
+                          });
+                        } catch (e) {
+                          if (!mounted) return;
+                          setState(() {
+                            _isSaving = false;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Gagal menyimpan perubahan: $e'),
+                            ),
+                          );
+                        }
+                      },
+                child: _isSaving
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Menyimpan...',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        penghubung.mydata.isEmpty
+                            ? "Simpan"
+                            : "Simpan perubahan",
                         style: TextStyle(
                             color: Colors.white, fontWeight: FontWeight.bold),
-                      )
-                    : Text("Simpan perubahan",
-                        style: TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
               ),
             ),
           );

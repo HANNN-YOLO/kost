@@ -66,6 +66,11 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> login(String email, String pass) async {
     try {
+      // Validasi dasar sebelum kirim ke server
+      if (email.trim().isEmpty || pass.isEmpty) {
+        throw "Harap isi email dan sandi terlebih dahulu.";
+      }
+
       final data = await _ref.login(email: email, pass: pass);
       if (data != null) {
         _accesstoken = data['access_token'];
@@ -84,18 +89,36 @@ class AuthProvider with ChangeNotifier {
   Future<void> register(String username, String email, String pas1, String pas2,
       String role, BuildContext context) async {
     try {
-      if (pas1 == pas2) {
-        final data = await _ref.register(email: email, pass: pas1);
-        if (data != null) {
-          await _ref.createuser(
-              data['access_token'], data['user']['id'], username, email, role);
+      // Validasi dasar agar tidak mengirim data tidak lengkap ke server
+      if (username.trim().isEmpty ||
+          email.trim().isEmpty ||
+          pas1.isEmpty ||
+          pas2.isEmpty) {
+        throw "Harap isi semua field terlebih dahulu.";
+      }
 
-          await Navigator.of(context).pushReplacementNamed("/login");
-        } else {
-          throw "Masukkan Email dan Sandi Anda";
-        }
-      } else {
+      if (role == "Pilih") {
+        throw "Harap pilih role sebagai Pemilik atau Penyewa.";
+      }
+
+      if (pas1 != pas2) {
         throw "Sandi tidak sama dengan Konfirmasi Sandi pada saat di input";
+      }
+
+      final data = await _ref.register(email: email, pass: pas1);
+
+      if (data != null) {
+        await _ref.createuser(
+          data['access_token'],
+          data['user']['id'],
+          username,
+          email,
+          role,
+        );
+
+        await Navigator.of(context).pushReplacementNamed("/login");
+      } else {
+        throw "Masukkan Email dan Sandi Anda";
       }
     } catch (e) {
       print(e);
@@ -111,10 +134,15 @@ class AuthProvider with ChangeNotifier {
     try {
       final data = await _ref.readdata(_accesstoken!);
       _mydata = data;
+      if (_mydata.isEmpty) {
+        throw "Data akun tidak ditemukan di sistem. Silakan hubungi admin untuk menyelesaikan pendaftaran akun Anda.";
+      }
+
       id_auth = mydata.first.id_auth;
-      if (data.first.role == "Admin" ||
-          data.first.role == "Penyewa" ||
-          data.first.role == "Pemilik") {
+      final roleUser = data.first.role;
+      if (roleUser == "Admin" ||
+          roleUser == "Penyewa" ||
+          roleUser == "Pemilik") {
         final isinya = await _ref.alluser();
         hasilnya = isinya;
       }

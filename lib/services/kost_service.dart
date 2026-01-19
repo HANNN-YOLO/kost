@@ -283,8 +283,9 @@ class KostService {
         hasilnya.add(item);
       });
     } else {
-      print("eror ambil data kost sebagai penyewa");
-      throw "eror ambil data kost sebagai penyewa";
+      print(
+          "eror ambil data kost sebagai penyewa: status \\${simpan.statusCode}, body: \\${simpan.body}");
+      throw Exception("eror ambil data kost sebagai penyewa");
     }
     return hasilnya;
   }

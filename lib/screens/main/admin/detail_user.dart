@@ -19,14 +19,28 @@ class DetailUser extends StatelessWidget {
     const warnaAbu = Color(0xFF6B7280);
 
     final terima = ModalRoute.of(context)!.settings.arguments as int;
+    final profilProvider = Provider.of<ProfilProvider>(context, listen: false);
 
-    final pakai = Provider.of<ProfilProvider>(context, listen: false)
-        .alluser
-        .firstWhere((element) => element.id_profil == terima);
+    dynamic pakai;
+    try {
+      pakai = profilProvider.alluser
+          .firstWhere((element) => element.id_auth == terima);
+    } catch (_) {
+      pakai = null;
+    }
 
-    final isinya = Provider.of<ProfilProvider>(context, listen: false)
-        .listauth
-        .firstWhere((element) => element.id_auth == pakai.id_auth);
+    dynamic isinya;
+    try {
+      isinya = profilProvider.listauth
+          .firstWhere((element) => element.id_auth == terima);
+    } catch (_) {
+      isinya = null;
+    }
+
+    final String displayNama = isinya?.username ?? 'Tidak ada';
+    final String displayEmail = isinya?.Email ?? 'Tidak ada';
+    final String displayFoto = pakai?.foto ?? '';
+    final bool hasProfil = pakai != null;
 
     return Scaffold(
       backgroundColor: warnaLatar,
@@ -69,17 +83,27 @@ class DetailUser extends StatelessWidget {
                   height: lebarLayar * 0.22,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    image: DecorationImage(
-                      image: NetworkImage("${pakai.foto}"),
-                      fit: BoxFit.cover,
-                      alignment: Alignment.center,
-                    ),
+                    color: const Color(0xFFDDE6FF),
+                    image: displayFoto.isNotEmpty
+                        ? DecorationImage(
+                            image: NetworkImage(displayFoto),
+                            fit: BoxFit.cover,
+                            alignment: Alignment.center,
+                          )
+                        : null,
                     border: Border.all(color: Colors.grey.shade400),
                   ),
+                  child: displayFoto.isEmpty
+                      ? const Icon(
+                          Icons.person,
+                          color: Colors.white70,
+                          size: 40,
+                        )
+                      : null,
                 ),
                 SizedBox(height: tinggiLayar * 0.015),
                 Text(
-                  "${isinya.username}",
+                  displayNama,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -87,7 +111,7 @@ class DetailUser extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  "${isinya.Email}",
+                  displayEmail,
                   style: TextStyle(
                     fontSize: 14,
                     color: warnaAbu,
@@ -127,17 +151,29 @@ class DetailUser extends StatelessWidget {
                       ),
                       child: Column(
                         children: [
-                          infoBar("Nama", "${isinya.username}"),
-                          infoBar("Email", "${isinya.Email}"),
-                          infoBar("Jenis Kelamin", "${pakai.jkl}"),
-                          infoBar("No. handphone",
-                              "${pakai.kontak == 0 ? "Tidak di publish" : pakai.kontak}"),
+                          infoBar("Nama", displayNama),
+                          infoBar("Email", displayEmail),
                           infoBar(
-                              "Tanggal Lahir",
-                              // "${DateFormat('dd-MM-yyyy').parse(pakai.tgllahir.toString())}",
-                              "${DateFormat('dd-MM-yyyy').format(DateTime.parse(pakai.tgllahir.toString()))}"),
-                          infoBar("Tanggal Bergabung",
-                              "${DateFormat('dd-MM-yyyy').format(DateTime.parse(pakai.createdAt.toString()))}"),
+                            "Jenis Kelamin",
+                            pakai?.jkl != null && "${pakai.jkl}".isNotEmpty
+                                ? "${pakai.jkl}"
+                                : "-",
+                          ),
+                          infoBar(
+                            "No. handphone",
+                            pakai == null
+                                ? "Belum mengisi profil"
+                                : (pakai.kontak == 0
+                                    ? "Tidak di publish"
+                                    : "${pakai.kontak}"),
+                          ),
+                          infoBar(
+                            "Tanggal Lahir",
+                            pakai?.tgllahir != null
+                                ? DateFormat('dd-MM-yyyy')
+                                    .format(pakai.tgllahir as DateTime)
+                                : "-",
+                          ),
                         ],
                       ),
                     ),
@@ -156,9 +192,19 @@ class DetailUser extends StatelessWidget {
             width: double.infinity,
             height: 48,
             child: ElevatedButton.icon(
-              onPressed: () {
-                _showEditBottomSheet(context, pakai);
-              },
+              onPressed: hasProfil
+                  ? () {
+                      _showEditBottomSheet(context, pakai);
+                    }
+                  : () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Pengguna belum mengisi profil, tidak ada data untuk diedit.',
+                          ),
+                        ),
+                      );
+                    },
               style: ElevatedButton.styleFrom(
                 backgroundColor: warnaUtama,
                 shape: RoundedRectangleBorder(

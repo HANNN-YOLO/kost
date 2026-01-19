@@ -28,7 +28,13 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
   Size _fieldSize = Size.zero;
 
   String _selectedLocation = "Lokasi Tujuan";
-  String _coordinateText = "12121212, 3232323";
+  String _coordinateText = "Klik 2x pada peta";
+
+  late final TextEditingController _coordinateController;
+
+  static const String _optLokasiSekarang = "Lokasi Sekarang";
+  static const String _optLokasiTujuan = "Lokasi Tujuan";
+  static const String _optManualKoordinat = "Masukkan Titik Koordinat";
 
   late AnimationController _controller;
   late Animation<double> _opacity;
@@ -43,6 +49,8 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
   @override
   void initState() {
     super.initState();
+
+    _coordinateController = TextEditingController(text: _coordinateText);
 
     // Buat controller WebView (webview_flutter >=4.x)
     _mapController = WebViewController()
@@ -75,6 +83,7 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
             if (!mounted) return;
             setState(() {
               _coordinateText = '$lat, $lng';
+              _coordinateController.text = _coordinateText;
             });
             // optional: you can also pan/marker again from Flutter (not needed)
             // _mapController.runJavaScript("setMarker($lat, $lng);");
@@ -159,12 +168,116 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
   Future<void> _syncMapModeWithSelectedLocation() async {
     if (!_mapLoaded) return;
 
-    if (_selectedLocation == "Lokasi Tujuan") {
+    if (_selectedLocation == _optLokasiTujuan) {
+      await _mapController.runJavaScript("clearMyLocation();");
+      await _mapController.runJavaScript("clearDestination();");
       await _mapController.runJavaScript("setMode('destination');");
       if (!mounted) return;
-      setState(() => _coordinateText = "Klik 2x pada peta");
+      setState(() {
+        _coordinateText = "Klik 2x pada peta";
+        _coordinateController.text = _coordinateText;
+      });
+    } else if (_selectedLocation == _optManualKoordinat) {
+      // manual: biarkan peta bisa dilihat, tapi jangan ubah titik secara tidak sengaja
+      await _mapController.runJavaScript("clearMyLocation();");
+      await _mapController.runJavaScript("clearDestination();");
+      await _mapController.runJavaScript("setMode('readonly');");
     } else {
       await _mapController.runJavaScript("setMode('normal');");
+    }
+  }
+
+  ({double lat, double lng})? _tryParseLatLng(String input) {
+    final parts = input
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    if (parts.length != 2) return null;
+
+    final lat = double.tryParse(parts[0]);
+    final lng = double.tryParse(parts[1]);
+    if (lat == null || lng == null) return null;
+    if (lat < -90 || lat > 90) return null;
+    if (lng < -180 || lng > 180) return null;
+    return (lat: lat, lng: lng);
+  }
+
+  Future<void> _promptManualCoordinate() async {
+    final initial =
+        _tryParseLatLng(_coordinateText) != null ? _coordinateText : '';
+    final controller = TextEditingController(text: initial);
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        String? errorText;
+        return StatefulBuilder(
+          builder: (ctx, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              title: const Text('Masukkan Titik Koordinat'),
+              content: TextField(
+                controller: controller,
+                keyboardType: const TextInputType.numberWithOptions(
+                  signed: true,
+                  decimal: true,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Contoh: -5.147665, 119.432731',
+                  errorText: errorText,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Batal'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    final parsed = _tryParseLatLng(controller.text.trim());
+                    if (parsed == null) {
+                      setState(() {
+                        errorText =
+                            'Format harus "lat, lng" dan nilainya valid.';
+                      });
+                      return;
+                    }
+                    Navigator.of(ctx).pop(controller.text.trim());
+                  },
+                  child: const Text('Simpan'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result == null) return;
+    final parsed = _tryParseLatLng(result);
+    if (parsed == null) return;
+
+    if (!mounted) return;
+    setState(() {
+      _selectedLocation = _optManualKoordinat;
+      _coordinateText = '${parsed.lat}, ${parsed.lng}';
+    });
+
+    if (_mapLoaded) {
+      try {
+        await _mapController.runJavaScript("clearMyLocation();");
+        await _mapController.runJavaScript("clearDestination();");
+        await _mapController.runJavaScript("setMode('readonly');");
+        await _mapController.runJavaScript(
+            "setDestinationLocation(${parsed.lat}, ${parsed.lng});");
+        await _mapController
+            .runJavaScript("setView(${parsed.lat}, ${parsed.lng}, 16);");
+      } catch (_) {
+        // ignore: map hanya sebagai tampilan
+      }
     }
   }
 
@@ -222,10 +335,12 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
       if (!mounted) return;
       setState(() {
         _coordinateText = "${pos.latitude}, ${pos.longitude}";
+        _coordinateController.text = _coordinateText;
         _selectedLocation = "Lokasi Sekarang";
       });
     } catch (e) {
       debugPrint("Error ambil lokasi: $e");
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal mengambil lokasi: $e')),
       );
@@ -238,7 +353,7 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
     try {
       final result =
           await _mapController.runJavaScriptReturningResult('getLastClick()');
-      String str = result == null ? 'null' : result.toString();
+      String str = result.toString();
 
       // bersihkan quotes jika dibungkus
       if (str.startsWith('"') && str.endsWith('"')) {
@@ -247,6 +362,7 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
       }
 
       if (str == 'null' || str.trim().isEmpty) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Belum ada titik yang diklik di peta')),
         );
@@ -260,8 +376,10 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
         if (!mounted) return;
         setState(() {
           _coordinateText = '$lat, $lng';
+          _coordinateController.text = _coordinateText;
         });
       } else {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Koordinat tidak valid: $str')),
         );
@@ -270,6 +388,20 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal ambil koordinat: $e')),
       );
+    }
+  }
+
+  // Terapkan koordinat tujuan ke peta (marker + view)
+  Future<void> _applyDestinationToMap(double lat, double lng) async {
+    if (!_mapLoaded) return;
+    try {
+      await _mapController.runJavaScript("clearMyLocation();");
+      await _mapController.runJavaScript("clearDestination();");
+      await _mapController.runJavaScript("setMode('readonly');");
+      await _mapController.runJavaScript("setDestinationLocation($lat, $lng);");
+      await _mapController.runJavaScript("setView($lat, $lng, 16);");
+    } catch (_) {
+      // Map hanya sebagai tampilan, abaikan error JS
     }
   }
 
@@ -311,8 +443,9 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _dropdownItem("Lokasi Sekarang", s, txt),
-                          _dropdownItem("Lokasi Tujuan", s, txt),
+                          _dropdownItem(_optLokasiSekarang, s, txt),
+                          _dropdownItem(_optLokasiTujuan, s, txt),
+                          _dropdownItem(_optManualKoordinat, s, txt),
                         ],
                       ),
                     ),
@@ -335,16 +468,30 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
         setState(() => _selectedLocation = text);
         _closeDropdown();
 
-        if (text == "Lokasi Sekarang") {
+        if (text == _optLokasiSekarang) {
           // ubah mode peta ke normal, bersihkan marker tujuan, lalu ambil lokasi saya
           await _mapController.runJavaScript("setMode('normal');");
           await _mapController.runJavaScript("clearDestination();");
           await _goToMyLocation();
-        } else {
+        } else if (text == _optLokasiTujuan) {
           // Lokasi Tujuan: bersihkan marker lokasi sekarang dan ganti mode ke destination (butuh dblclick)
           await _mapController.runJavaScript("clearMyLocation();");
+          await _mapController.runJavaScript("clearDestination();");
           await _mapController.runJavaScript("setMode('destination');");
-          setState(() => _coordinateText = "Klik 2x pada peta");
+          setState(() {
+            _coordinateText = "Klik 2x pada peta";
+            _coordinateController.text = _coordinateText;
+          });
+        } else if (text == _optManualKoordinat) {
+          await _mapController.runJavaScript("clearMyLocation();");
+          await _mapController.runJavaScript("clearDestination();");
+          await _mapController.runJavaScript("setMode('readonly');");
+          // Bersihkan teks agar pengguna tidak perlu menghapus manual
+          // placeholder/hint akan menjelaskan format input.
+          setState(() {
+            _coordinateText = '';
+            _coordinateController.text = '';
+          });
         }
       },
       child: Padding(
@@ -380,6 +527,7 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
     // pastikan overlay dibersihkan agar tidak menahan referensi State
     _dropdownOverlay?.remove();
     _dropdownOverlay = null;
+    _coordinateController.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -768,13 +916,60 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
                                       ),
                                       SizedBox(width: s(10)),
                                       Expanded(
-                                        child: Text(
-                                          _coordinateText,
+                                        child: TextField(
+                                          controller: _coordinateController,
+                                          readOnly: _selectedLocation !=
+                                              _optManualKoordinat,
+                                          keyboardType: const TextInputType
+                                              .numberWithOptions(
+                                            signed: true,
+                                            decimal: true,
+                                          ),
                                           style: TextStyle(
                                             fontSize: s(14),
                                             color: colorTextPrimary
-                                                .withOpacity(0.6),
+                                                .withOpacity(0.8),
                                           ),
+                                          decoration: InputDecoration(
+                                            isCollapsed: true,
+                                            border: InputBorder.none,
+                                            hintText:
+                                                'Contoh: -5.147665, 119.432731',
+                                            hintStyle: TextStyle(
+                                              fontSize: s(14),
+                                              color: colorTextPrimary
+                                                  .withOpacity(0.4),
+                                            ),
+                                          ),
+                                          onChanged: (value) {
+                                            _coordinateText = value;
+                                          },
+                                          onSubmitted: (value) async {
+                                            // Saat pengguna selesai mengetik koordinat manual,
+                                            // coba parse dan langsung tampilkan di peta.
+                                            final parsed =
+                                                _tryParseLatLng(value.trim());
+                                            if (parsed == null) {
+                                              if (!mounted) return;
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'Format koordinat tidak valid. Contoh: -5.147665, 119.432731',
+                                                  ),
+                                                ),
+                                              );
+                                              return;
+                                            }
+
+                                            _coordinateText =
+                                                '${parsed.lat}, ${parsed.lng}';
+                                            _coordinateController.text =
+                                                _coordinateText;
+
+                                            await _applyDestinationToMap(
+                                                parsed.lat, parsed.lng);
+                                          },
                                         ),
                                       ),
                                       IconButton(
@@ -833,7 +1028,7 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
                                                   .showSnackBar(
                                                 const SnackBar(
                                                   content: Text(
-                                                      'Silakan pilih titik lokasi tujuan di peta dulu.'),
+                                                      'Silakan isi titik koordinat tujuan (klik 2x di peta atau masukkan manual).'),
                                                 ),
                                               );
                                               return;
@@ -855,6 +1050,10 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
                                               );
                                               return;
                                             }
+
+                                            // Update marker dan tampilan peta
+                                            await _applyDestinationToMap(
+                                                destLat, destLng);
 
                                             setState(() {
                                               _isLoading = true;

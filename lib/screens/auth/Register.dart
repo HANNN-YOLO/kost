@@ -17,6 +17,16 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController pas2 = TextEditingController();
 
   String? message;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    user.dispose();
+    email.dispose();
+    pas1.dispose();
+    pas2.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -171,25 +181,48 @@ class _RegisterPageState extends State<RegisterPage> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: ElevatedButton(
-                    onPressed: () async {
-                      try {
-                        await penghubung.register(user.text, email.text,
-                            pas1.text, pas2.text, penghubung.role, context);
-                        setState(() {
-                          message = null;
-                        });
-                      } catch (e) {
-                        // showDialog(
-                        //   context: context,
-                        //   builder: (context) {
-                        //     return ShowdialogEror(label: "${e.toString()}");
-                        //   },
-                        // );
-                        setState(() {
-                          message = e.toString();
-                        });
-                      }
-                    },
+                    onPressed: _isLoading
+                        ? null
+                        : () async {
+                            // validasi dasar di sisi UI agar tidak memanggil server jika ada field kosong
+                            if (penghubung.role == "Pilih" ||
+                                user.text.trim().isEmpty ||
+                                email.text.trim().isEmpty ||
+                                pas1.text.isEmpty ||
+                                pas2.text.isEmpty) {
+                              setState(() {
+                                message =
+                                    "Harap isi semua field dan pilih role terlebih dahulu.";
+                              });
+                              return;
+                            }
+
+                            setState(() {
+                              message = null;
+                              _isLoading = true;
+                            });
+
+                            try {
+                              await penghubung.register(
+                                user.text.trim(),
+                                email.text.trim(),
+                                pas1.text,
+                                pas2.text,
+                                penghubung.role,
+                                context,
+                              );
+                            } catch (e) {
+                              if (!mounted) return;
+                              setState(() {
+                                message = e.toString();
+                              });
+                            } finally {
+                              if (!mounted) return;
+                              setState(() {
+                                _isLoading = false;
+                              });
+                            }
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       padding:
@@ -198,11 +231,36 @@ class _RegisterPageState extends State<RegisterPage> {
                         borderRadius: BorderRadius.circular(30),
                       ),
                     ),
-                    child: Text(
-                      "Daftar",
-                      style: TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
+                    child: _isLoading
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Text(
+                                "Mendaftar...",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          )
+                        : const Text(
+                            "Daftar",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                 ),
 

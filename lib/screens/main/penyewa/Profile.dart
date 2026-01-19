@@ -798,15 +798,23 @@ class _UserProfilePageState extends State<UserProfilePage> {
                         return;
                       }
 
-                      final int? hp = int.tryParse(noHpController.text.trim());
-                      // if (hp == null) {
-                      //   ScaffoldMessenger.of(context).showSnackBar(
-                      //     SnackBar(
-                      //       content: Text('Nomor HP harus berupa angka.'),
-                      //     ),
-                      //   );
-                      //   return;
-                      // }
+                      // Validasi & parsing nomor HP (boleh kosong)
+                      final String hpText = noHpController.text.trim();
+                      int? hp;
+                      if (hpText.isEmpty) {
+                        // Jika dikosongkan, anggap 0 = "Tidak di publish"
+                        hp = 0;
+                      } else {
+                        hp = int.tryParse(hpText);
+                        if (hp == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Nomor HP harus berupa angka.'),
+                            ),
+                          );
+                          return;
+                        }
+                      }
 
                       try {
                         setState(() {
@@ -832,8 +840,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                             penghubung2.isinya!,
                             tgl,
                             penghubung2.defaults!,
-                            int.parse(noHpController.text),
-                            // int.tryParse(noHpController.text)!,
+                            hp!,
                           );
 
                           setState(() {
@@ -863,8 +870,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                             penghubung2.mydata[index].foto,
                             tgl,
                             penghubung2.defaults!,
-                            int.parse(noHpController.text),
-                            // int.tryParse(noHpController.text)!,
+                            hp!,
                           );
 
                           setState(() {

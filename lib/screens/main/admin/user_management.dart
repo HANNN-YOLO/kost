@@ -48,6 +48,11 @@ class _UserManagementState extends State<UserManagement> {
     final lebarLayar = MediaQuery.of(context).size.width;
     const warnaLatar = Color(0xFFF5F7FB);
 
+    // hitung hanya pengguna non-admin
+    final totalNonAdmin = penghubung.listauth
+        .where((a) => (a.role ?? '').toLowerCase() != 'admin')
+        .length;
+
     return Scaffold(
       backgroundColor: warnaLatar,
       body: SafeArea(
@@ -169,7 +174,7 @@ class _UserManagementState extends State<UserManagement> {
                             ),
                           ),
                           Text(
-                            "${penghubung.semuanya}",
+                            "$totalNonAdmin",
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -187,43 +192,61 @@ class _UserManagementState extends State<UserManagement> {
               // 🔹 Daftar Pengguna
               Expanded(child: Consumer<ProfilProvider>(
                 builder: (context, value, child) {
-                  return value.alluser.isEmpty
+                  // gunakan data auth (semua akun non-admin) sebagai sumber utama
+                  final semuaAuth = value.listauth
+                      .where((a) => (a.role ?? '').toLowerCase() != 'admin')
+                      .toList();
+
+                  return semuaAuth.isEmpty
                       ? Center(child: CircularProgressIndicator())
                       : ListView.separated(
-                          itemCount: value.semuanya,
+                          itemCount: semuaAuth.length,
                           separatorBuilder: (context, index) =>
                               const SizedBox(height: 12),
                           itemBuilder: (context, index) {
-                            final profiluser = value.alluser[index];
+                            final authuser = semuaAuth[index];
 
-                            final authuser = value.listauth.firstWhereOrNull(
-                              (element) =>
-                                  element.id_auth == profiluser.id_auth,
+                            // cari profil jika sudah pernah mengisi
+                            final profiluser = value.alluser.firstWhereOrNull(
+                              (p) => p.id_auth == authuser.id_auth,
                             );
 
-                            final user = authuser?.username ?? "tidak ada";
-                            final email = authuser?.Email ?? "tidak ada";
-                            final uid = authuser?.UID ?? "";
+                            final user = authuser.username ?? "Tidak ada";
+                            final email = authuser.Email ?? "Tidak ada";
+                            final uid = authuser.UID ?? "";
+
+                            final telepon = profiluser == null
+                                ? "Belum mengisi profil"
+                                : (profiluser.kontak == 0
+                                    ? "Tidak di publish"
+                                    : "${profiluser.kontak}");
+
+                            final foto = profiluser?.foto ?? "";
+                            final idAuth = authuser.id_auth ?? -1;
 
                             return UserCard(
-                              nama: "$user",
-                              email: "$email",
-                              telepon:
-                                  // "${value.alluser[index].kontak}",
-                                  value.alluser[index].kontak == 0
-                                      ? "Tidak di publish"
-                                      : "${value.alluser[index].kontak}",
-                              tanggalBergabung:
-                                  "${DateFormat('dd-MM-yyyy').format(DateTime.parse(value.alluser[index].createdAt.toString()))}",
-                              foto: "${value.alluser[index].foto}",
-                              id: int.parse(
-                                  value.alluser[index].id_profil.toString()),
-                              fungsihapus: () async {
-                                await penghubung2.deletedata(
-                                    value.alluser[index].id_auth!, uid);
-                                await penghubung.deletegambaradmin(
-                                    value.alluser[index].foto!);
-                              },
+                              nama: user,
+                              email: email,
+                              telepon: telepon,
+                              tanggalBergabung: '',
+                              foto: foto,
+                              id: idAuth,
+                              hasProfil: profiluser != null,
+                              fungsihapus: profiluser == null
+                                  ? null
+                                  : () async {
+                                      await penghubung2.deletedata(
+                                        profiluser.id_auth!,
+                                        uid,
+                                      );
+
+                                      if (profiluser.foto != null &&
+                                          profiluser.foto!.isNotEmpty) {
+                                        await penghubung.deletegambaradmin(
+                                          profiluser.foto!,
+                                        );
+                                      }
+                                    },
                             );
                           },
                         );
@@ -247,6 +270,7 @@ class UserCard extends StatelessWidget {
   final String foto;
   final int id;
   final VoidCallback? fungsihapus;
+  final bool hasProfil;
 
   UserCard({
     super.key,
@@ -258,6 +282,7 @@ class UserCard extends StatelessWidget {
     required this.foto,
     required this.id,
     this.fungsihapus,
+    this.hasProfil = true,
   });
 
   @override
@@ -291,13 +316,19 @@ class UserCard extends StatelessWidget {
                 height: lebarLayar * 0.12,
                 decoration: BoxDecoration(
                   shape: BoxShape.rectangle,
-                  image: DecorationImage(
-                      image: NetworkImage("$foto"),
-                      fit: BoxFit.cover,
-                      alignment: Alignment.center),
-                  color: Color(0xFFDDE6FF),
+                  color: const Color(0xFFDDE6FF),
                   borderRadius: BorderRadius.circular(8),
+                  image: foto.isNotEmpty
+                      ? DecorationImage(
+                          image: NetworkImage(foto),
+                          fit: BoxFit.cover,
+                          alignment: Alignment.center,
+                        )
+                      : null,
                 ),
+                child: foto.isEmpty
+                    ? const Icon(Icons.person, color: Colors.white70)
+                    : null,
               ),
               SizedBox(width: lebarLayar * 0.04),
               Column(
@@ -326,18 +357,6 @@ class UserCard extends StatelessWidget {
               Text(telepon, style: TextStyle(fontSize: 14)),
             ],
           ),
-          SizedBox(height: 6),
-          Row(
-            children: [
-              Icon(Icons.calendar_today_outlined, size: 16, color: Colors.grey),
-              SizedBox(width: 4),
-              Text(
-                "Bergabung: $tanggalBergabung",
-                style: TextStyle(fontSize: 14),
-              ),
-            ],
-          ),
-
           SizedBox(height: tinggiLayar * 0.02),
 
           // 🔹 Tombol Aksi: Detail & Hapus
@@ -386,6 +405,16 @@ class UserCard extends StatelessWidget {
                   height: tinggiLayar * 0.055,
                   child: OutlinedButton.icon(
                     onPressed: () async {
+                      if (!hasProfil) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Pengguna belum mengisi profil, tidak ada data profil untuk dihapus.',
+                            ),
+                          ),
+                        );
+                        return;
+                      }
                       final profilProvider = Provider.of<ProfilProvider>(
                         context,
                         listen: false,
@@ -397,7 +426,7 @@ class UserCard extends StatelessWidget {
 
                       // Cari data profil untuk mendapatkan id_auth pemilik
                       final profil = profilProvider.alluser.firstWhere(
-                        (p) => p.id_profil == id,
+                        (p) => p.id_auth == id,
                         orElse: () => profilProvider.alluser.first,
                       );
 

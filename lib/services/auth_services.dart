@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import '../configs/supabase_api_config.dart';
 import '../models/auth_model.dart';
 import 'package:http/http.dart' as htpp;
@@ -11,35 +12,71 @@ class AuthServices {
   }) async {
     print("inisiasi modul auth");
 
-    var url = Uri.parse(
-        "${SupabaseApiConfig.masterurl}/auth/v1/token?grant_type=password");
-    print("login 1 auth");
+    try {
+      var url = Uri.parse(
+          "${SupabaseApiConfig.masterurl}/auth/v1/token?grant_type=password");
+      print("login 1 auth");
 
-    final isi = AuthModel(Email: email, password: pass);
-    print("login 2 auth");
+      final isi = AuthModel(Email: email, password: pass);
+      print("login 2 auth");
 
-    var pengisian = await htpp.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apipublic}'
-      },
-      body: json.encode(isi.toJson()),
-    );
-    print("login 3 auth");
+      var pengisian = await htpp.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': '${SupabaseApiConfig.apipublic}'
+        },
+        body: json.encode(isi.toJson()),
+      );
+      print("login 3 auth");
 
-    if (pengisian.statusCode == 200 || pengisian.statusCode == 201) {
-      final data = json.decode(pengisian.body);
-      print(data);
-      return data;
-    } else {
-      print("error ${pengisian.body}");
-      final ambil = json.decode(pengisian.body);
-      if (ambil['error_code'] == "invalid_credentials") {
-        throw "Email atau Sandi salah";
-      } else if (ambil["error_code"] == "anonymous_provider_disabled") {
-        throw "Masukkan Email dan Sandi Anda";
+      if (pengisian.statusCode == 200 || pengisian.statusCode == 201) {
+        final data = json.decode(pengisian.body);
+        print(data);
+        return data;
+      } else {
+        print("error ${pengisian.body}");
+        Map<String, dynamic>? ambil;
+        try {
+          ambil = json.decode(pengisian.body) as Map<String, dynamic>;
+        } catch (_) {
+          ambil = null;
+        }
+
+        final String? errorCode = ambil?['error_code']?.toString();
+        final String? error = ambil?['error']?.toString();
+        final String? errorDescription =
+            ambil?['error_description']?.toString();
+        final String message =
+            ambil?['msg']?.toString() ?? ambil?['message']?.toString() ?? '';
+        final String rawLower = pengisian.body.toLowerCase();
+
+        final bool isInvalidCredential = errorCode == "invalid_credentials" ||
+            error == "invalid_grant" ||
+            (errorDescription != null &&
+                errorDescription
+                    .toLowerCase()
+                    .contains('invalid login credentials')) ||
+            rawLower.contains('invalid login credentials');
+
+        if (isInvalidCredential) {
+          throw "Email atau sandi yang Anda masukkan salah.";
+        }
+
+        if (errorCode == "anonymous_provider_disabled") {
+          throw "Masukkan email dan sandi Anda.";
+        }
+
+        if (message.isNotEmpty) {
+          throw "Gagal masuk: $message";
+        }
+
+        throw "Gagal masuk: periksa kembali data Anda dan coba lagi.";
       }
+    } on SocketException catch (_) {
+      throw "Tidak ada koneksi internet. Periksa jaringan Anda lalu coba lagi.";
+    } on htpp.ClientException catch (_) {
+      throw "Gagal terhubung ke server. Silakan periksa koneksi atau konfigurasi server.";
     }
   }
 
@@ -49,33 +86,50 @@ class AuthServices {
   }) async {
     print("inisiasi modul auth");
 
-    var url = Uri.parse("${SupabaseApiConfig.masterurl}/auth/v1/signup");
-    print("register 1 auth");
+    try {
+      var url = Uri.parse("${SupabaseApiConfig.masterurl}/auth/v1/signup");
+      print("register 1 auth");
 
-    final isi = AuthModel(Email: email, password: pass);
-    print("register 2 auth");
+      final isi = AuthModel(Email: email, password: pass);
+      print("register 2 auth");
 
-    var pengisian = await htpp.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apipublic}'
-      },
-      body: json.encode(isi.toJson()),
-    );
-    print("register 3 auth");
+      var pengisian = await htpp.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': '${SupabaseApiConfig.apipublic}'
+        },
+        body: json.encode(isi.toJson()),
+      );
+      print("register 3 auth");
 
-    if (pengisian.statusCode == 200 || pengisian.statusCode == 201) {
-      final data = json.decode(pengisian.body);
-      print(data);
-      return data;
-    } else {
-      print("error ${pengisian.body}");
-      // throw "error ${pengisian.body}";
-      final data = json.decode(pengisian.body);
-      if (data["error_code"] == "validation_failed") {
-        throw "Masukkan Sandi Anda";
+      if (pengisian.statusCode == 200 || pengisian.statusCode == 201) {
+        final data = json.decode(pengisian.body);
+        print(data);
+        return data;
+      } else {
+        print("error ${pengisian.body}");
+        final data = json.decode(pengisian.body);
+        final String? errorCode = data["error_code"]?.toString();
+        final String message =
+            data["msg"]?.toString() ?? data["message"]?.toString() ?? "";
+
+        if (errorCode == "validation_failed") {
+          throw "Masukkan Sandi Anda";
+        }
+
+        if (errorCode == "user_already_exists" ||
+            message.toLowerCase().contains("already registered") ||
+            message.toLowerCase().contains("already exists")) {
+          throw "Email sudah digunakan, silakan gunakan email lain.";
+        }
+
+        throw "Terjadi kesalahan saat mendaftar: ${message.isNotEmpty ? message : 'coba lagi.'}";
       }
+    } on SocketException catch (_) {
+      throw "Tidak ada koneksi internet. Periksa jaringan Anda lalu coba lagi.";
+    } on htpp.ClientException catch (_) {
+      throw "Gagal terhubung ke server. Silakan periksa koneksi atau konfigurasi server.";
     }
   }
 
@@ -88,31 +142,53 @@ class AuthServices {
     String role,
   ) async {
     print("inisiasi buat data auth");
+    try {
+      var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/auth");
+      print("buat data 1 auth");
 
-    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/auth");
-    print("buat data 1 auth");
+      final isi = AuthModel(
+        UID: UID,
+        username: username,
+        Email: Email,
+        role: role,
+      );
+      print("buat data 2 auth");
 
-    final isi = AuthModel(
-      UID: UID,
-      username: username,
-      Email: Email,
-      role: role,
-    );
-    print("buat data 2 auth");
+      var pengisian = await htpp.post(url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+            'apikey': '${SupabaseApiConfig.apipublic}'
+          },
+          body: json.encode(isi.toJson()));
 
-    var pengisian = await htpp.post(url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-          'apikey': '${SupabaseApiConfig.apipublic}'
-        },
-        body: json.encode(isi.toJson()));
+      if (pengisian.statusCode == 200 || pengisian.statusCode == 201) {
+        print("done ${pengisian.body}");
+      } else {
+        print("error ${pengisian.body}");
+        try {
+          final data = json.decode(pengisian.body);
+          final String code = data["code"]?.toString() ?? "";
+          final String message =
+              data["message"]?.toString() ?? pengisian.body.toString();
 
-    if (pengisian.statusCode == 200 || pengisian.statusCode == 201) {
-      print("done ${pengisian.body}");
-    } else {
-      print("error ${pengisian.body}");
-      throw "error ${pengisian.body}";
+          if (code == "22P02" && message.contains("enum")) {
+            throw "Role tidak valid. Silakan pilih Pemilik atau Penyewa.";
+          }
+
+          if (code == "23505" || message.toLowerCase().contains("duplicate")) {
+            throw "Email sudah digunakan, silakan gunakan email lain.";
+          }
+
+          throw message;
+        } catch (_) {
+          throw "Terjadi kesalahan saat menyimpan data pengguna. Silakan coba lagi.";
+        }
+      }
+    } on SocketException catch (_) {
+      throw "Tidak ada koneksi internet. Periksa jaringan Anda lalu coba lagi.";
+    } on htpp.ClientException catch (_) {
+      throw "Gagal terhubung ke server. Silakan periksa koneksi atau konfigurasi server.";
     }
   }
 
