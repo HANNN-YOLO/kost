@@ -68,7 +68,10 @@ class KostProvider with ChangeNotifier {
         throw "Gagal verifikasi role login";
       }
 
-      // readdata();
+      // Pastikan data kriteria & subkriteria SAW ikut ter-load
+      // (dipakai juga untuk opsi dropdown keamanan, listrik, dll.)
+      fetchKriteria();
+      fetchSubkriteria();
     }
   }
 
@@ -146,9 +149,11 @@ class KostProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // jenis kost
+  // jenis kost (dropdown tetap 3 opsi di form: Umum, Khusus Putri, Khusus Putra)
+  // Untuk perhitungan SAW, nilai "Khusus Putri/Putra" akan dipetakan ke subkriteria "Khusus".
   List<String> _jeniskost = ['Umum', 'Khusus Putri', 'Khusus Putra'];
   List<String> get jeniskost => _jeniskost;
+
   String jeniskosts = "Pilih";
 
   void pilihkost(String value) {
@@ -158,7 +163,11 @@ class KostProvider with ChangeNotifier {
 
   // jenis keamanan
   List<String> _jeniskeamanan = ['Penjaga', 'Penjaga sama CCTV'];
-  List<String> get jeniskeamanan => _jeniskeamanan;
+  List<String> get jeniskeamanan {
+    final dinamis = _getSubkriteriaOptions((nama) => nama.contains('keamanan'));
+    return dinamis.isNotEmpty ? dinamis : _jeniskeamanan;
+  }
+
   String jeniskeamanans = "Pilih";
 
   void pilihkeamanan(String value) {
@@ -173,7 +182,12 @@ class KostProvider with ChangeNotifier {
     '23:00 -24:00',
     'beri kunci pagar'
   ];
-  List<String> get jenisbatasjammalam => _jenisbatasjammalam;
+  List<String> get jenisbatasjammalam {
+    final dinamis = _getSubkriteriaOptions(
+        (nama) => nama.contains('batas') || nama.contains('jam malam'));
+    return dinamis.isNotEmpty ? dinamis : _jenisbatasjammalam;
+  }
+
   String batasjammalams = "PIlih";
 
   void pilihbatasjammalam(String value) {
@@ -182,7 +196,12 @@ class KostProvider with ChangeNotifier {
 
   // jenis pembayaran air
   List<String> _jenispembayaranair = ['meteran', 'pembayaran awal'];
-  List<String> get jenispembayaranair => _jenispembayaranair;
+  List<String> get jenispembayaranair {
+    final dinamis = _getSubkriteriaOptions(
+        (nama) => nama.contains('air') || nama.contains('pembayaran'));
+    return dinamis.isNotEmpty ? dinamis : _jenispembayaranair;
+  }
+
   String jenispembayaranairs = "Pilih";
 
   void pilihjenispembayaranair(String value) {
@@ -192,7 +211,11 @@ class KostProvider with ChangeNotifier {
 
   // jenis listrik
   List<String> _jenislistrik = ['token', 'perbulan'];
-  List<String> get jenislistrik => _jenislistrik;
+  List<String> get jenislistrik {
+    final dinamis = _getSubkriteriaOptions((nama) => nama.contains('listrik'));
+    return dinamis.isNotEmpty ? dinamis : _jenislistrik;
+  }
+
   String jenislistriks = "Pilih";
 
   void pilihjenislistrik(String value) {
@@ -215,6 +238,34 @@ class KostProvider with ChangeNotifier {
     _hasLoadedPemilikKost = false;
     _loadedPemilikAuthId = null;
     notifyListeners();
+  }
+
+  /// Ambil opsi subkriteria berdasarkan nama kriteria (lowercase) yang cocok.
+  /// Dipakai untuk mengisi dropdown keamanan, batas jam malam, jenis air, listrik.
+  List<String> _getSubkriteriaOptions(
+      bool Function(String lowerNamaKriteria) match) {
+    if (_listKriteria.isEmpty || _listSubkriteria.isEmpty) return [];
+
+    final matchedIds = _listKriteria
+        .where((k) {
+          final nama = (k.kategori ?? '').toLowerCase();
+          return match(nama);
+        })
+        .map((k) => k.id_kriteria)
+        .whereType<int>()
+        .toSet();
+
+    if (matchedIds.isEmpty) return [];
+
+    final hasil = _listSubkriteria
+        .where((s) => matchedIds.contains(s.id_kriteria))
+        .map((s) => s.kategori)
+        .whereType<String>()
+        .toSet()
+        .toList();
+
+    hasil.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return hasil;
   }
 
   // state service

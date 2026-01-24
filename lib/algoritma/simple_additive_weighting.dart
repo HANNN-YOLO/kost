@@ -781,7 +781,14 @@ class SimpleAdditiveWeighting {
   /// Untuk: Keamanan, Batas Jam Malam, Jenis Kost, Jenis Listrik, Jenis Pembayaran Air
   static double _cocokkanString(
       String nilai, List<SubkriteriaModels> subkriteria) {
-    final nilaiLower = nilai.toLowerCase().trim();
+    String nilaiLower = nilai.toLowerCase().trim();
+
+    // Normalisasi khusus untuk Jenis Kost:
+    // Dropdown punya "Khusus Putra" & "Khusus Putri" sementara subkriteria hanya "Khusus".
+    // Kedua nilai ini dipetakan ke "khusus" agar bobotnya sama.
+    if (nilaiLower == 'khusus putra' || nilaiLower == 'khusus putri') {
+      nilaiLower = 'khusus';
+    }
 
     for (var sub in subkriteria) {
       final katLower = (sub.kategori ?? '').toLowerCase().trim();

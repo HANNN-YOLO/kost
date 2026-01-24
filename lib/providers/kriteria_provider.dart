@@ -350,6 +350,25 @@ class KriteriaProvider with ChangeNotifier {
   }
 
   Future<void> savemassalsubkriteria(List<dynamic> inilist) async {
+    // Validasi bobot: tidak boleh 0 dan tidak boleh ada yang sama
+    final List<double> bobotList = [];
+
+    for (var element in inilist) {
+      final raw = element.bobot.text.toString().trim();
+      final parsed = double.tryParse(raw.replaceAll(',', '.'));
+
+      if (parsed == null) {
+        throw 'Bobot subkriteria harus berupa angka yang valid.';
+      }
+      if (parsed <= 0) {
+        throw 'Bobot subkriteria tidak boleh 0 atau negatif.';
+      }
+      if (bobotList.contains(parsed)) {
+        throw 'Bobot subkriteria tidak boleh ada yang sama.';
+      }
+      bobotList.add(parsed);
+    }
+
     final namanya = inilist
         .map((element) => {
               'id_auth': element.id_auth,

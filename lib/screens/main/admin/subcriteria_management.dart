@@ -1328,6 +1328,54 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                         child: Text("Batal")),
                                     TextButton(
                                       onPressed: () {
+                                        final namaBaru =
+                                            namacontroller.text.trim();
+                                        final bobotRaw =
+                                            bobotcontroller.text.trim();
+                                        final bobotParsed = double.tryParse(
+                                            bobotRaw.replaceAll(',', '.'));
+
+                                        if (namaBaru.isEmpty ||
+                                            bobotParsed == null) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                  'Nama dan bobot wajib diisi dengan benar.'),
+                                            ),
+                                          );
+                                          return;
+                                        }
+
+                                        if (bobotParsed <= 0) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                  'Bobot subkriteria tidak boleh 0 atau negatif.'),
+                                            ),
+                                          );
+                                          return;
+                                        }
+
+                                        final sudahAdaBobotSama = _isinya.any(
+                                            (item) =>
+                                                double.tryParse(item.bobot.text
+                                                    .trim()
+                                                    .replaceAll(',', '.')) ==
+                                                bobotParsed);
+
+                                        if (sudahAdaBobotSama) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                  'Bobot subkriteria tidak boleh ada yang sama.'),
+                                            ),
+                                          );
+                                          return;
+                                        }
+
                                         setState(() {
                                           final kSekarang = penghubung.mydata
                                               .firstWhereOrNull((element) =>
@@ -1337,8 +1385,8 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                           _isinya.add(SubcriteriaItem(
                                             id_auth: penghubung.id_auth,
                                             id_kriteria: kSekarang?.id_kriteria,
-                                            kategoriawal: namacontroller.text,
-                                            bobotawal: bobotcontroller.text,
+                                            kategoriawal: namaBaru,
+                                            bobotawal: bobotRaw,
                                           ));
                                           namacontroller.clear();
                                           bobotcontroller.clear();
@@ -1613,18 +1661,90 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                       "Batal")),
                                                               TextButton(
                                                                 onPressed: () {
+                                                                  final namaBaru =
+                                                                      namacontroller
+                                                                          .text
+                                                                          .trim();
+                                                                  final bobotRaw =
+                                                                      bobotcontroller
+                                                                          .text
+                                                                          .trim();
+                                                                  final bobotParsed =
+                                                                      double.tryParse(bobotRaw.replaceAll(
+                                                                          ',',
+                                                                          '.'));
+
+                                                                  if (namaBaru
+                                                                          .isEmpty ||
+                                                                      bobotParsed ==
+                                                                          null) {
+                                                                    ScaffoldMessenger.of(
+                                                                            context)
+                                                                        .showSnackBar(
+                                                                      SnackBar(
+                                                                        content:
+                                                                            Text('Nama dan bobot wajib diisi dengan benar.'),
+                                                                      ),
+                                                                    );
+                                                                    return;
+                                                                  }
+
+                                                                  if (bobotParsed <=
+                                                                      0) {
+                                                                    ScaffoldMessenger.of(
+                                                                            context)
+                                                                        .showSnackBar(
+                                                                      const SnackBar(
+                                                                        content:
+                                                                            Text('Bobot subkriteria tidak boleh 0 atau negatif.'),
+                                                                      ),
+                                                                    );
+                                                                    return;
+                                                                  }
+
+                                                                  final sudahAdaBobotSama = _isinya
+                                                                      .asMap()
+                                                                      .entries
+                                                                      .any(
+                                                                          (entry) {
+                                                                    if (entry
+                                                                            .key ==
+                                                                        editinde) {
+                                                                      return false;
+                                                                    }
+                                                                    final v = double.tryParse(entry
+                                                                        .value
+                                                                        .bobot
+                                                                        .text
+                                                                        .trim()
+                                                                        .replaceAll(
+                                                                            ',',
+                                                                            '.'));
+                                                                    return v ==
+                                                                        bobotParsed;
+                                                                  });
+
+                                                                  if (sudahAdaBobotSama) {
+                                                                    ScaffoldMessenger.of(
+                                                                            context)
+                                                                        .showSnackBar(
+                                                                      const SnackBar(
+                                                                        content:
+                                                                            Text('Bobot subkriteria tidak boleh ada yang sama.'),
+                                                                      ),
+                                                                    );
+                                                                    return;
+                                                                  }
+
                                                                   setState(() {
-                                                                    // Update value di index lokal
                                                                     _isinya[editinde!]
                                                                             .kategori
                                                                             .text =
-                                                                        namacontroller
-                                                                            .text;
+                                                                        namaBaru;
                                                                     _isinya[editinde!]
                                                                             .bobot
                                                                             .text =
-                                                                        bobotcontroller
-                                                                            .text;
+                                                                        bobotRaw;
                                                                     _hasChanges =
                                                                         true;
                                                                     Navigator.pop(
