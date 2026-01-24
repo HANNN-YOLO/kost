@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
@@ -19,6 +20,7 @@ import '../../../providers/auth_provider.dart';
 import '../../../providers/profil_provider.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:collection/collection.dart';
+import 'package:geolocator/geolocator.dart';
 
 class FormAddHousePemilik extends StatefulWidget {
   static const arah = "/form-house-pemilik";
@@ -43,6 +45,13 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
   int index = 0;
   bool keadaan = true;
   bool _isSubmitting = false;
+
+  // Opsi lokasi untuk titik koordinat (mirip halaman rekomendasi penyewa)
+  String _selectedLocationOption = 'Lokasi Tujuan';
+
+  static const String _optLokasiSekarang = 'Lokasi Sekarang';
+  static const String _optLokasiTujuan = 'Lokasi Tujuan';
+  static const String _optManualKoordinat = 'Masukkan Titik Koordinat';
 
   // -------- WebView (Leaflet) ----------
   late final WebViewController _mapController;
@@ -69,6 +78,10 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
   @override
   void initState() {
     super.initState();
+
+    // Default teks untuk mode "Tujuan" saat pertama kali membuka form
+    _koordinatController.text = 'Klik 2x pada peta';
+
     // Buat controller WebView (webview_flutter >=4.x)
     _mapController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -78,12 +91,39 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
         onPageFinished: (url) {
           if (mounted) {
             setState(() => _mapLoaded = true);
+            // Sinkronkan mode peta dengan opsi lokasi yang terpilih
+            _syncMapModeWithLocationOption();
           }
         },
         onWebResourceError: (err) {
           // Error handling tanpa debug print yang berat
         },
-      ));
+      ))
+      ..addJavaScriptChannel(
+        'ToFlutter',
+        onMessageReceived: (JavaScriptMessage message) async {
+          try {
+            final dynamic payload = json.decode(message.message);
+            if (payload is Map && payload['type'] == 'destination_selected') {
+              final double lat = (payload['lat'] as num).toDouble();
+              final double lng = (payload['lng'] as num).toDouble();
+
+              if (!mounted) return;
+
+              // Saat user double tap di peta pada mode Tujuan,
+              // isikan titik koordinat dan tampilkan marker biru.
+              setState(() {
+                _selectedLocationOption = _optLokasiTujuan;
+                _koordinatController.text = '$lat, $lng';
+              });
+
+              await _updateMapLocation(lat, lng);
+            }
+          } catch (_) {
+            // Abaikan pesan yang tidak valid
+          }
+        },
+      );
 
     // load map html
     _loadMapHtmlFromAssets();
@@ -135,6 +175,26 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
     if (mounted) setState(() {});
   }
 
+  // Sinkronkan mode peta dengan opsi lokasi yang terpilih
+  Future<void> _syncMapModeWithLocationOption() async {
+    if (!_mapLoaded) return;
+
+    try {
+      if (_selectedLocationOption == _optLokasiTujuan) {
+        await _mapController.runJavaScript(
+            "clearMyLocation(); clearDestination(); setMode('destination');");
+      } else if (_selectedLocationOption == _optManualKoordinat) {
+        await _mapController.runJavaScript(
+            "clearMyLocation(); clearDestination(); setMode('readonly');");
+      } else if (_selectedLocationOption == _optLokasiSekarang) {
+        await _mapController.runJavaScript(
+            "clearMyLocation(); clearDestination(); setMode('normal');");
+      }
+    } catch (e) {
+      // Error handling ringan
+    }
+  }
+
   // Parse koordinat dan update peta
   void _parseAndUpdateMap(String text) {
     // Parse koordinat (format: "lat, lng" atau "lat,lng")
@@ -161,12 +221,67 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
     if (!_mapLoaded || !mounted) return;
 
     try {
-      // Set marker dan pan ke lokasi
+      // Gunakan ikon "lokasi saya" (biru) agar konsisten
       await _mapController.runJavaScript(
-        "setMarker($lat, $lng); setView($lat, $lng, 15);",
+        "clearMyLocation(); clearDestination(); setMyLocation($lat, $lng);",
       );
     } catch (e) {
       // Error handling
+    }
+  }
+
+  // Minta lokasi sekarang perangkat (menggunakan Geolocator dari KostProvider)
+  Future<void> _useCurrentLocation() async {
+    try {
+      if (!_mapLoaded) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Map belum siap, coba lagi sebentar...'),
+          ),
+        );
+        return;
+      }
+
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('GPS belum aktif, nyalakan dulu.')),
+        );
+        await Geolocator.openLocationSettings();
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Izin lokasi ditolak.')),
+          );
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Izin lokasi ditolak permanen.')),
+        );
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      final lat = pos.latitude;
+      final lng = pos.longitude;
+
+      _koordinatController.text = '$lat, $lng';
+      await _updateMapLocation(lat, lng);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengambil lokasi: $e')),
+      );
     }
   }
 
@@ -1499,6 +1614,67 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
     return true;
   }
 
+  // Tombol ikon untuk memilih sumber titik koordinat
+  Widget _buildLocationOptionIcon({
+    required IconData icon,
+    required String label,
+    required String value,
+    required double lebar,
+  }) {
+    final bool isActive = _selectedLocationOption == value;
+    final Color color = isActive ? const Color(0xFF1C3B98) : Colors.grey;
+
+    return GestureDetector(
+      onTap: () async {
+        if (_selectedLocationOption == value) return;
+        setState(() => _selectedLocationOption = value);
+
+        if (!_mapLoaded) return;
+
+        // Set perilaku setiap opsi dan sinkronkan dengan peta
+        if (value == _optManualKoordinat) {
+          await _mapController.runJavaScript(
+              "clearMyLocation(); clearDestination(); setMode('readonly');");
+          _koordinatController.text = '';
+        } else if (value == _optLokasiTujuan) {
+          await _mapController.runJavaScript(
+              "clearMyLocation(); clearDestination(); setMode('destination');");
+          _koordinatController.text = 'Klik 2x pada peta';
+        } else if (value == _optLokasiSekarang) {
+          await _mapController.runJavaScript(
+              "clearMyLocation(); clearDestination(); setMode('normal');");
+          await _useCurrentLocation();
+        }
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: EdgeInsets.all(lebar * 0.02),
+            decoration: BoxDecoration(
+              color: isActive ? const Color(0xFFE0E7FF) : Colors.grey.shade100,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              size: lebar * 0.06,
+              color: color,
+            ),
+          ),
+          SizedBox(height: lebar * 0.01),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: lebar * 0.028,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // 🔹 Input TextField khusus untuk Koordinat dengan Peta
   Widget _inputFieldKoordinat(double tinggi, double lebar) {
     return Column(
@@ -1513,6 +1689,31 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
           ),
         ),
         SizedBox(height: tinggi * 0.005),
+        // Tombol ikon pilihan sumber titik koordinat
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildLocationOptionIcon(
+              icon: Icons.flag_outlined,
+              label: 'Tujuan',
+              value: _optLokasiTujuan,
+              lebar: lebar,
+            ),
+            _buildLocationOptionIcon(
+              icon: Icons.my_location,
+              label: 'Sekarang',
+              value: _optLokasiSekarang,
+              lebar: lebar,
+            ),
+            _buildLocationOptionIcon(
+              icon: Icons.edit_location_alt_outlined,
+              label: 'Koordinat',
+              value: _optManualKoordinat,
+              lebar: lebar,
+            ),
+          ],
+        ),
+        SizedBox(height: tinggi * 0.01),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -1524,6 +1725,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
           ),
           child: TextField(
             controller: _koordinatController,
+            readOnly: _selectedLocationOption != _optManualKoordinat,
             keyboardType: TextInputType.text,
             decoration: InputDecoration(
               hintText: 'Contoh: -5.147665, 119.432731',

@@ -203,7 +203,9 @@ class ProfilProvider with ChangeNotifier {
       final hasil = await _ref.readuser();
       _alluser = hasil;
     } catch (e) {
-      throw e;
+      // Jangan bikin aplikasi crash kalau jaringan / server bermasalah
+      // Cukup log error-nya supaya bisa dilihat di debug console.
+      print('Error readuser: $e');
     }
     notifyListeners();
   }
