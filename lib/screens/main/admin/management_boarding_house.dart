@@ -4,6 +4,7 @@ import 'form_house.dart';
 import 'package:provider/provider.dart';
 import 'package:collection/collection.dart';
 import '../../../providers/kost_provider.dart';
+import 'admin_places_page.dart';
 
 class ManagementBoardingHouse extends StatelessWidget {
   static const arah = "/management-board-admin";
@@ -46,37 +47,76 @@ class ManagementBoardingHouse extends StatelessWidget {
                       color: Colors.black,
                     ),
                   ),
-                  Material(
-                    color: Colors
-                        .transparent, // supaya warna background tetap dari Container
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(6),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => FormHouse(),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        width: lebarLayar * 0.09,
-                        height: lebarLayar * 0.09,
-                        decoration: BoxDecoration(
-                          color: warnaKartu,
+                  Row(
+                    children: [
+                      // Tombol untuk menambahkan nama tempat + titik koordinat
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
                           borderRadius: BorderRadius.circular(6),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 3,
-                              offset: Offset(0, 2),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const AdminPlacesPage(),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: lebarLayar * 0.09,
+                            height: lebarLayar * 0.09,
+                            decoration: BoxDecoration(
+                              color: warnaKartu,
+                              borderRadius: BorderRadius.circular(6),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 3,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
                             ),
-                          ],
+                            child: const Icon(
+                              Icons.add_location_alt_outlined,
+                              color: Colors.black87,
+                            ),
+                          ),
                         ),
-                        child: Icon(Icons.add, color: Colors.black87),
                       ),
-                    ),
-                  )
+                      SizedBox(width: lebarLayar * 0.02),
+                      // Tombol tambah kost seperti sebelumnya
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(6),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => FormHouse(),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: lebarLayar * 0.09,
+                            height: lebarLayar * 0.09,
+                            decoration: BoxDecoration(
+                              color: warnaKartu,
+                              borderRadius: BorderRadius.circular(6),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 3,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.add, color: Colors.black87),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
 

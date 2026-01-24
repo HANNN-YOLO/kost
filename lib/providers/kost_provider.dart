@@ -12,6 +12,19 @@ import '../services/kriteria_services.dart';
 import '../services/subkriteria_services.dart';
 import '../algoritma/simple_additive_weighting.dart';
 
+// Model sederhana untuk menyimpan nama tempat + titik koordinat yang dibuat admin
+class AdminPlace {
+  final String name;
+  final double lat;
+  final double lng;
+
+  AdminPlace({
+    required this.name,
+    required this.lat,
+    required this.lng,
+  });
+}
+
 class KostProvider with ChangeNotifier {
   // state penting
   String? _token, _email;
@@ -248,6 +261,27 @@ class KostProvider with ChangeNotifier {
   bool get isLoadingPemilikKost => _isLoadingPemilikKost;
 
   FasilitasModel inputan = FasilitasModel();
+
+  // Daftar tempat khusus yang bisa ditambahkan admin (disimpan lokal di provider)
+  final List<AdminPlace> _adminPlaces = [];
+  List<AdminPlace> get adminPlaces => List.unmodifiable(_adminPlaces);
+
+  void addAdminPlace(AdminPlace place) {
+    _adminPlaces.add(place);
+    notifyListeners();
+  }
+
+  void updateAdminPlace(int index, AdminPlace place) {
+    if (index < 0 || index >= _adminPlaces.length) return;
+    _adminPlaces[index] = place;
+    notifyListeners();
+  }
+
+  void removeAdminPlaceAt(int index) {
+    if (index < 0 || index >= _adminPlaces.length) return;
+    _adminPlaces.removeAt(index);
+    notifyListeners();
+  }
 
   Future<void> createdata(
     int id_auth,
