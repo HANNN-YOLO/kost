@@ -31,7 +31,7 @@ class KriteriaServices {
     }
   }
 
-  Future<List<KriteriaModels>> readdata() async {
+  Future<List<KriteriaModels>> readdata({bool debugPrint = true}) async {
     List<KriteriaModels> hasilnya = [];
 
     // Query dengan order by ranking untuk urutan kriteria yang benar
@@ -50,9 +50,11 @@ class KriteriaServices {
         var item = KriteriaModels.fromJjson(value);
         hasilnya.add(item);
       });
-      print("✅ Kriteria diurutkan berdasarkan ranking");
-      for (var k in hasilnya) {
-        print("   C${k.ranking}: ${k.kategori} - Bobot: ${k.bobot_decimal}");
+      if (debugPrint) {
+        print("✅ Kriteria diurutkan berdasarkan ranking");
+        for (var k in hasilnya) {
+          print("   C${k.ranking}: ${k.kategori} - Bobot: ${k.bobot_decimal}");
+        }
       }
     } else {
       print("gagal buat data kriteria ${baca.body}");

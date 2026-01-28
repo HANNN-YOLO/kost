@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:kost_saw/models/fasilitas_model.dart';
+import 'package:kost_saw/providers/tujuan_providers.dart';
 import 'package:kost_saw/screens/main/pemilik/form_house_pemilik.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
@@ -96,6 +97,22 @@ void main() async {
         },
       ),
       ChangeNotifierProvider(create: (_) => FasilitasModel()),
+      ChangeNotifierProxyProvider<AuthProvider, TujuanProviders>(
+        create: (_) => TujuanProviders(),
+        update: (context, value, previous) {
+          previous ?? TujuanProviders();
+          if (value.accesstoken != null &&
+              value.email != null &&
+              value.expiresIn != null) {
+            previous?.terisi(
+              value.accesstoken!,
+              value.email!,
+              value.expiresIn!,
+            );
+          }
+          return previous!;
+        },
+      ),
     ],
     builder: (context, child) {
       return App();

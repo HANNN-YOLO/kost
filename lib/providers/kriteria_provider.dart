@@ -32,14 +32,14 @@ class KriteriaProvider with ChangeNotifier {
         _email != null &&
         _expires_in != null &&
         _id_auth != null) {
-      print("keadaan yang akan dijalankan");
+      // print("keadaan yang akan dijalankan");
       readdata();
       readdatasubkriteria();
     }
   }
 
   // state pilihan
-  String? nama = "";
+  String? nama = "-";
 
   List<String> get kategoriall {
     return _mydata

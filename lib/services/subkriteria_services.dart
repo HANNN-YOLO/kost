@@ -5,7 +5,7 @@ import '../models/subkriteria_models.dart';
 import 'package:http/http.dart' as htpp;
 
 class SubkriteriaServices {
-  Future<List<SubkriteriaModels>> readdata() async {
+  Future<List<SubkriteriaModels>> readdata({bool debugPrint = true}) async {
     List<SubkriteriaModels> hasilnya = [];
 
     // Urutkan berdasarkan id_kriteria lalu bobot untuk konsistensi
@@ -27,7 +27,8 @@ class SubkriteriaServices {
         var item = SubkriteriaModels.fromJson(value);
         hasilnya.add(item);
       });
-      print("✅ Subkriteria diurutkan (${hasilnya.length} data)");
+      if (debugPrint)
+        print("✅ Subkriteria diurutkan (${hasilnya.length} data)");
     } else {
       hasilnya = [];
       print("gagal ambil data subkriteria ${simpan.body}");

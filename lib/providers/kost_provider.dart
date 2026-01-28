@@ -12,19 +12,6 @@ import '../services/kriteria_services.dart';
 import '../services/subkriteria_services.dart';
 import '../algoritma/simple_additive_weighting.dart';
 
-// Model sederhana untuk menyimpan nama tempat + titik koordinat yang dibuat admin
-class AdminPlace {
-  final String name;
-  final double lat;
-  final double lng;
-
-  AdminPlace({
-    required this.name,
-    required this.lat,
-    required this.lng,
-  });
-}
-
 class KostProvider with ChangeNotifier {
   // state penting
   String? _token, _email;
@@ -314,25 +301,25 @@ class KostProvider with ChangeNotifier {
   FasilitasModel inputan = FasilitasModel();
 
   // Daftar tempat khusus yang bisa ditambahkan admin (disimpan lokal di provider)
-  final List<AdminPlace> _adminPlaces = [];
-  List<AdminPlace> get adminPlaces => List.unmodifiable(_adminPlaces);
+  // final List<AdminPlace> _adminPlaces = [];
+  // List<AdminPlace> get adminPlaces => List.unmodifiable(_adminPlaces);
 
-  void addAdminPlace(AdminPlace place) {
-    _adminPlaces.add(place);
-    notifyListeners();
-  }
+  // void addAdminPlace(AdminPlace place) {
+  //   _adminPlaces.add(place);
+  //   notifyListeners();
+  // }
 
-  void updateAdminPlace(int index, AdminPlace place) {
-    if (index < 0 || index >= _adminPlaces.length) return;
-    _adminPlaces[index] = place;
-    notifyListeners();
-  }
+  // void updateAdminPlace(int index, AdminPlace place) {
+  //   if (index < 0 || index >= _adminPlaces.length) return;
+  //   _adminPlaces[index] = place;
+  //   notifyListeners();
+  // }
 
-  void removeAdminPlaceAt(int index) {
-    if (index < 0 || index >= _adminPlaces.length) return;
-    _adminPlaces.removeAt(index);
-    notifyListeners();
-  }
+  // void removeAdminPlaceAt(int index) {
+  //   if (index < 0 || index >= _adminPlaces.length) return;
+  //   _adminPlaces.removeAt(index);
+  //   notifyListeners();
+  // }
 
   Future<void> createdata(
     int id_auth,
@@ -925,12 +912,20 @@ class KostProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // Flag untuk debug print sekali saja
+  static bool _debugKriteriaPrinted = false;
+  static bool _debugSubkriteriaPrinted = false;
+
   /// Mengambil data kriteria dari database
   Future<void> fetchKriteria() async {
-    print("\n📋 Mengambil data kriteria...");
+    if (!_debugKriteriaPrinted) print("\n📋 Mengambil data kriteria...");
     try {
-      _listKriteria = await _kriteriaService.readdata();
-      print("✅ Berhasil mengambil ${_listKriteria.length} kriteria");
+      _listKriteria =
+          await _kriteriaService.readdata(debugPrint: !_debugKriteriaPrinted);
+      if (!_debugKriteriaPrinted) {
+        print("✅ Berhasil mengambil ${_listKriteria.length} kriteria");
+        _debugKriteriaPrinted = true;
+      }
     } catch (e) {
       print("❌ Gagal mengambil kriteria: $e");
       _listKriteria = [];
@@ -940,10 +935,14 @@ class KostProvider with ChangeNotifier {
 
   /// Mengambil data subkriteria dari database
   Future<void> fetchSubkriteria() async {
-    print("\n📋 Mengambil data subkriteria...");
+    if (!_debugSubkriteriaPrinted) print("\n📋 Mengambil data subkriteria...");
     try {
-      _listSubkriteria = await _subkriteriaService.readdata();
-      print("✅ Berhasil mengambil ${_listSubkriteria.length} subkriteria");
+      _listSubkriteria = await _subkriteriaService.readdata(
+          debugPrint: !_debugSubkriteriaPrinted);
+      if (!_debugSubkriteriaPrinted) {
+        print("✅ Berhasil mengambil ${_listSubkriteria.length} subkriteria");
+        _debugSubkriteriaPrinted = true;
+      }
     } catch (e) {
       print("❌ Gagal mengambil subkriteria: $e");
       _listSubkriteria = [];

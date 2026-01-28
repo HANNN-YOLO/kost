@@ -5,6 +5,9 @@ import 'package:http/http.dart' as htpp;
 import 'package:image_picker/image_picker.dart';
 
 class KostService {
+  // Flag untuk debug print sekali saja
+  static bool _debugKostPrinted = false;
+
   // modul Storage
   Future<String> uploadgambar(XFile gambar) async {
     print("inisiasi modul storage");
@@ -141,7 +144,7 @@ class KostService {
     }
   }
 
-  Future<List<KostModel>> readdata() async {
+  Future<List<KostModel>> readdata({bool debugPrint = true}) async {
     List<KostModel> hasilnya = [];
     // Urutkan berdasarkan id_kost ascending untuk konsistensi alternatif A1, A2, A3, dst
     var url = Uri.parse(
@@ -160,8 +163,11 @@ class KostService {
         var take = KostModel.fromJson(value);
         hasilnya.add(take);
       });
-      print(
-          "✅ Data kost diurutkan berdasarkan id_kost (${hasilnya.length} data)");
+      if (debugPrint && !_debugKostPrinted) {
+        print(
+            "✅ Data kost diurutkan berdasarkan id_kost (${hasilnya.length} data)");
+        _debugKostPrinted = true;
+      }
     } else {
       print("error ambil data ${simpan.body}");
       throw "error ambil data ${simpan.body}";
