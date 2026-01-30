@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../providers/kost_provider.dart';
 import '../../../algoritma/simple_additive_weighting.dart';
+import '../shared/formatCurrency.dart';
 
 class RecommendationSawPage extends StatefulWidget {
   final double? destinationLat;
@@ -270,6 +271,7 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
                           shadowColor: shadowColor,
                           destinationLat: widget.destinationLat,
                           destinationLng: widget.destinationLng,
+                          per: kost.per!,
                         );
                       },
                     ),
@@ -305,6 +307,7 @@ class _RankingCard extends StatelessWidget {
   final Color shadowColor;
   final double? destinationLat;
   final double? destinationLng;
+  final String per;
 
   const _RankingCard({
     required this.rank,
@@ -326,6 +329,7 @@ class _RankingCard extends StatelessWidget {
     required this.shadowColor,
     this.destinationLat,
     this.destinationLng,
+    required this.per,
   });
 
   @override
@@ -453,7 +457,7 @@ class _RankingCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(s(10)),
                     ),
                     child: Text(
-                      _formatCurrency(harga),
+                      "${formatCurrency(harga)} / $per",
                       style: TextStyle(
                         color: colorWhite,
                         fontWeight: FontWeight.w700,

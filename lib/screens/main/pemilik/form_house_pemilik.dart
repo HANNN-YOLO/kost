@@ -21,6 +21,7 @@ import '../../../providers/profil_provider.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:collection/collection.dart';
 import 'package:geolocator/geolocator.dart';
+import '../../custom/textfield_with_dropdown.dart';
 
 class FormAddHousePemilik extends StatefulWidget {
   static const arah = "/form-house-pemilik";
@@ -505,10 +506,32 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                         Consumer<KostProvider>(
                           builder: (context, value, child) {
                             return terima != null
-                                ? _inputField('Harga', tinggiLayar, lebarLayar,
-                                    _harga, false)
-                                : _inputField('Harga', tinggiLayar, lebarLayar,
-                                    _harga, false);
+                                ? TextfieldWithDropdown(
+                                    label: "Harga_kost",
+                                    lebar: lebarLayar,
+                                    tinggi: tinggiLayar,
+                                    isi: _harga,
+                                    jenis: TextInputType.number,
+                                    manalistnya: penghubung.per,
+                                    label2: penghubung.pernama,
+                                    pilihan: penghubung.pernama,
+                                    fungsi: (value) {
+                                      penghubung.pilihbayar(value);
+                                    },
+                                  )
+                                : TextfieldWithDropdown(
+                                    label: "Harga Kost",
+                                    lebar: lebarLayar,
+                                    tinggi: tinggiLayar,
+                                    isi: _harga,
+                                    jenis: TextInputType.number,
+                                    manalistnya: penghubung.per,
+                                    label2: penghubung.pernama,
+                                    pilihan: penghubung.pernama,
+                                    fungsi: (value) {
+                                      penghubung.pilihbayar(value);
+                                    },
+                                  );
                           },
                         ),
 
@@ -1219,6 +1242,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                             penghubung.jenispembayaranairs,
                                             penghubung.jenislistriks,
                                             _koordinatController.text,
+                                            penghubung.pernama,
                                           );
 
                                           setState(() {
@@ -1347,6 +1371,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                             penghubung.batasjammalams,
                                             penghubung.jenispembayaranairs,
                                             penghubung.jenislistriks,
+                                            penghubung.pernama,
                                           );
 
                                           setState(() {

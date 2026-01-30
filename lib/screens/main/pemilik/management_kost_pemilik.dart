@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:collection/collection.dart';
+import 'package:kost_saw/providers/profil_provider.dart';
 import '../../../providers/kost_provider.dart';
 import 'package:provider/provider.dart';
+import '../shared/formatCurrency.dart';
+import '../../custom/showdialog_eror.dart';
 
 class ManagementKostPemilik extends StatefulWidget {
   static const arah = "/management-board-pemilik";
@@ -23,6 +26,7 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
     final tinggiLayar = MediaQuery.of(context).size.height;
     final lebarLayar = MediaQuery.of(context).size.width;
     final penghubung = Provider.of<KostProvider>(context);
+    final penghubung2 = Provider.of<ProfilProvider>(context, listen: false);
 
     return Scaffold(
       backgroundColor: warnaLatar,
@@ -39,7 +43,20 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
               _HeaderBar(
                 title: "Daftar Kost",
                 subtitle: "Kelola properti kost milik Anda",
-                onAdd: _bukaFormTambah,
+                onAdd: () {
+                  if (penghubung2.mydata.isEmpty) {
+                    showDialog(
+                      context: context,
+                      builder: (context) {
+                        return ShowdialogEror(
+                            label: "Isi data Profil lebih dahulu");
+                      },
+                    );
+                  } else {
+                    Navigator.of(context, rootNavigator: true)
+                        .pushNamed('/form-house-pemilik');
+                  }
+                },
                 warnaUtama: warnaUtama,
               ),
 
@@ -169,6 +186,7 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
                                     }
                                   }
                                 },
+                                per: penghubung.kostpemilik[index].per!,
                               );
                             },
                           ),
@@ -189,10 +207,17 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
     );
   }
 
-  void _bukaFormTambah() {
-    // Gunakan rootNavigator agar menggunakan routes dari MaterialApp utama
-    Navigator.of(context, rootNavigator: true).pushNamed('/form-house-pemilik');
-  }
+  // void _bukaFormTambah() {
+  //   // Gunakan rootNavigator agar menggunakan routes dari MaterialApp utama
+  //   final penghubung = Provider.of<ProfilProvider>(context, listen: false);
+
+  //   if (penghubung.mydata.isEmpty) {
+  //     ShowdialogEror(label: "Isi data Profil lebih dahulu");
+  //   } else {
+  //     Navigator.of(context, rootNavigator: true)
+  //         .pushNamed('/form-house-pemilik');
+  //   }
+  // }
 
   String _formatRupiah(double value) {
     // Simple formatter for display only
@@ -213,6 +238,7 @@ class _OwnerKostCard extends StatelessWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final VoidCallback? onTap;
+  final String per;
 
   _OwnerKostCard({
     // required this.item,
@@ -223,6 +249,7 @@ class _OwnerKostCard extends StatelessWidget {
     this.onEdit,
     this.onDelete,
     this.onTap,
+    required this.per,
   });
 
   @override
@@ -291,7 +318,8 @@ class _OwnerKostCard extends StatelessWidget {
                           SizedBox(width: 6),
                           Text(
                             // item.harga,
-                            "${int.parse(harga.toString())}",
+                            // "${int.parse(harga.toString())}",
+                            "${formatCurrency(harga)} / $per",
                             style: TextStyle(
                               color: Color(0xFF1E3A8A),
                               fontWeight: FontWeight.w800,

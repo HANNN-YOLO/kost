@@ -97,6 +97,7 @@ class KostService {
     double garis_lintang,
     double garis_bujur,
     String gambar,
+    String per,
   ) async {
     print("inisiai buat data kost");
 
@@ -104,24 +105,24 @@ class KostService {
     print("buat data 1 kost");
 
     var isian = KostModel(
-      id_auth: id_auth,
-      id_fasilitas: id_fasilitas,
-      notlp_kost: notlp_kost,
-      nama_kost: nama_kost,
-      alamat_kost: alamat_kost,
-      pemilik_kost: pemilik_kost,
-      harga_kost: harga_kost,
-      jenis_kost: jenis_kost,
-      keamanan: keamanan,
-      batas_jam_malam: batas_jam_malam,
-      jenis_listrik: jenis_listrik,
-      jenis_pembayaran_air: jenis_pembayaran_air,
-      panjang: panjang,
-      lebar: lebar,
-      garis_lintang: garis_lintang,
-      garis_bujur: garis_bujur,
-      gambar_kost: gambar,
-    );
+        id_auth: id_auth,
+        id_fasilitas: id_fasilitas,
+        notlp_kost: notlp_kost,
+        nama_kost: nama_kost,
+        alamat_kost: alamat_kost,
+        pemilik_kost: pemilik_kost,
+        harga_kost: harga_kost,
+        jenis_kost: jenis_kost,
+        keamanan: keamanan,
+        batas_jam_malam: batas_jam_malam,
+        jenis_listrik: jenis_listrik,
+        jenis_pembayaran_air: jenis_pembayaran_air,
+        panjang: panjang,
+        lebar: lebar,
+        garis_lintang: garis_lintang,
+        garis_bujur: garis_bujur,
+        gambar_kost: gambar,
+        per: per);
     print("buat data 2 kost");
 
     var pengisian = await htpp.post(
@@ -220,6 +221,7 @@ class KostService {
     double garis_lintang,
     double garis_bujur,
     DateTime updatedAt,
+    String per,
   ) async {
     print("inisiasi perubahan data kost");
 
@@ -247,6 +249,7 @@ class KostService {
       garis_lintang: garis_lintang,
       garis_bujur: garis_bujur,
       updatedAt: updatedAt,
+      per: per,
     );
     print("ubah data 2 kost");
 
@@ -341,6 +344,7 @@ class KostService {
     double garis_lintang,
     double garis_bujur,
     String gambar,
+    String per,
   ) async {
     var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/kost");
 
@@ -362,6 +366,7 @@ class KostService {
       garis_lintang: garis_lintang,
       garis_bujur: garis_bujur,
       gambar_kost: gambar,
+      per: per,
     );
 
     var pengisian = await htpp.post(
@@ -384,26 +389,28 @@ class KostService {
   }
 
   Future<void> updateddatapemmilik(
-      String token,
-      int id_kost,
-      int id_auth,
-      int id_fasilitas,
-      String nama_pemilik,
-      String nama_kost,
-      int telpon,
-      String alamat_kost,
-      int harga_kost,
-      String jenis_kost,
-      String keamanan,
-      int panjang,
-      int lebar,
-      String batas_jam_malam,
-      String jenis_pembayaran_air,
-      String jenis_listrik,
-      double garis_lintang,
-      double garis_bujur,
-      String gambar,
-      DateTime editan) async {
+    String token,
+    int id_kost,
+    int id_auth,
+    int id_fasilitas,
+    String nama_pemilik,
+    String nama_kost,
+    int telpon,
+    String alamat_kost,
+    int harga_kost,
+    String jenis_kost,
+    String keamanan,
+    int panjang,
+    int lebar,
+    String batas_jam_malam,
+    String jenis_pembayaran_air,
+    String jenis_listrik,
+    double garis_lintang,
+    double garis_bujur,
+    String gambar,
+    DateTime editan,
+    String per,
+  ) async {
     var url = Uri.parse(
         "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_kost=eq.$id_kost");
 
@@ -426,6 +433,7 @@ class KostService {
       garis_bujur: garis_bujur,
       gambar_kost: gambar,
       updatedAt: editan,
+      per: per,
     );
 
     var updated = await htpp.patch(

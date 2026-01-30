@@ -13,6 +13,7 @@ import '../../custom/label_1baris_full.dart';
 import '../../custom/custom_UploadFotov2.dart';
 import '../../custom/showdialog_eror.dart';
 import '../../custom/custom_editfotov2.dart';
+import '../../custom/textfield_with_dropdown.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/kost_provider.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -186,6 +187,7 @@ class _FormAddHouseState extends State<FormHouse> {
         penghubung.batasjammalams = pakai.batas_jam_malam ?? "PIlih";
         penghubung.jenispembayaranairs = pakai.jenis_pembayaran_air ?? "Pilih";
         penghubung.jenislistriks = pakai.jenis_listrik ?? "Pilih";
+        penghubung.pernama = pakai.per ?? "";
 
         if (pakai != null) {
           final cekker = Provider.of<KostProvider>(context, listen: false)
@@ -367,8 +369,32 @@ class _FormAddHouseState extends State<FormHouse> {
               Consumer<KostProvider>(
                 builder: (context, value, child) {
                   return terima != null
-                      ? _inputField('Harga', tinggiLayar, lebarLayar, _harga)
-                      : _inputField('Harga', tinggiLayar, lebarLayar, _harga);
+                      ? TextfieldWithDropdown(
+                          label: "Harga_kost",
+                          lebar: lebarLayar,
+                          tinggi: tinggiLayar,
+                          isi: _harga,
+                          jenis: TextInputType.number,
+                          manalistnya: penghubung.per,
+                          label2: penghubung.pernama,
+                          pilihan: penghubung.pernama,
+                          fungsi: (value) {
+                            penghubung.pilihbayar(value);
+                          },
+                        )
+                      : TextfieldWithDropdown(
+                          label: "Harga Kost",
+                          lebar: lebarLayar,
+                          tinggi: tinggiLayar,
+                          isi: _harga,
+                          jenis: TextInputType.number,
+                          manalistnya: penghubung.per,
+                          label2: penghubung.pernama,
+                          pilihan: penghubung.pernama,
+                          fungsi: (value) {
+                            penghubung.pilihbayar(value);
+                          },
+                        );
                 },
               ),
 
@@ -1025,35 +1051,35 @@ class _FormAddHouseState extends State<FormHouse> {
                                 }
 
                                 await penghubung.updatedata(
-                                  penghubung.foto,
-                                  pakai!.gambar_kost!,
-                                  pakai.id_fasilitas!,
-                                  penghubung.inputan.tempat_tidur,
-                                  penghubung.inputan.kamar_mandi_dalam,
-                                  penghubung.inputan.meja,
-                                  penghubung.inputan.tempat_parkir,
-                                  penghubung.inputan.lemari,
-                                  penghubung.inputan.ac,
-                                  penghubung.inputan.tv,
-                                  penghubung.inputan.kipas,
-                                  penghubung.inputan.dapur_dalam,
-                                  penghubung.inputan.wifi,
-                                  pakai.id_kost!,
-                                  pakai.id_auth!,
-                                  _namakost.text,
-                                  penghubung.namanya,
-                                  _alamat.text,
-                                  int.parse(_notlpn.text),
-                                  int.parse(_harga.text),
-                                  penghubung.batasjammalams,
-                                  penghubung.jenislistriks,
-                                  penghubung.jenispembayaranairs,
-                                  penghubung.jeniskeamanans,
-                                  penghubung.jeniskosts,
-                                  int.parse(_panjang.text),
-                                  int.parse(_lebar.text),
-                                  _koordinatController.text,
-                                );
+                                    penghubung.foto,
+                                    pakai!.gambar_kost!,
+                                    pakai.id_fasilitas!,
+                                    penghubung.inputan.tempat_tidur,
+                                    penghubung.inputan.kamar_mandi_dalam,
+                                    penghubung.inputan.meja,
+                                    penghubung.inputan.tempat_parkir,
+                                    penghubung.inputan.lemari,
+                                    penghubung.inputan.ac,
+                                    penghubung.inputan.tv,
+                                    penghubung.inputan.kipas,
+                                    penghubung.inputan.dapur_dalam,
+                                    penghubung.inputan.wifi,
+                                    pakai.id_kost!,
+                                    pakai.id_auth!,
+                                    _namakost.text,
+                                    penghubung.namanya,
+                                    _alamat.text,
+                                    int.parse(_notlpn.text),
+                                    int.parse(_harga.text),
+                                    penghubung.batasjammalams,
+                                    penghubung.jenislistriks,
+                                    penghubung.jenispembayaranairs,
+                                    penghubung.jeniskeamanans,
+                                    penghubung.jeniskosts,
+                                    int.parse(_panjang.text),
+                                    int.parse(_lebar.text),
+                                    _koordinatController.text,
+                                    penghubung.pernama);
                                 Navigator.of(context).pop();
                               } catch (e) {
                                 showDialog(
@@ -1174,6 +1200,7 @@ class _FormAddHouseState extends State<FormHouse> {
                                   int.parse(_panjang.text),
                                   int.parse(_lebar.text),
                                   penghubung.foto!,
+                                  penghubung.pernama,
                                 );
 
                                 setState(() {

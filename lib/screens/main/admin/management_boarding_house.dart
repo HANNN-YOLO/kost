@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:collection/collection.dart';
 import '../../../providers/kost_provider.dart';
 import 'admin_places_page.dart';
+import '../shared/formatCurrency.dart';
 
 class ManagementBoardingHouse extends StatelessWidget {
   static const arah = "/management-board-admin";
@@ -189,7 +190,7 @@ class ManagementBoardingHouse extends StatelessWidget {
                         itemBuilder: (context, index) {
                           return KostCard(
                             gambar: "${penghubung.kost[index].gambar_kost}",
-                            harga: "${penghubung.kost[index].harga_kost}",
+                            harga: penghubung.kost[index].harga_kost!,
                             nama: "${penghubung.kost[index].nama_kost}",
                             lokasi: "${penghubung.kost[index].alamat_kost}",
                             tampilkanEdit: true,
@@ -233,6 +234,7 @@ class ManagementBoardingHouse extends StatelessWidget {
                                 arguments: penghubung.kost[index].id_kost,
                               );
                             },
+                            per: "${penghubung.kost[index].per}",
                           );
                           // SizedBox(height: tinggiLayar * 0.02);
                         },
@@ -249,7 +251,7 @@ class ManagementBoardingHouse extends StatelessWidget {
 // 🔸 Widget KostCard — menampilkan 1 kartu kost
 class KostCard extends StatelessWidget {
   final String gambar;
-  final String harga;
+  final int harga;
   final String nama;
   final String lokasi;
   final bool tampilkanEdit;
@@ -257,6 +259,7 @@ class KostCard extends StatelessWidget {
   final VoidCallback? fungsihapus;
   final VoidCallback? fungsitap;
   final VoidCallback? fungsiupdated;
+  final String per;
 
   KostCard({
     super.key,
@@ -269,6 +272,7 @@ class KostCard extends StatelessWidget {
     this.fungsihapus,
     this.fungsitap,
     this.fungsiupdated,
+    required this.per,
   });
 
   void _tampilkanKonfirmasiHapus(BuildContext context) {
@@ -430,10 +434,10 @@ class KostCard extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              harga,
+                              "${formatCurrency(harga)} / $per",
                               style: TextStyle(
                                 color: Color(0xFF007BFF),
-                                fontSize: lebarLayar * 0.040,
+                                fontSize: lebarLayar * 0.0370,
                                 fontWeight: FontWeight.w900,
                               ),
                               overflow: TextOverflow.ellipsis,

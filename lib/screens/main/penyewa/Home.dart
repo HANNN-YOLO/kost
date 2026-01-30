@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:collection/collection.dart';
+import '../shared/formatCurrency.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/kost_provider.dart';
 
@@ -29,6 +30,12 @@ class _KostHomePageState extends State<KostHomePage> {
     final lebarLayar = MediaQuery.of(context).size.width;
     final topPadding = MediaQuery.of(context).padding.top;
     final penghubung = Provider.of<KostProvider>(context);
+    const Color colorPrimary = Color(0xFF1C3B98);
+    const Color colorWhite = Colors.white;
+    final double screenWidth = MediaQuery.of(context).size.width;
+    const double figmaWidth = 402;
+    double scale = screenWidth / figmaWidth;
+    double s(double size) => size * scale;
 
     // AppBar custom dengan gaya lebih minimalis & modern
     final AppBar appBar = AppBar(
@@ -255,7 +262,8 @@ class _KostHomePageState extends State<KostHomePage> {
                         radius: cardRadius,
                         titleFontSize: titleFont,
                         priceFontSize: priceFont,
-                        price: 'Rp ${tesst.harga_kost}',
+                        price: tesst.harga_kost!,
+                        per: " / ${tesst.per}",
                         title: tesst.nama_kost ?? '-',
                         location: tesst.alamat_kost ?? '-',
                         genderLabel: tesst.jenis_kost ?? '-',
@@ -281,6 +289,9 @@ class _KostHomePageState extends State<KostHomePage> {
                             },
                           );
                         },
+                        colorprimary: colorPrimary,
+                        colorwhite: colorWhite,
+                        s: s,
                       );
                     },
                   );
@@ -362,28 +373,36 @@ class _KostCard extends StatelessWidget {
   final double radius;
   final double titleFontSize;
   final double priceFontSize;
-  final String price;
+  final int price;
   final String title;
   final String location;
   final String genderLabel;
   final String gambar;
   final VoidCallback? fungsitap;
   final List<String>? fasilitas;
+  final String per;
+  final Color colorprimary;
+  final Color colorwhite;
+  final double Function(double) s;
 
-  _KostCard(
-      {Key? key,
-      required this.imageHeight,
-      required this.radius,
-      required this.titleFontSize,
-      required this.priceFontSize,
-      required this.price,
-      required this.title,
-      required this.location,
-      required this.genderLabel,
-      required this.gambar,
-      required this.fungsitap,
-      this.fasilitas})
-      : super(key: key);
+  _KostCard({
+    Key? key,
+    required this.imageHeight,
+    required this.radius,
+    required this.titleFontSize,
+    required this.priceFontSize,
+    required this.price,
+    required this.title,
+    required this.location,
+    required this.genderLabel,
+    required this.gambar,
+    required this.fungsitap,
+    this.fasilitas,
+    required this.per,
+    required this.colorprimary,
+    required this.colorwhite,
+    required this.s,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -448,14 +467,14 @@ class _KostCard extends StatelessWidget {
                                   size: 18, color: Color(0xFF1C3B98)),
                               SizedBox(width: 6),
                               Text(
-                                price,
+                                formatCurrency(price),
                                 style: TextStyle(
                                   color: Color(0xFF1C3B98),
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
                               Text(
-                                ' / bulan',
+                                per,
                                 style: TextStyle(
                                   color: Color(0xFF1C3B98),
                                   fontWeight: FontWeight.w600,
@@ -515,45 +534,69 @@ class _KostCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           location,
+                          maxLines: 3,
                           style: TextStyle(fontSize: 12, color: Colors.grey),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
                   ),
-                  if ((fasilitas ?? const []).isNotEmpty) ...[
-                    SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        for (final tag in fasilitas!)
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE9EEF9),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.check_circle_outline,
-                                    size: 14, color: Color(0xFF1C3B98)),
-                                const SizedBox(width: 6),
-                                Text(
-                                  tag,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF1F1F1F),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
+                  // if ((fasilitas ?? const []).isNotEmpty) ...[
+                  //   SizedBox(height: 8),
+                  //   Wrap(
+                  //     spacing: 6,
+                  //     runSpacing: 6,
+                  //     children: [
+                  //       for (final tag in fasilitas!)
+                  //         Container(
+                  //           padding: EdgeInsets.symmetric(
+                  //               horizontal: 10, vertical: 6),
+                  //           decoration: BoxDecoration(
+                  //             color: const Color(0xFFE9EEF9),
+                  //             borderRadius: BorderRadius.circular(20),
+                  //           ),
+                  //           child: Row(
+                  //             mainAxisSize: MainAxisSize.min,
+                  //             children: [
+                  //               const Icon(Icons.check_circle_outline,
+                  //                   size: 14, color: Color(0xFF1C3B98)),
+                  //               const SizedBox(width: 6),
+                  //               Text(
+                  //                 tag,
+                  //                 style: const TextStyle(
+                  //                   fontSize: 12,
+                  //                   color: Color(0xFF1F1F1F),
+                  //                 ),
+                  //               ),
+                  //             ],
+                  //           ),
+                  //         ),
+                  //     ],
+                  //   ),
+                  // ],
+                  SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: fungsitap,
+                      icon: Icon(Icons.visibility_rounded, size: s(18)),
+                      label: Text(
+                        'Lihat Detail',
+                        style: TextStyle(
+                          fontSize: s(13),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colorprimary,
+                        foregroundColor: colorwhite,
+                        padding: EdgeInsets.symmetric(vertical: s(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(s(10)),
+                        ),
+                      ),
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),

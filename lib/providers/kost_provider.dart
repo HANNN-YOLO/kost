@@ -209,6 +209,17 @@ class KostProvider with ChangeNotifier {
     jenislistriks = value;
   }
 
+  // kategori bayaran kost
+  List<String> _per = ['bulan', 'tahun'];
+  List<String> get per => _per;
+
+  String pernama = "Pilih";
+
+  void pilihbayar(value) {
+    pernama = value;
+    notifyListeners();
+  }
+
   void resetpilihan() {
     this._foto = null;
     this.namanya = "Pilih";
@@ -256,6 +267,7 @@ class KostProvider with ChangeNotifier {
   }
 
   // state service
+
   // Admin
   List<KostModel> _kost = [];
   List<KostModel> get kost => _kost;
@@ -300,54 +312,33 @@ class KostProvider with ChangeNotifier {
 
   FasilitasModel inputan = FasilitasModel();
 
-  // Daftar tempat khusus yang bisa ditambahkan admin (disimpan lokal di provider)
-  // final List<AdminPlace> _adminPlaces = [];
-  // List<AdminPlace> get adminPlaces => List.unmodifiable(_adminPlaces);
-
-  // void addAdminPlace(AdminPlace place) {
-  //   _adminPlaces.add(place);
-  //   notifyListeners();
-  // }
-
-  // void updateAdminPlace(int index, AdminPlace place) {
-  //   if (index < 0 || index >= _adminPlaces.length) return;
-  //   _adminPlaces[index] = place;
-  //   notifyListeners();
-  // }
-
-  // void removeAdminPlaceAt(int index) {
-  //   if (index < 0 || index >= _adminPlaces.length) return;
-  //   _adminPlaces.removeAt(index);
-  //   notifyListeners();
-  // }
-
   Future<void> createdata(
-    int id_auth,
-    bool tempat_tidur,
-    bool kamar_mandi_dalam,
-    bool meja,
-    bool tempat_parkir,
-    bool lemari,
-    bool ac,
-    bool tv,
-    bool kipas,
-    bool dapur_dalam,
-    bool wifi,
-    int notlp_kost,
-    String nama_kost,
-    String alamat_kost,
-    String pemilik_kost,
-    int harga_kost,
-    String titik_koordinat,
-    String jenis_kost,
-    String keamanan,
-    String batas_jam_malam,
-    String jenis_pembayaran_air,
-    String jenis_listrik,
-    int panjang,
-    int lebar,
-    XFile gambar,
-  ) async {
+      int id_auth,
+      bool tempat_tidur,
+      bool kamar_mandi_dalam,
+      bool meja,
+      bool tempat_parkir,
+      bool lemari,
+      bool ac,
+      bool tv,
+      bool kipas,
+      bool dapur_dalam,
+      bool wifi,
+      int notlp_kost,
+      String nama_kost,
+      String alamat_kost,
+      String pemilik_kost,
+      int harga_kost,
+      String titik_koordinat,
+      String jenis_kost,
+      String keamanan,
+      String batas_jam_malam,
+      String jenis_pembayaran_air,
+      String jenis_listrik,
+      int panjang,
+      int lebar,
+      XFile gambar,
+      String per) async {
     try {
       final upload = await _kekost.uploadgambar(gambar);
       if (upload != null) {
@@ -391,6 +382,7 @@ class KostProvider with ChangeNotifier {
             latitude,
             longitudo,
             upload,
+            per,
           );
         }
       }
@@ -433,35 +425,35 @@ class KostProvider with ChangeNotifier {
   }
 
   Future<void> updatedata(
-    XFile? foto,
-    String fotolama,
-    int id_fasilitas,
-    bool tempat_tidur,
-    bool kamar_mandi_dalam,
-    bool meja,
-    bool tempat_parkir,
-    bool lemari,
-    bool ac,
-    bool tv,
-    bool kipas,
-    bool dapur_dalam,
-    bool wifi,
-    int id_kost,
-    int id_auth,
-    String nama_kost,
-    String pemilik_kost,
-    String alamat_kost,
-    int notlp_kost,
-    int harga_kost,
-    String batas_jam_malam,
-    String jenis_listrik,
-    String jenis_pembayaran_air,
-    String keamanan,
-    String jenis_kost,
-    int panjang,
-    int lebar,
-    String koordinnat,
-  ) async {
+      XFile? foto,
+      String fotolama,
+      int id_fasilitas,
+      bool tempat_tidur,
+      bool kamar_mandi_dalam,
+      bool meja,
+      bool tempat_parkir,
+      bool lemari,
+      bool ac,
+      bool tv,
+      bool kipas,
+      bool dapur_dalam,
+      bool wifi,
+      int id_kost,
+      int id_auth,
+      String nama_kost,
+      String pemilik_kost,
+      String alamat_kost,
+      int notlp_kost,
+      int harga_kost,
+      String batas_jam_malam,
+      String jenis_listrik,
+      String jenis_pembayaran_air,
+      String keamanan,
+      String jenis_kost,
+      int panjang,
+      int lebar,
+      String koordinnat,
+      String per) async {
     try {
       DateTime edit = DateTime.now();
 
@@ -507,6 +499,7 @@ class KostProvider with ChangeNotifier {
             latitude,
             longitudo,
             edit,
+            per,
           );
         }
       } else {
@@ -554,6 +547,7 @@ class KostProvider with ChangeNotifier {
               latitude,
               longitudo,
               edit,
+              per,
             );
           }
         }
@@ -615,33 +609,33 @@ class KostProvider with ChangeNotifier {
   }
 
   Future<void> createdatapemilik(
-    String token,
-    XFile foto,
-    int id_auth,
-    bool tempat_tidur,
-    bool kamar_mandi_dalam,
-    bool meja,
-    bool tempat_parkir,
-    bool lemari,
-    bool ac,
-    bool tv,
-    bool kipas,
-    bool dapur_dalam,
-    bool wifi,
-    String koordinat,
-    String nama_pemilik,
-    String nama_kost,
-    String alamat,
-    int telpon,
-    int harga,
-    String jenis_kost,
-    String keamanan,
-    int panjang,
-    int lebar,
-    String batas_jam_malam,
-    String jenis_pembayaran_air,
-    String jenis_listrik,
-  ) async {
+      String token,
+      XFile foto,
+      int id_auth,
+      bool tempat_tidur,
+      bool kamar_mandi_dalam,
+      bool meja,
+      bool tempat_parkir,
+      bool lemari,
+      bool ac,
+      bool tv,
+      bool kipas,
+      bool dapur_dalam,
+      bool wifi,
+      String koordinat,
+      String nama_pemilik,
+      String nama_kost,
+      String alamat,
+      int telpon,
+      int harga,
+      String jenis_kost,
+      String keamanan,
+      int panjang,
+      int lebar,
+      String batas_jam_malam,
+      String jenis_pembayaran_air,
+      String jenis_listrik,
+      String per) async {
     try {
       final ambil = await _kekost.uploadgambar(foto);
       if (ambil != null) {
@@ -687,6 +681,7 @@ class KostProvider with ChangeNotifier {
             garis_lintang,
             garis_bujur,
             ambil,
+            per,
           );
         }
       }
@@ -698,34 +693,36 @@ class KostProvider with ChangeNotifier {
   }
 
   Future<void> updateddatapemilik(
-      String token,
-      int id_auth,
-      int id_fasilitas,
-      int id_kost,
-      String fotolama,
-      XFile? foto,
-      bool tempat_tidur,
-      bool kamar_mandi_dalam,
-      bool meja,
-      bool tempat_parkir,
-      bool lemari,
-      bool ac,
-      bool tv,
-      bool dapur_dalam,
-      bool wifi,
-      String nama_pemilik,
-      String nama_kost,
-      int telpon,
-      String alamat_kost,
-      int harga_kost,
-      String jenis_kost,
-      String keamanan,
-      int panjang,
-      int lebar,
-      String batas_jam_malam,
-      String jenis_pembayaran_air,
-      String jenis_listrik,
-      String koordinat) async {
+    String token,
+    int id_auth,
+    int id_fasilitas,
+    int id_kost,
+    String fotolama,
+    XFile? foto,
+    bool tempat_tidur,
+    bool kamar_mandi_dalam,
+    bool meja,
+    bool tempat_parkir,
+    bool lemari,
+    bool ac,
+    bool tv,
+    bool dapur_dalam,
+    bool wifi,
+    String nama_pemilik,
+    String nama_kost,
+    int telpon,
+    String alamat_kost,
+    int harga_kost,
+    String jenis_kost,
+    String keamanan,
+    int panjang,
+    int lebar,
+    String batas_jam_malam,
+    String jenis_pembayaran_air,
+    String jenis_listrik,
+    String koordinat,
+    String per,
+  ) async {
     try {
       final hari_ini = DateTime.now();
 
@@ -752,27 +749,27 @@ class KostProvider with ChangeNotifier {
 
         if (garis_lintang != null && garis_bujur != null) {
           await _kekost.updateddatapemmilik(
-            token,
-            id_kost,
-            id_auth,
-            id_fasilitas,
-            nama_pemilik,
-            nama_kost,
-            telpon,
-            alamat_kost,
-            harga_kost,
-            jenis_kost,
-            keamanan,
-            panjang,
-            lebar,
-            batas_jam_malam,
-            jenis_pembayaran_air,
-            jenis_listrik,
-            garis_lintang,
-            garis_bujur,
-            fotolama,
-            hari_ini,
-          );
+              token,
+              id_kost,
+              id_auth,
+              id_fasilitas,
+              nama_pemilik,
+              nama_kost,
+              telpon,
+              alamat_kost,
+              harga_kost,
+              jenis_kost,
+              keamanan,
+              panjang,
+              lebar,
+              batas_jam_malam,
+              jenis_pembayaran_air,
+              jenis_listrik,
+              garis_lintang,
+              garis_bujur,
+              fotolama,
+              hari_ini,
+              per);
         }
       } else {
         await _kekost.deletegambar(fotolama);
@@ -801,27 +798,27 @@ class KostProvider with ChangeNotifier {
 
           if (namanya != null && garis_lintang != null && garis_bujur != null) {
             await _kekost.updateddatapemmilik(
-              token,
-              id_kost,
-              id_auth,
-              id_fasilitas,
-              nama_pemilik,
-              nama_kost,
-              telpon,
-              alamat_kost,
-              harga_kost,
-              jenis_kost,
-              keamanan,
-              panjang,
-              lebar,
-              batas_jam_malam,
-              jenis_pembayaran_air,
-              jenis_listrik,
-              garis_lintang,
-              garis_bujur,
-              namanya,
-              hari_ini,
-            );
+                token,
+                id_kost,
+                id_auth,
+                id_fasilitas,
+                nama_pemilik,
+                nama_kost,
+                telpon,
+                alamat_kost,
+                harga_kost,
+                jenis_kost,
+                keamanan,
+                panjang,
+                lebar,
+                batas_jam_malam,
+                jenis_pembayaran_air,
+                jenis_listrik,
+                garis_lintang,
+                garis_bujur,
+                namanya,
+                hari_ini,
+                per);
           }
         }
       }

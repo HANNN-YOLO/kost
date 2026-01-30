@@ -8,7 +8,8 @@ class KostModel {
       batas_jam_malam,
       jenis_pembayaran_air,
       jenis_listrik,
-      gambar_kost;
+      gambar_kost,
+      per;
   double? garis_lintang, garis_bujur;
   DateTime? createdAt, updatedAt;
 
@@ -31,6 +32,7 @@ class KostModel {
     this.gambar_kost,
     this.garis_lintang,
     this.garis_bujur,
+    this.per,
     this.createdAt,
     this.updatedAt,
   });
@@ -53,6 +55,7 @@ class KostModel {
       'gambar_kost': gambar_kost,
       'garis_lintang': garis_lintang,
       'garis_bujur': garis_bujur,
+      'per': per,
     };
 
     if (id_kost != null) {
@@ -93,6 +96,7 @@ class KostModel {
       gambar_kost: json['gambar_kost'],
       garis_lintang: json['garis_lintang'],
       garis_bujur: json['garis_bujur'],
+      per: json['per'],
       createdAt:
           json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt:

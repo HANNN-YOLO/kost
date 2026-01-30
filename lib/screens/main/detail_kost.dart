@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
-import 'dart:convert';
 import '../custom/satu_tombol.dart';
-import '../../providers/kost_provider.dart';
-import '../../models/kost_model.dart';
 import '../../models/fasilitas_model.dart';
+import '../main/shared/formatCurrency.dart';
 
 class DetailKost extends StatelessWidget {
   static const arah = "detail-kost";
@@ -78,7 +75,8 @@ class DetailKost extends StatelessWidget {
           children: [
             _DetailHeader(
               imageUrl: terima.gambar_kost,
-              price: terima.harga_kost.toString(),
+              price: terima.harga_kost,
+              per: terima.per,
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -231,12 +229,11 @@ class DetailKost extends StatelessWidget {
 
 class _DetailHeader extends StatelessWidget {
   final String? imageUrl;
-  final String price;
+  final int price;
+  final String per;
 
-  const _DetailHeader({
-    required this.imageUrl,
-    required this.price,
-  });
+  const _DetailHeader(
+      {required this.imageUrl, required this.price, required this.per});
 
   @override
   Widget build(BuildContext context) {
@@ -279,7 +276,7 @@ class _DetailHeader extends StatelessWidget {
                     size: 18, color: Color(0xFF1E3A8A)),
                 const SizedBox(width: 6),
                 Text(
-                  price,
+                  "${formatCurrency(price)} / $per",
                   style: const TextStyle(
                     color: Color(0xFF1E3A8A),
                     fontWeight: FontWeight.w800,
