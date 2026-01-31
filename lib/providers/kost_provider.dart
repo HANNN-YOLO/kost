@@ -27,6 +27,8 @@ class KostProvider with ChangeNotifier {
   List<ProfilModel> _dataku = [];
   List<ProfilModel> get dataku => _dataku;
 
+  bool keadaan = false;
+
   void isi(
     String value,
     String ada,
@@ -41,6 +43,7 @@ class KostProvider with ChangeNotifier {
     id_authnya = id_auth;
     if (_token != null && _email != null && _listauth != null) {
       final cek = listauth.firstWhere((element) => element.id_auth == id_auth);
+      // if (!keadaan) {
       if (cek.role == "Admin") {
         readdata();
       } else if (cek.role == "Penyewa") {
@@ -57,8 +60,10 @@ class KostProvider with ChangeNotifier {
 
       // Pastikan data kriteria & subkriteria SAW ikut ter-load
       // (dipakai juga untuk opsi dropdown keamanan, listrik, dll.)
+
       fetchKriteria();
       fetchSubkriteria();
+      // }
     }
   }
 

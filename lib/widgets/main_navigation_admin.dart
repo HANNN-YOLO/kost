@@ -41,30 +41,33 @@ class _MainNavigationAdminState extends State<MainNavigationAdmin> {
   void _showLogoutConfirmation() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: Text(
-          "Konfirmasi Logout",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: Text("Apakah Anda yakin ingin keluar dari akun admin?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text("Batal"),
-          ),
-          TextButton(
-            onPressed: () {
-              Provider.of<AuthProvider>(context, listen: false).logout();
-              Provider.of<KostProvider>(context, listen: false).resetpilihan();
-            },
-            child: Text(
-              "Logout",
-              style: TextStyle(color: Colors.red),
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
+            title: Text(
+              "Konfirmasi Logout",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            content: Text("Apakah Anda yakin ingin keluar dari akun admin?"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text("Batal"),
+              ),
+              TextButton(
+                onPressed: () {
+                  Provider.of<AuthProvider>(context, listen: false).logout();
+                  Provider.of<KostProvider>(
+                    context,
+                    listen: false,
+                  ).resetpilihan();
+                },
+                child: Text("Logout", style: TextStyle(color: Colors.red)),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 

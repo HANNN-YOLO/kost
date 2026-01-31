@@ -39,7 +39,7 @@ class KriteriaProvider with ChangeNotifier {
   }
 
   // state pilihan
-  String? nama = "-";
+  String? nama = "Pilih Kriteria";
 
   List<String> get kategoriall {
     return _mydata

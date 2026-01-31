@@ -1179,6 +1179,18 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
   static Color _warnaUtama = Color(0xFF1E3A8A);
 
   @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    if (!_isInitialized) {
+      _isInitialized = true;
+      keadaan = false;
+      _penghubung = Provider.of<KriteriaProvider>(context, listen: false)
+          .readdatasubkriteria();
+    }
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Hanya panggil sekali saat pertama kali masuk halaman

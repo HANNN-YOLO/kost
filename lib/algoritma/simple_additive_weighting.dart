@@ -470,8 +470,11 @@ class SimpleAdditiveWeighting {
         // Simpan nilai mentah untuk tampilan
         // Format khusus untuk beberapa kriteria
         if (kategori.contains('biaya') || kategori.contains('harga')) {
+          // Tampilkan harga ASLI dari database beserta periode pembayarannya
+          final hargaAsliDb = kost.harga_kost ?? 0;
+          final periodeDb = kost.per ?? 'bulan';
           nilaiMentah[kriteria.kategori ?? ''] =
-              'Rp ${_formatCurrency(nilaiAsli is int ? nilaiAsli : 0)}';
+              'Rp ${_formatCurrency(hargaAsliDb)}/$periodeDb';
         } else if (kategori.contains('jarak')) {
           nilaiMentah[kriteria.kategori ?? ''] =
               '${(nilaiAsli as double).toStringAsFixed(2)} km';
@@ -523,12 +526,27 @@ class SimpleAdditiveWeighting {
     // PENTING: kategori sudah dalam lowercase dari pemanggil
 
     // ========== C1: BIAYA (Cost) ==========
+    // PENTING: Normalisasi harga ke per-BULAN untuk konsistensi perhitungan SAW
+    // Jika field "per" = "Tahun", maka harga dibagi 12
+    // Jika field "per" = "Bulan" atau kosong, gunakan harga langsung
     if (kategori.contains('biaya') ||
         kategori.contains('harga') ||
         kategori == 'harga_kost') {
-      final harga = kost.harga_kost ?? 0;
-      print("    📌 Biaya: $harga");
-      return harga;
+      final hargaAsli = kost.harga_kost ?? 0;
+      final periodePembayaran = (kost.per ?? 'Bulan').toLowerCase();
+
+      int hargaPerBulan;
+      if (periodePembayaran.contains('tahun')) {
+        // Jika harga per tahun, konversi ke per bulan
+        hargaPerBulan = (hargaAsli / 12).round();
+        print(
+            "    📌 Biaya: Rp $hargaAsli/$periodePembayaran → Rp $hargaPerBulan/bulan (dibagi 12)");
+      } else {
+        // Jika harga per bulan, gunakan langsung
+        hargaPerBulan = hargaAsli;
+        print("    📌 Biaya: Rp $hargaAsli/$periodePembayaran");
+      }
+      return hargaPerBulan;
     }
 
     // ========== C2: FASILITAS (Benefit) ==========
