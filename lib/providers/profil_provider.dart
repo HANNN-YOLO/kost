@@ -234,7 +234,12 @@ class ProfilProvider with ChangeNotifier {
     try {
       await _ref.deletegambaradmin(link);
     } catch (e) {
-      throw e;
+      final msg = e.toString();
+      // Jika error karena object sudah tidak ditemukan di storage (404/not_found),
+      // abaikan agar aplikasi tidak crash saat menghapus pengguna yang sudah tidak punya gambar.
+      if (!(msg.contains('not_found') || msg.contains('404'))) {
+        throw e;
+      }
     }
     await readuser();
     notifyListeners();

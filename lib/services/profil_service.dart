@@ -96,8 +96,13 @@ class ProfilService {
       'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
     });
 
-    if (delete.statusCode == 200) {
+    if (delete.statusCode == 200 || delete.statusCode == 204) {
+      // berhasil hapus atau sudah tidak ada (204)
       print("berhasil hapus gambar user di Admin ${delete.statusCode}");
+    } else if (delete.statusCode == 404) {
+      // objek sudah tidak ada di storage, anggap aman (idempotent delete)
+      print(
+          "gambar user tidak ditemukan saat dihapus di Admin, lanjut tanpa error: ${delete.body}");
     } else {
       print("gagal hapus data user di admin dengan kendala ${delete.body}");
       throw "gagal hapus data user di admin dengan kendala ${delete.body}";

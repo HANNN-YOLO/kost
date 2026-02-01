@@ -154,7 +154,19 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> deletedata(int id_auth, String UID) async {
     try {
-      await _ref.deletedatauath(UID);
+      // Hapus akun di modul auth (Supabase Auth)
+      try {
+        await _ref.deletedatauath(UID);
+      } catch (e) {
+        // Jika user sudah tidak ada di modul auth (404 user_not_found),
+        // abaikan error tersebut dan lanjut hapus data di tabel rest.
+        final msg = e.toString();
+        if (!(msg.contains('user_not_found') || msg.contains('404'))) {
+          rethrow;
+        }
+      }
+
+      // Tetap hapus data user di tabel rest aplikasi
       await _ref.deletedatarest(id_auth);
     } catch (e) {
       throw e;
