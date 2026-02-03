@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../configs/supabase_api_config.dart';
 import '../models/kriteria_models.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as htpp;
 
 class KriteriaServices {
@@ -31,7 +32,7 @@ class KriteriaServices {
     }
   }
 
-  Future<List<KriteriaModels>> readdata({bool debugPrint = true}) async {
+  Future<List<KriteriaModels>> readdata({bool log = false}) async {
     List<KriteriaModels> hasilnya = [];
 
     // Query dengan order by ranking untuk urutan kriteria yang benar
@@ -50,10 +51,11 @@ class KriteriaServices {
         var item = KriteriaModels.fromJjson(value);
         hasilnya.add(item);
       });
-      if (debugPrint) {
-        print("✅ Kriteria diurutkan berdasarkan ranking");
+      if (kDebugMode && log) {
+        debugPrint("✅ Kriteria diurutkan berdasarkan ranking");
         for (var k in hasilnya) {
-          print("   C${k.ranking}: ${k.kategori} - Bobot: ${k.bobot_decimal}");
+          debugPrint(
+              "   C${k.ranking}: ${k.kategori} - Bobot: ${k.bobot_decimal}");
         }
       }
     } else {

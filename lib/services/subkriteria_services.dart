@@ -2,10 +2,11 @@ import 'dart:convert';
 
 import '../configs/supabase_api_config.dart';
 import '../models/subkriteria_models.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as htpp;
 
 class SubkriteriaServices {
-  Future<List<SubkriteriaModels>> readdata({bool debugPrint = true}) async {
+  Future<List<SubkriteriaModels>> readdata({bool log = false}) async {
     List<SubkriteriaModels> hasilnya = [];
 
     // Urutkan berdasarkan id_kriteria lalu bobot untuk konsistensi
@@ -27,8 +28,9 @@ class SubkriteriaServices {
         var item = SubkriteriaModels.fromJson(value);
         hasilnya.add(item);
       });
-      if (debugPrint)
-        print("✅ Subkriteria diurutkan (${hasilnya.length} data)");
+      if (kDebugMode && log) {
+        debugPrint("✅ Subkriteria diurutkan (${hasilnya.length} data)");
+      }
     } else {
       hasilnya = [];
       print("gagal ambil data subkriteria ${simpan.body}");

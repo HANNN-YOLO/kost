@@ -923,7 +923,7 @@ class KostProvider with ChangeNotifier {
     if (!_debugKriteriaPrinted) print("\n📋 Mengambil data kriteria...");
     try {
       _listKriteria =
-          await _kriteriaService.readdata(debugPrint: !_debugKriteriaPrinted);
+          await _kriteriaService.readdata(log: !_debugKriteriaPrinted);
       if (!_debugKriteriaPrinted) {
         print("✅ Berhasil mengambil ${_listKriteria.length} kriteria");
         _debugKriteriaPrinted = true;
@@ -939,8 +939,8 @@ class KostProvider with ChangeNotifier {
   Future<void> fetchSubkriteria() async {
     if (!_debugSubkriteriaPrinted) print("\n📋 Mengambil data subkriteria...");
     try {
-      _listSubkriteria = await _subkriteriaService.readdata(
-          debugPrint: !_debugSubkriteriaPrinted);
+      _listSubkriteria =
+          await _subkriteriaService.readdata(log: !_debugSubkriteriaPrinted);
       if (!_debugSubkriteriaPrinted) {
         print("✅ Berhasil mengambil ${_listSubkriteria.length} subkriteria");
         _debugSubkriteriaPrinted = true;
