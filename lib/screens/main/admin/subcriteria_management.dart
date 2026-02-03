@@ -10,6 +10,8 @@ class SubcriteriaItem {
   final int? id_kriteria;
   final TextEditingController kategori;
   final TextEditingController bobot;
+  num? nilaiMin;
+  num? nilaiMax;
 
   SubcriteriaItem({
     this.id_subkriteria,
@@ -17,6 +19,8 @@ class SubcriteriaItem {
     this.id_kriteria,
     String? kategoriawal,
     String bobotawal = "0",
+    this.nilaiMin,
+    this.nilaiMax,
   })  : bobot = TextEditingController(text: bobotawal),
         kategori = TextEditingController(text: kategoriawal);
 
@@ -70,9 +74,40 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
   }
 
   int? _tryParseIntFlexible(String raw) {
+    // Tetap dipakai untuk angka bulat (misal harga) yang boleh ada pemisah.
     final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.isEmpty) return null;
     return int.tryParse(digits);
+  }
+
+  num? _tryParseNumFlexible(String raw) {
+    // Ambil angka pertama dari string, dukung koma/titik sebagai desimal.
+    // Contoh: "<=1 km" -> 1, "1.1" -> 1.1, "1,9" -> 1.9
+    final m = RegExp(r'([0-9]+(?:[\.,][0-9]+)?)').firstMatch(raw);
+    if (m == null) return null;
+    final s = (m.group(1) ?? '').replaceAll(',', '.');
+    if (s.isEmpty) return null;
+    return num.tryParse(s);
+  }
+
+  String _formatNumPlain(num value) {
+    // Untuk disimpan di kategori/DB: tanpa pemisah ribuan, pakai '.' untuk desimal.
+    if (value % 1 == 0) return value.toInt().toString();
+    final fixed = value.toDouble().toStringAsFixed(6);
+    return fixed.replaceFirst(RegExp(r'\.?0+$'), '');
+  }
+
+  String _formatNumDisplay(num value) {
+    // Untuk ditampilkan di UI: int pakai pemisah ribuan, desimal tetap apa adanya.
+    if (value % 1 == 0) return _formatIntId(value.toInt());
+    return _formatNumPlain(value);
+  }
+
+  bool _rawAlreadyContainsUnit(String raw, String unit) {
+    final u = unit.trim().toLowerCase();
+    if (u.isEmpty) return false;
+    final r = raw.toLowerCase();
+    return r.contains(u);
   }
 
   String _formatIntId(int value) {
@@ -89,70 +124,332 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
   }
 
   String _buildRentangInfoText({
-    required int? minVal,
-    required int? maxVal,
+    required num? minVal,
+    required num? maxVal,
     required bool noLowerBound,
     required bool noUpperBound,
+    String? unitSuffix,
   }) {
     if (minVal == null && maxVal == null) return 'Rentang: -';
 
+    final suffix = (unitSuffix == null) ? '' : unitSuffix;
+
     if (minVal != null && maxVal != null) {
-      return 'Rentang: ≥ ${_formatIntId(minVal)} & ≤ ${_formatIntId(maxVal)}';
+      return 'Rentang: ≥ ${_formatNumDisplay(minVal)}$suffix & ≤ ${_formatNumDisplay(maxVal)}$suffix';
     }
 
     if (noLowerBound && maxVal != null) {
-      return 'Rentang: ≤ ${_formatIntId(maxVal)}';
+      return 'Rentang: ≤ ${_formatNumDisplay(maxVal)}$suffix';
     }
 
     if (noUpperBound && minVal != null) {
-      return 'Rentang: ≥ ${_formatIntId(minVal)}';
+      return 'Rentang: ≥ ${_formatNumDisplay(minVal)}$suffix';
     }
 
     // Jika hanya salah satu terisi tapi checkbox belum dipilih
     if (minVal != null) {
-      return 'Rentang: ≥ ${_formatIntId(minVal)} (centang "tanpa batas atas")';
+      return 'Rentang: ≥ ${_formatNumDisplay(minVal)}$suffix (centang "tanpa batas atas")';
     }
-    return 'Rentang: ≤ ${_formatIntId(maxVal!)} (centang "tanpa batas bawah")';
+    return 'Rentang: ≤ ${_formatNumDisplay(maxVal!)}$suffix (centang "tanpa batas bawah")';
   }
 
-  _KategoriDisplay _kategoriDisplay(String rawKategori) {
-    final raw = rawKategori.trim();
+  String _normalizeKategoriForCompare(String raw) {
+    var s = raw.trim().toLowerCase();
+    if (s.isEmpty) return '';
 
-    final matchRange = RegExp(r'^>=\s*(\d+)\s*-\s*(\d+)\s*$').firstMatch(raw);
+    // Samakan simbol unicode ke operator ASCII
+    s = s.replaceAll('≤', '<=').replaceAll('≥', '>=');
+
+    // Range lengkap: >= a-b
+    final matchRange =
+        RegExp(r'^(>=)\s*([0-9\.,\s]+)\s*-\s*([0-9\.,\s]+)\s*$').firstMatch(s);
     if (matchRange != null) {
-      final minVal = _tryParseIntFlexible(matchRange.group(1) ?? '');
-      final maxVal = _tryParseIntFlexible(matchRange.group(2) ?? '');
-      if (minVal != null && maxVal != null) {
-        final title = '${_formatIntId(minVal)} - ${_formatIntId(maxVal)}';
-        final subtitle =
-            'Rentang: ≥ ${_formatIntId(minVal)} & ≤ ${_formatIntId(maxVal)}';
-        return _KategoriDisplay(title: title, subtitle: subtitle);
-      }
+      final a = _tryParseNumFlexible(matchRange.group(2) ?? '');
+      final b = _tryParseNumFlexible(matchRange.group(3) ?? '');
+      if (a != null && b != null)
+        return '>=${_formatNumPlain(a)}-${_formatNumPlain(b)}';
     }
 
-    final matchLe = RegExp(r'^<=\s*(\d+)\s*$').firstMatch(raw);
+    // Satu sisi: <= x
+    final matchLe = RegExp(r'^(<=)\s*([0-9\.,\s]+)\s*$').firstMatch(s);
     if (matchLe != null) {
-      final maxVal = _tryParseIntFlexible(matchLe.group(1) ?? '');
-      if (maxVal != null) {
-        return _KategoriDisplay(
-          title: _formatIntId(maxVal),
-          subtitle: 'Rentang: ≤ ${_formatIntId(maxVal)}',
-        );
-      }
+      final x = _tryParseNumFlexible(matchLe.group(2) ?? '');
+      if (x != null) return '<=${_formatNumPlain(x)}';
     }
 
-    final matchGe = RegExp(r'^>=\s*(\d+)\s*$').firstMatch(raw);
+    // Satu sisi: >= x
+    final matchGe = RegExp(r'^(>=)\s*([0-9\.,\s]+)\s*$').firstMatch(s);
     if (matchGe != null) {
-      final minVal = _tryParseIntFlexible(matchGe.group(1) ?? '');
-      if (minVal != null) {
+      final x = _tryParseNumFlexible(matchGe.group(2) ?? '');
+      if (x != null) return '>=${_formatNumPlain(x)}';
+    }
+
+    // Angka saja
+    final onlyNumber = RegExp(r'^\s*([0-9\.,\s]+)\s*$').firstMatch(s);
+    if (onlyNumber != null) {
+      final x = _tryParseNumFlexible(onlyNumber.group(1) ?? '');
+      if (x != null) return _formatNumPlain(x);
+    }
+
+    // Fallback: rapikan spasi
+    return s.replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  String _normalizeNamaForCompare(String raw) {
+    return raw.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  bool _isDuplicateNama(String kandidat, {int? ignoreIndex}) {
+    final cand = _normalizeNamaForCompare(kandidat);
+    if (cand.isEmpty) return false;
+    for (final entry in _isinya.asMap().entries) {
+      if (ignoreIndex != null && entry.key == ignoreIndex) continue;
+      final existing = _normalizeNamaForCompare(entry.value.kategori.text);
+      if (existing == cand) return true;
+    }
+    return false;
+  }
+
+  bool _looksLikeNumericRuleLabel(String raw) {
+    final s = raw.trim().toLowerCase();
+    if (s.isEmpty) return true;
+    if (RegExp(r'^(<=|>=|<|>|≤|≥)').hasMatch(s)) return true;
+    // Angka / range / angka + unit sederhana
+    if (RegExp(r'^[0-9\s\.,\-]+(km)?$').hasMatch(s)) return true;
+    return false;
+  }
+
+  bool _isDuplicateKategori(String kandidat, {int? ignoreIndex}) {
+    final cand = _normalizeKategoriForCompare(kandidat);
+    if (cand.isEmpty) return false;
+    for (final entry in _isinya.asMap().entries) {
+      if (ignoreIndex != null && entry.key == ignoreIndex) continue;
+      final existing = _normalizeKategoriForCompare(entry.value.kategori.text);
+      if (existing == cand) return true;
+    }
+    return false;
+  }
+
+  Future<void> _showDeleteConfirmation({
+    required int index,
+    required KriteriaProvider penghubung,
+  }) async {
+    final item = _isinya[index];
+    final unitSuffix =
+        (penghubung.nama?.toLowerCase().contains('jarak') ?? false)
+            ? ' km'
+            : null;
+    final kategoriDisplay = _kategoriDisplay(
+      item.kategori.text,
+      min: item.nilaiMin,
+      max: item.nilaiMax,
+      unitSuffix: unitSuffix,
+    );
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) {
+        bool isDeleting = false;
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            final messenger = ScaffoldMessenger.of(dialogContext);
+            final nav = Navigator.of(dialogContext);
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+              backgroundColor: Colors.white,
+              titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+              contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+              title: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFE8E8),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.delete_outline,
+                      color: Color(0xFFB42318),
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Hapus Subkriteria?',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Subkriteria ini akan dihapus dan tidak bisa dikembalikan.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F7FB),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE6E9F2)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          kategoriDisplay.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (kategoriDisplay.subtitle != null)
+                          Text(
+                            kategoriDisplay.subtitle!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              actions: [
+                TextButton(
+                  onPressed: isDeleting
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Batal'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFB42318),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 10),
+                  ),
+                  onPressed: isDeleting
+                      ? null
+                      : () async {
+                          setStateDialog(() {
+                            isDeleting = true;
+                          });
+
+                          try {
+                            if (item.id_subkriteria != null) {
+                              await penghubung.deletedatasubkriteria(
+                                item.id_subkriteria!,
+                              );
+                            }
+
+                            if (!mounted) return;
+                            setState(() {
+                              _isinya.removeAt(index);
+                              _hasChanges = true;
+                            });
+                            nav.pop();
+                          } catch (e) {
+                            setStateDialog(() {
+                              isDeleting = false;
+                            });
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Gagal menghapus subkriteria: ${e.toString()}',
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                  child: isDeleting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text(
+                          'Hapus',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  _KategoriDisplay _kategoriDisplay(
+    String rawKategori, {
+    num? min,
+    num? max,
+    String? unitSuffix,
+  }) {
+    final suffix = unitSuffix ?? '';
+    final rawTitle = rawKategori.trim();
+
+    if (min != null || max != null) {
+      final minVal = min;
+      final maxVal = max;
+
+      if (minVal != null && maxVal != null) {
+        final subtitle =
+            'Rentang: ≥ ${_formatNumDisplay(minVal)}$suffix & ≤ ${_formatNumDisplay(maxVal)}$suffix';
         return _KategoriDisplay(
-          title: _formatIntId(minVal),
-          subtitle: 'Rentang: ≥ ${_formatIntId(minVal)}',
+          title: rawTitle.isNotEmpty
+              ? rawTitle
+              : '${_formatNumDisplay(minVal)} - ${_formatNumDisplay(maxVal)}$suffix',
+          subtitle: subtitle,
+        );
+      }
+      if (maxVal != null) {
+        final subtitle = 'Rentang: ≤ ${_formatNumDisplay(maxVal)}$suffix';
+        return _KategoriDisplay(
+          title: rawTitle.isNotEmpty
+              ? rawTitle
+              : '≤ ${_formatNumDisplay(maxVal)}$suffix',
+          subtitle: subtitle,
+        );
+      }
+      if (minVal != null) {
+        final subtitle = 'Rentang: ≥ ${_formatNumDisplay(minVal)}$suffix';
+        return _KategoriDisplay(
+          title: rawTitle.isNotEmpty
+              ? rawTitle
+              : '≥ ${_formatNumDisplay(minVal)}$suffix',
+          subtitle: subtitle,
         );
       }
     }
 
-    return _KategoriDisplay(title: rawKategori, subtitle: null);
+    // Default: tampilkan apa adanya dari database.
+    return _KategoriDisplay(
+        title: rawTitle.isEmpty ? rawKategori : rawTitle, subtitle: null);
   }
 
   @override
@@ -242,6 +539,8 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                     id_subkriteria: datanya.id_subkriteria,
                     kategoriawal: datanya.kategori,
                     bobotawal: datanya.bobot.toString(),
+                    nilaiMin: datanya.nilai_min,
+                    nilaiMax: datanya.nilai_max,
                   ),
                 );
               }
@@ -437,8 +736,10 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                             controller:
                                                                 _minController,
                                                             keyboardType:
-                                                                TextInputType
-                                                                    .number,
+                                                                const TextInputType
+                                                                    .numberWithOptions(
+                                                              decimal: true,
+                                                            ),
                                                             enabled:
                                                                 !_noLowerBound,
                                                             decoration:
@@ -470,8 +771,10 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                             controller:
                                                                 _maxController,
                                                             keyboardType:
-                                                                TextInputType
-                                                                    .number,
+                                                                const TextInputType
+                                                                    .numberWithOptions(
+                                                              decimal: true,
+                                                            ),
                                                             enabled:
                                                                 !_noUpperBound,
                                                             decoration:
@@ -508,7 +811,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                 .start,
                                                         children: [
                                                           Text(
-                                                            "Jika diisi, sistem otomatis membentuk label >= Min-Max.",
+                                                            "Jika diisi, sistem menyimpan batas Min/Max (nama tetap sesuai input).",
                                                             style: TextStyle(
                                                               fontSize: 11,
                                                               color: Colors
@@ -528,15 +831,23 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                             builder:
                                                                 (context, _) {
                                                               final minVal =
-                                                                  _tryParseIntFlexible(
+                                                                  _tryParseNumFlexible(
                                                                       _minController
                                                                           .text
                                                                           .trim());
                                                               final maxVal =
-                                                                  _tryParseIntFlexible(
+                                                                  _tryParseNumFlexible(
                                                                       _maxController
                                                                           .text
                                                                           .trim());
+
+                                                              final unitSuffix =
+                                                                  (penghubung.nama
+                                                                              ?.toLowerCase()
+                                                                              .contains('jarak') ??
+                                                                          false)
+                                                                      ? ' km'
+                                                                      : null;
 
                                                               final text =
                                                                   _buildRentangInfoText(
@@ -546,6 +857,8 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                     _noLowerBound,
                                                                 noUpperBound:
                                                                     _noUpperBound,
+                                                                unitSuffix:
+                                                                    unitSuffix,
                                                               );
 
                                                               return Text(
@@ -748,7 +1061,24 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                   return;
                                                 }
 
-                                                String kategoriLabel = namaBaru;
+                                                final namaNorm = namaBaru
+                                                    .replaceAll(',', '.');
+                                                final bobotNorm = bobotRaw
+                                                    .replaceAll(',', '.');
+                                                if (namaNorm == bobotNorm) {
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                          'Nama subkriteria tidak boleh sama persis dengan nilai/bobot.'),
+                                                    ),
+                                                  );
+                                                  return;
+                                                }
+
+                                                final kategoriLabel = namaBaru;
+                                                num? nilaiMin;
+                                                num? nilaiMax;
                                                 if (_isRangeKriteria(
                                                     penghubung.nama)) {
                                                   final minText = _minController
@@ -792,7 +1122,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                       return;
                                                     }
                                                     final maxVal =
-                                                        _tryParseIntFlexible(
+                                                        _tryParseNumFlexible(
                                                             maxText);
                                                     if (maxVal == null) {
                                                       ScaffoldMessenger.of(
@@ -800,13 +1130,13 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                           .showSnackBar(
                                                         const SnackBar(
                                                           content: Text(
-                                                              'Max harus berupa angka bulat.'),
+                                                              'Max harus berupa angka.'),
                                                         ),
                                                       );
                                                       return;
                                                     }
-                                                    kategoriLabel =
-                                                        "<= $maxVal";
+                                                    nilaiMin = null;
+                                                    nilaiMax = maxVal;
                                                   } else if (allowSingleSide &&
                                                       _noUpperBound) {
                                                     if (minText.isEmpty) {
@@ -821,7 +1151,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                       return;
                                                     }
                                                     final minVal =
-                                                        _tryParseIntFlexible(
+                                                        _tryParseNumFlexible(
                                                             minText);
                                                     if (minVal == null) {
                                                       ScaffoldMessenger.of(
@@ -829,19 +1159,19 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                           .showSnackBar(
                                                         const SnackBar(
                                                           content: Text(
-                                                              'Min harus berupa angka bulat.'),
+                                                              'Min harus berupa angka.'),
                                                         ),
                                                       );
                                                       return;
                                                     }
-                                                    kategoriLabel =
-                                                        ">= $minVal";
+                                                    nilaiMin = minVal;
+                                                    nilaiMax = null;
                                                   } else if (bothFilled) {
                                                     final minVal =
-                                                        _tryParseIntFlexible(
+                                                        _tryParseNumFlexible(
                                                             minText);
                                                     final maxVal =
-                                                        _tryParseIntFlexible(
+                                                        _tryParseNumFlexible(
                                                             maxText);
                                                     if (minVal == null ||
                                                         maxVal == null) {
@@ -850,7 +1180,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                           .showSnackBar(
                                                         const SnackBar(
                                                           content: Text(
-                                                              'Min dan Max harus berupa angka bulat.'),
+                                                              'Min dan Max harus berupa angka.'),
                                                         ),
                                                       );
                                                       return;
@@ -866,9 +1196,22 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                       );
                                                       return;
                                                     }
-                                                    kategoriLabel =
-                                                        ">= $minVal-$maxVal";
+                                                    nilaiMin = minVal;
+                                                    nilaiMax = maxVal;
                                                   }
+                                                }
+
+                                                if (_isDuplicateNama(
+                                                    kategoriLabel)) {
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        'Nama subkriteria tidak boleh sama: "$kategoriLabel"',
+                                                      ),
+                                                    ),
+                                                  );
+                                                  return;
                                                 }
 
                                                 if (bobotParsed <= 0) {
@@ -917,6 +1260,8 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                         kSekarang?.id_kriteria,
                                                     kategoriawal: kategoriLabel,
                                                     bobotawal: bobotRaw,
+                                                    nilaiMin: nilaiMin,
+                                                    nilaiMax: nilaiMax,
                                                   ));
                                                   namacontroller.clear();
                                                   bobotcontroller.clear();
@@ -1122,8 +1467,19 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                       itemBuilder: (context, idx) {
                                         final kategoriRaw =
                                             _isinya[idx].kategori.text;
+                                        final unitSuffix = (penghubung.nama
+                                                    ?.toLowerCase()
+                                                    .contains('jarak') ??
+                                                false)
+                                            ? ' km'
+                                            : null;
                                         final kategoriDisplay =
-                                            _kategoriDisplay(kategoriRaw);
+                                            _kategoriDisplay(
+                                          kategoriRaw,
+                                          min: _isinya[idx].nilaiMin,
+                                          max: _isinya[idx].nilaiMax,
+                                          unitSuffix: unitSuffix,
+                                        );
 
                                         return Container(
                                           padding: EdgeInsets.all(15),
@@ -1168,46 +1524,115 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                       onPressed: () {
                                                         // --- LOGIKA EDIT BERDASARKAN INDEX ---
                                                         editinde = idx;
+                                                        final item =
+                                                            _isinya[idx];
                                                         namacontroller.text =
-                                                            _isinya[idx]
-                                                                .kategori
-                                                                .text;
+                                                            item.kategori.text;
                                                         bobotcontroller.text =
-                                                            _isinya[idx]
-                                                                .bobot
-                                                                .text;
+                                                            item.bobot.text;
                                                         _minController.clear();
                                                         _maxController.clear();
                                                         _noLowerBound = false;
                                                         _noUpperBound = false;
 
-                                                        // Coba prefill min/max & checkbox jika kategori berupa range angka
-                                                        final kat = _isinya[idx]
-                                                            .kategori
-                                                            .text
-                                                            .trim();
-                                                        final matches =
-                                                            RegExp(r'(\d+)')
-                                                                .allMatches(kat)
-                                                                .toList();
-
-                                                        if (kat.startsWith(
-                                                            '<= ')) {
-                                                          // Tanpa batas bawah (hanya Max)
-                                                          _noLowerBound = true;
-                                                          if (matches
-                                                              .isNotEmpty) {
-                                                            _maxController
-                                                                .text = matches
-                                                                    .last
-                                                                    .group(1) ??
-                                                                '';
+                                                        // Prefill min/max & checkbox: utamakan kolom DB (nilaiMin/nilaiMax). Fallback ke parsing string kategori.
+                                                        if (_isRangeKriteria(
+                                                                penghubung
+                                                                    .nama) &&
+                                                            (item.nilaiMin !=
+                                                                    null ||
+                                                                item.nilaiMax !=
+                                                                    null)) {
+                                                          final minVal =
+                                                              item.nilaiMin;
+                                                          final maxVal =
+                                                              item.nilaiMax;
+                                                          if (minVal != null) {
+                                                            _minController
+                                                                    .text =
+                                                                _formatNumPlain(
+                                                                    minVal);
                                                           }
-                                                        } else if (kat
-                                                            .startsWith('>=')) {
-                                                          if (kat
-                                                              .contains('-')) {
-                                                            // Range lengkap >= Min-Max
+                                                          if (maxVal != null) {
+                                                            _maxController
+                                                                    .text =
+                                                                _formatNumPlain(
+                                                                    maxVal);
+                                                          }
+
+                                                          _noLowerBound =
+                                                              (minVal == null &&
+                                                                  maxVal !=
+                                                                      null);
+                                                          _noUpperBound =
+                                                              (minVal != null &&
+                                                                  maxVal ==
+                                                                      null);
+                                                        } else {
+                                                          // Coba prefill dari string kategori (legacy)
+                                                          final kat = item
+                                                              .kategori.text
+                                                              .trim();
+                                                          final matches = RegExp(
+                                                                  r'(\d+(?:[\.,]\d+)?)')
+                                                              .allMatches(kat)
+                                                              .toList();
+
+                                                          if (kat.startsWith(
+                                                              '<= ')) {
+                                                            // Tanpa batas bawah (hanya Max)
+                                                            _noLowerBound =
+                                                                true;
+                                                            if (matches
+                                                                .isNotEmpty) {
+                                                              _maxController
+                                                                  .text = matches
+                                                                      .last
+                                                                      .group(
+                                                                          1) ??
+                                                                  '';
+                                                            }
+                                                          } else if (kat
+                                                              .startsWith(
+                                                                  '>=')) {
+                                                            if (kat.contains(
+                                                                '-')) {
+                                                              // Range lengkap >= Min-Max
+                                                              if (matches
+                                                                  .isNotEmpty) {
+                                                                _minController
+                                                                    .text = matches
+                                                                        .first
+                                                                        .group(
+                                                                            1) ??
+                                                                    '';
+                                                              }
+                                                              if (matches
+                                                                      .length >=
+                                                                  2) {
+                                                                _maxController
+                                                                    .text = matches[
+                                                                            1]
+                                                                        .group(
+                                                                            1) ??
+                                                                    '';
+                                                              }
+                                                            } else {
+                                                              // Tanpa batas atas (hanya Min)
+                                                              _noUpperBound =
+                                                                  true;
+                                                              if (matches
+                                                                  .isNotEmpty) {
+                                                                _minController
+                                                                    .text = matches
+                                                                        .first
+                                                                        .group(
+                                                                            1) ??
+                                                                    '';
+                                                              }
+                                                            }
+                                                          } else {
+                                                            // Fallback: isi Min/Max dari dua angka pertama jika ada
                                                             if (matches
                                                                 .isNotEmpty) {
                                                               _minController
@@ -1227,37 +1652,6 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                           1) ??
                                                                   '';
                                                             }
-                                                          } else {
-                                                            // Tanpa batas atas (hanya Min)
-                                                            _noUpperBound =
-                                                                true;
-                                                            if (matches
-                                                                .isNotEmpty) {
-                                                              _minController
-                                                                  .text = matches
-                                                                      .first
-                                                                      .group(
-                                                                          1) ??
-                                                                  '';
-                                                            }
-                                                          }
-                                                        } else {
-                                                          // Fallback: isi Min/Max dari dua angka pertama jika ada
-                                                          if (matches
-                                                              .isNotEmpty) {
-                                                            _minController
-                                                                .text = matches
-                                                                    .first
-                                                                    .group(1) ??
-                                                                '';
-                                                          }
-                                                          if (matches.length >=
-                                                              2) {
-                                                            _maxController
-                                                                .text = matches[
-                                                                        1]
-                                                                    .group(1) ??
-                                                                '';
                                                           }
                                                         }
                                                         // Tampilkan dialog yang sama
@@ -1413,7 +1807,9 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                   Expanded(
                                                                                     child: TextField(
                                                                                       controller: _minController,
-                                                                                      keyboardType: TextInputType.number,
+                                                                                      keyboardType: const TextInputType.numberWithOptions(
+                                                                                        decimal: true,
+                                                                                      ),
                                                                                       enabled: !_noLowerBound,
                                                                                       decoration: InputDecoration(
                                                                                         labelText: "Min",
@@ -1431,7 +1827,9 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                   Expanded(
                                                                                     child: TextField(
                                                                                       controller: _maxController,
-                                                                                      keyboardType: TextInputType.number,
+                                                                                      keyboardType: const TextInputType.numberWithOptions(
+                                                                                        decimal: true,
+                                                                                      ),
                                                                                       enabled: !_noUpperBound,
                                                                                       decoration: InputDecoration(
                                                                                         labelText: "Max",
@@ -1451,7 +1849,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                               Align(
                                                                                 alignment: Alignment.centerLeft,
                                                                                 child: Text(
-                                                                                  "Jika diisi, sistem otomatis membentuk label >= Min-Max.",
+                                                                                  "Jika diisi, sistem menyimpan batas Min/Max (nama tetap sesuai input).",
                                                                                   style: TextStyle(
                                                                                     fontSize: 11,
                                                                                     color: Colors.grey[600],
@@ -1466,14 +1864,17 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                   _maxController,
                                                                                 ]),
                                                                                 builder: (context, _) {
-                                                                                  final minVal = _tryParseIntFlexible(_minController.text.trim());
-                                                                                  final maxVal = _tryParseIntFlexible(_maxController.text.trim());
+                                                                                  final minVal = _tryParseNumFlexible(_minController.text.trim());
+                                                                                  final maxVal = _tryParseNumFlexible(_maxController.text.trim());
+
+                                                                                  final unitSuffix = (penghubung.nama?.toLowerCase().contains('jarak') ?? false) ? ' km' : null;
 
                                                                                   final text = _buildRentangInfoText(
                                                                                     minVal: minVal,
                                                                                     maxVal: maxVal,
                                                                                     noLowerBound: _noLowerBound,
                                                                                     noUpperBound: _noUpperBound,
+                                                                                    unitSuffix: unitSuffix,
                                                                                   );
 
                                                                                   return Text(
@@ -1621,6 +2022,22 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                             return;
                                                                           }
 
+                                                                          final namaNorm = namaBaru.replaceAll(
+                                                                              ',',
+                                                                              '.');
+                                                                          final bobotNorm = bobotRaw.replaceAll(
+                                                                              ',',
+                                                                              '.');
+                                                                          if (namaNorm ==
+                                                                              bobotNorm) {
+                                                                            ScaffoldMessenger.of(context).showSnackBar(
+                                                                              const SnackBar(
+                                                                                content: Text('Nama subkriteria tidak boleh sama persis dengan nilai/bobot.'),
+                                                                              ),
+                                                                            );
+                                                                            return;
+                                                                          }
+
                                                                           if (bobotParsed <=
                                                                               0) {
                                                                             ScaffoldMessenger.of(context).showSnackBar(
@@ -1654,8 +2071,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                             return;
                                                                           }
 
-                                                                          String
-                                                                              kategoriLabel =
+                                                                          final kategoriLabel =
                                                                               namaBaru;
                                                                           if (_isRangeKriteria(
                                                                               penghubung.nama)) {
@@ -1663,6 +2079,11 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                 _minController.text.trim();
                                                                             final maxText =
                                                                                 _maxController.text.trim();
+
+                                                                            num?
+                                                                                nilaiMin;
+                                                                            num?
+                                                                                nilaiMax;
 
                                                                             final bothFilled =
                                                                                 minText.isNotEmpty && maxText.isNotEmpty;
@@ -1690,16 +2111,17 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                 );
                                                                                 return;
                                                                               }
-                                                                              final maxVal = _tryParseIntFlexible(maxText);
+                                                                              final maxVal = _tryParseNumFlexible(maxText);
                                                                               if (maxVal == null) {
                                                                                 ScaffoldMessenger.of(context).showSnackBar(
                                                                                   const SnackBar(
-                                                                                    content: Text('Max harus berupa angka bulat.'),
+                                                                                    content: Text('Max harus berupa angka.'),
                                                                                   ),
                                                                                 );
                                                                                 return;
                                                                               }
-                                                                              kategoriLabel = "<= $maxVal";
+                                                                              nilaiMin = null;
+                                                                              nilaiMax = maxVal;
                                                                             } else if (allowSingleSide &&
                                                                                 _noUpperBound) {
                                                                               if (minText.isEmpty) {
@@ -1710,23 +2132,24 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                 );
                                                                                 return;
                                                                               }
-                                                                              final minVal = _tryParseIntFlexible(minText);
+                                                                              final minVal = _tryParseNumFlexible(minText);
                                                                               if (minVal == null) {
                                                                                 ScaffoldMessenger.of(context).showSnackBar(
                                                                                   const SnackBar(
-                                                                                    content: Text('Min harus berupa angka bulat.'),
+                                                                                    content: Text('Min harus berupa angka.'),
                                                                                   ),
                                                                                 );
                                                                                 return;
                                                                               }
-                                                                              kategoriLabel = ">= $minVal";
+                                                                              nilaiMin = minVal;
+                                                                              nilaiMax = null;
                                                                             } else if (bothFilled) {
-                                                                              final minVal = _tryParseIntFlexible(minText);
-                                                                              final maxVal = _tryParseIntFlexible(maxText);
+                                                                              final minVal = _tryParseNumFlexible(minText);
+                                                                              final maxVal = _tryParseNumFlexible(maxText);
                                                                               if (minVal == null || maxVal == null) {
                                                                                 ScaffoldMessenger.of(context).showSnackBar(
                                                                                   const SnackBar(
-                                                                                    content: Text('Min dan Max harus berupa angka bulat.'),
+                                                                                    content: Text('Min dan Max harus berupa angka.'),
                                                                                   ),
                                                                                 );
                                                                                 return;
@@ -1739,8 +2162,36 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                 );
                                                                                 return;
                                                                               }
-                                                                              kategoriLabel = ">= $minVal-$maxVal";
+                                                                              nilaiMin = minVal;
+                                                                              nilaiMax = maxVal;
                                                                             }
+
+                                                                            // Simpan nilai min/max ke item (kolom DB)
+                                                                            _isinya[editinde!].nilaiMin =
+                                                                                nilaiMin;
+                                                                            _isinya[editinde!].nilaiMax =
+                                                                                nilaiMax;
+                                                                          } else {
+                                                                            // Jika bukan kriteria range, pastikan kolom range dikosongkan
+                                                                            _isinya[editinde!].nilaiMin =
+                                                                                null;
+                                                                            _isinya[editinde!].nilaiMax =
+                                                                                null;
+                                                                          }
+
+                                                                          if (_isDuplicateNama(
+                                                                            kategoriLabel,
+                                                                            ignoreIndex:
+                                                                                editinde,
+                                                                          )) {
+                                                                            ScaffoldMessenger.of(context).showSnackBar(
+                                                                              SnackBar(
+                                                                                content: Text(
+                                                                                  'Nama subkriteria tidak boleh sama: "$kategoriLabel"',
+                                                                                ),
+                                                                              ),
+                                                                            );
+                                                                            return;
                                                                           }
 
                                                                           setState(
@@ -1776,21 +2227,11 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                       icon: Icon(Icons.delete,
                                                           color: Colors.red),
                                                       onPressed: () async {
-                                                        // --- LOGIKA HAPUS YANG BENAR ---
-                                                        final itemDipilih =
-                                                            _isinya[idx];
-                                                        if (itemDipilih
-                                                                .id_subkriteria !=
-                                                            null) {
-                                                          await penghubung
-                                                              .deletedatasubkriteria(
-                                                                  itemDipilih
-                                                                      .id_subkriteria!);
-                                                        }
-                                                        setState(() {
-                                                          _isinya.removeAt(idx);
-                                                          _hasChanges = true;
-                                                        });
+                                                        await _showDeleteConfirmation(
+                                                          index: idx,
+                                                          penghubung:
+                                                              penghubung,
+                                                        );
                                                       }),
                                                 ],
                                               )

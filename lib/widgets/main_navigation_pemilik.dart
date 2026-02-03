@@ -43,8 +43,20 @@ class _MainNavigationPemilikState extends State<MainNavigationPemilik> {
             child: Text("Batal"),
           ),
           TextButton(
-            onPressed: () {
-              Provider.of<AuthProvider>(context, listen: false).logout();
+            onPressed: () async {
+              final auth = Provider.of<AuthProvider>(context, listen: false);
+              final rootNavigator = Navigator.of(
+                context,
+                rootNavigator: true,
+              );
+              await auth.logout();
+
+              if (!mounted) return;
+              rootNavigator.pop();
+              rootNavigator.pushNamedAndRemoveUntil(
+                '/login',
+                (route) => false,
+              );
             },
             child: Text(
               "Logout",

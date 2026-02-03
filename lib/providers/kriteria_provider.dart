@@ -90,6 +90,9 @@ class KriteriaProvider with ChangeNotifier {
   List<SubkriteriaModels> get inidata => _inidata;
   final SubkriteriaServices _def = SubkriteriaServices();
 
+  String? _lastNetworkError;
+  String? get lastNetworkError => _lastNetworkError;
+
   // var cek = _mydata.f
   // state cek angka
   // cek = _mydaz
@@ -153,8 +156,10 @@ class KriteriaProvider with ChangeNotifier {
     try {
       final sementara = await _ref.readdata();
       _mydata = sementara;
+      _lastNetworkError = null;
     } catch (e) {
-      throw e;
+      _lastNetworkError = e.toString();
+      debugPrint('⚠️ Gagal readdata kriteria: $_lastNetworkError');
     }
     notifyListeners();
   }
@@ -343,8 +348,10 @@ class KriteriaProvider with ChangeNotifier {
     try {
       final salah = await _def.readdata();
       _inidata = salah;
+      _lastNetworkError = null;
     } catch (e) {
-      throw e;
+      _lastNetworkError = e.toString();
+      debugPrint('⚠️ Gagal readdata subkriteria: $_lastNetworkError');
     }
     notifyListeners();
   }
@@ -369,14 +376,38 @@ class KriteriaProvider with ChangeNotifier {
       bobotList.add(parsed);
     }
 
-    final namanya = inilist
-        .map((element) => {
-              'id_auth': element.id_auth,
-              'id_kriteria': element.id_kriteria,
-              'kategori': element.kategori.text,
-              'bobot': element.bobot.text,
-            })
-        .toList();
+    final namanya = inilist.map((element) {
+      num? nilaiMin;
+      num? nilaiMax;
+      try {
+        nilaiMin = element.nilaiMin as num?;
+      } catch (_) {
+        try {
+          nilaiMin = element.nilai_min as num?;
+        } catch (_) {
+          nilaiMin = null;
+        }
+      }
+      try {
+        nilaiMax = element.nilaiMax as num?;
+      } catch (_) {
+        try {
+          nilaiMax = element.nilai_max as num?;
+        } catch (_) {
+          nilaiMax = null;
+        }
+      }
+
+      final data = <String, dynamic>{
+        'id_auth': element.id_auth,
+        'id_kriteria': element.id_kriteria,
+        'kategori': element.kategori.text,
+        'bobot': element.bobot.text,
+      };
+      if (nilaiMin != null) data['nilai_min'] = nilaiMin;
+      if (nilaiMax != null) data['nilai_max'] = nilaiMax;
+      return data;
+    }).toList();
 
     await createdadtasubkriteria(namanya);
   }
@@ -409,22 +440,50 @@ class KriteriaProvider with ChangeNotifier {
     final List<Map<String, dynamic>> lastdata = [];
 
     for (var element in mana) {
+      num? nilaiMin;
+      num? nilaiMax;
+      try {
+        nilaiMin = element.nilaiMin as num?;
+      } catch (_) {
+        try {
+          nilaiMin = element.nilai_min as num?;
+        } catch (_) {
+          nilaiMin = null;
+        }
+      }
+      try {
+        nilaiMax = element.nilaiMax as num?;
+      } catch (_) {
+        try {
+          nilaiMax = element.nilai_max as num?;
+        } catch (_) {
+          nilaiMax = null;
+        }
+      }
+
       if (element.id_subkriteria != null) {
-        lastdata.add({
+        final row = <String, dynamic>{
           'id_kriteria': element.id_kriteria,
           'id_auth': element.id_auth,
           'id_subkriteria': element.id_subkriteria,
           'kategori': element.kategori.text,
           'bobot': element.bobot.text,
           'updatedAt': editan.toIso8601String(),
-        });
+        };
+        // Sertakan null agar kolom DB bisa di-clear saat user menghapus batas.
+        row['nilai_min'] = nilaiMin;
+        row['nilai_max'] = nilaiMax;
+        lastdata.add(row);
       } else {
-        newdata.add({
+        final row = <String, dynamic>{
           'id_auth': element.id_auth,
           'id_kriteria': element.id_kriteria,
           'kategori': element.kategori.text,
           'bobot': element.bobot.text,
-        });
+        };
+        if (nilaiMin != null) row['nilai_min'] = nilaiMin;
+        if (nilaiMax != null) row['nilai_max'] = nilaiMax;
+        newdata.add(row);
       }
     }
 

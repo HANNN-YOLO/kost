@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:kost_saw/screens/main/admin/criteria_management.dart';
 import 'package:kost_saw/screens/main/admin/management_boarding_house.dart';
 import 'package:kost_saw/screens/main/admin/user_management.dart';
-import 'package:kost_saw/screens/main/admin/sementara.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/kost_provider.dart';
@@ -41,33 +40,43 @@ class _MainNavigationAdminState extends State<MainNavigationAdmin> {
   void _showLogoutConfirmation() {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            title: Text(
-              "Konfirmasi Logout",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            content: Text("Apakah Anda yakin ingin keluar dari akun admin?"),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text("Batal"),
-              ),
-              TextButton(
-                onPressed: () {
-                  Provider.of<AuthProvider>(context, listen: false).logout();
-                  Provider.of<KostProvider>(
-                    context,
-                    listen: false,
-                  ).resetpilihan();
-                },
-                child: Text("Logout", style: TextStyle(color: Colors.red)),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        title: Text(
+          "Konfirmasi Logout",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Text("Apakah Anda yakin ingin keluar dari akun admin?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("Batal"),
           ),
+          TextButton(
+            onPressed: () async {
+              final auth = Provider.of<AuthProvider>(context, listen: false);
+              final kost = Provider.of<KostProvider>(context, listen: false);
+              final rootNavigator = Navigator.of(
+                context,
+                rootNavigator: true,
+              );
+
+              await auth.logout();
+              kost.resetpilihan();
+
+              if (!mounted) return;
+              rootNavigator.pop();
+              rootNavigator.pushNamedAndRemoveUntil(
+                '/login',
+                (route) => false,
+              );
+            },
+            child: Text("Logout", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
   }
 

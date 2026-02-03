@@ -484,17 +484,14 @@ class _ProcessSawPageState extends State<ProcessSawPage> {
     List<List<String>> rows = [];
     for (var pref in hasil.hasilPreferensi) {
       List<String> row = [pref.kode];
-      double totalDariTabel = 0.0;
 
       for (var nilai in pref.nilaiPerKriteria) {
-        // Samakan dengan yang ditampilkan (2 desimal), lalu jumlahkan
-        final roundedPerKriteria = double.parse(nilai.toStringAsFixed(2));
-        row.add(roundedPerKriteria.toStringAsFixed(2));
-        totalDariTabel += roundedPerKriteria;
+        // Tampilkan nilai terbobot per kriteria (dibulatkan untuk UI)
+        row.add(nilai.toStringAsFixed(2));
       }
 
-      // Total ditampilkan sebagai jumlah C1 + C2 + ... (2 desimal)
-      row.add(totalDariTabel.toStringAsFixed(2));
+      // Total preferensi harus konsisten dengan nilai yang dipakai untuk ranking
+      row.add(pref.totalPreferensi.toStringAsFixed(2));
       rows.add(row);
     }
 

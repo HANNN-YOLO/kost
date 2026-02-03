@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import '../configs/supabase_api_config.dart';
 import '../models/kriteria_models.dart';
@@ -39,11 +41,40 @@ class KriteriaServices {
     var url = Uri.parse(
         "${SupabaseApiConfig.masterurl}/rest/v1/kriteria?order=ranking.asc");
 
-    var baca = await htpp.get(url, headers: {
-      'Content-Type': 'application/json',
-      'apikey': '${SupabaseApiConfig.apisecret}',
-      'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
-    });
+    htpp.Response? baca;
+    const maxAttempts = 2;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        baca = await htpp.get(url, headers: {
+          'Content-Type': 'application/json',
+          'apikey': '${SupabaseApiConfig.apisecret}',
+          'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+        }).timeout(const Duration(seconds: 20));
+        break;
+      } on TimeoutException catch (e) {
+        if (attempt >= maxAttempts) {
+          throw 'Koneksi timeout saat mengambil data kriteria. Coba lagi. (${e.message ?? ''})';
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+        continue;
+      } on SocketException catch (e) {
+        if (attempt >= maxAttempts) {
+          throw 'Koneksi terputus saat mengambil data kriteria. Coba lagi. (${e.osError?.message ?? e.message})';
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+        continue;
+      } on htpp.ClientException catch (e) {
+        if (attempt >= maxAttempts) {
+          throw 'Gagal terhubung ke server saat mengambil data kriteria. Coba lagi. (${e.message})';
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+        continue;
+      }
+    }
+
+    if (baca == null) {
+      throw 'Gagal mengambil data kriteria. Coba lagi.';
+    }
 
     if (baca.statusCode == 200 || baca.statusCode == 201) {
       final ambil = json.decode(baca.body) as List<dynamic>;
@@ -59,8 +90,8 @@ class KriteriaServices {
         }
       }
     } else {
-      print("gagal buat data kriteria ${baca.body}");
-      throw "gagal buat data kriteria ${baca.body}";
+      print("gagal ambil data kriteria: ${baca.statusCode} ${baca.body}");
+      throw "Gagal ambil data kriteria (${baca.statusCode}).";
     }
     return hasilnya;
   }

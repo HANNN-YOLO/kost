@@ -700,6 +700,21 @@ class SimpleAdditiveWeighting {
       final kat = sub.kategori ?? '';
       final bobot = (sub.bobot ?? 1).toDouble();
 
+      // Prioritas: gunakan kolom numeric (nilai_min/nilai_max) jika tersedia
+      if (sub.nilai_min != null || sub.nilai_max != null) {
+        final cocok = _nilaiCocokDenganMinMax(
+          nilai,
+          sub.nilai_min,
+          sub.nilai_max,
+        );
+        if (cocok) {
+          print(
+              "      📌 Match (min/max): '${sub.kategori}' [min=${sub.nilai_min}, max=${sub.nilai_max}] → bobot $bobot");
+          return bobot;
+        }
+        continue;
+      }
+
       // Hapus satuan dan karakter non-numerik untuk parsing
       // Contoh: ">= 6m - 9m" → ">= 6 - 9"
       final katClean = kat
@@ -719,6 +734,25 @@ class SimpleAdditiveWeighting {
 
     print("      ⚠️ Tidak ada range yang cocok untuk nilai $nilai");
     return 1.0;
+  }
+
+  /// Cek apakah nilai cocok dengan batas min/max numeric.
+  /// - min & max terisi: min <= nilai <= max
+  /// - hanya max: nilai <= max
+  /// - hanya min: nilai >= min
+  static bool _nilaiCocokDenganMinMax(double nilai, num? min, num? max) {
+    final minVal = min?.toDouble();
+    final maxVal = max?.toDouble();
+    if (minVal != null && maxVal != null) {
+      return nilai >= minVal && nilai <= maxVal;
+    }
+    if (maxVal != null) {
+      return nilai <= maxVal;
+    }
+    if (minVal != null) {
+      return nilai >= minVal;
+    }
+    return false;
   }
 
   /// Cek apakah nilai cocok dengan range string
@@ -859,6 +893,16 @@ class SimpleAdditiveWeighting {
     for (var sub in subkriteriaJarak) {
       final kat = sub.kategori ?? '';
       final bobot = (sub.bobot ?? 1).toDouble();
+
+      // Prioritas: gunakan kolom numeric (nilai_min/nilai_max) jika tersedia
+      if (sub.nilai_min != null || sub.nilai_max != null) {
+        if (_nilaiCocokDenganMinMax(jarakKm, sub.nilai_min, sub.nilai_max)) {
+          print(
+              "     ✅ Match (min/max): '${sub.kategori}' [min=${sub.nilai_min}, max=${sub.nilai_max}] → bobot $bobot");
+          return bobot;
+        }
+        continue;
+      }
 
       // Cek apakah jarak cocok dengan range subkriteria
       if (_jarakCocokDenganRange(jarakKm, kat)) {

@@ -179,19 +179,21 @@ class AuthProvider with ChangeNotifier {
   Timer? waktunya;
 
   Future<void> logout() async {
-    if (_accesstoken != null) {
-      _accesstoken == null;
-      _email = null;
-      _expiresIn = null;
+    // Jadikan logout idempotent: selalu bersihkan state lokal.
+    _accesstoken = null;
+    _email = null;
+    _expiresIn = null;
+    id_auth = null;
+    _mydata = [];
+    hasilnya = [];
+    role = "Pilih";
 
-      waktunya?.cancel();
-      waktunya = null;
+    waktunya?.cancel();
+    waktunya = null;
 
-      final bersihkan = await SharedPreferences.getInstance();
-      bersihkan.clear();
-    } else {
-      throw "Failed to logout";
-    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    notifyListeners();
   }
 
   Future<void> autologout() async {
