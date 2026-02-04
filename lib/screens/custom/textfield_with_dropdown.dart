@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'custom_dropdown_search.dart';
 
 class TextfieldWithDropdown extends StatelessWidget {
@@ -10,6 +11,7 @@ class TextfieldWithDropdown extends StatelessWidget {
   final List<String> manalistnya;
   final String label2;
   final String pilihan;
+  final List<TextInputFormatter>? inputFormatters;
   // final VoidCallback fungsi;
   final ValueChanged fungsi;
 
@@ -23,6 +25,7 @@ class TextfieldWithDropdown extends StatelessWidget {
     required this.label2,
     required this.pilihan,
     required this.fungsi,
+    this.inputFormatters,
   });
 
   // final bool isnumeric =  label == 'Nomor Telepon' || label == "Harga";
@@ -64,6 +67,7 @@ class TextfieldWithDropdown extends StatelessWidget {
                   child: TextField(
                     controller: isi,
                     keyboardType: jenis,
+                    inputFormatters: inputFormatters,
                     decoration: InputDecoration(
                       contentPadding: EdgeInsets.symmetric(
                         horizontal: lebar * 0.04,

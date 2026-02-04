@@ -1,6 +1,9 @@
 // lib/user_recommendation_page.dart
 import 'dart:convert';
 import 'dart:math' as math;
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'recommendation_saw.dart';
@@ -1211,7 +1214,14 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
                                     child: Stack(
                                       children: [
                                         WebViewWidget(
-                                            controller: _mapController),
+                                          controller: _mapController,
+                                          gestureRecognizers: {
+                                            Factory<
+                                                OneSequenceGestureRecognizer>(
+                                              () => EagerGestureRecognizer(),
+                                            ),
+                                          },
+                                        ),
                                         if (!_mapLoaded)
                                           Positioned.fill(
                                             child: Container(
@@ -1391,7 +1401,7 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
                                               ),
                                               SizedBox(width: s(10)),
                                               Text(
-                                                'Menghitung SAW...',
+                                                'Harap menunggu...',
                                                 style: TextStyle(
                                                   fontSize: s(16),
                                                   fontWeight: FontWeight.w600,

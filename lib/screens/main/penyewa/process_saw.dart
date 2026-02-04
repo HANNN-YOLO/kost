@@ -86,7 +86,7 @@ class _ProcessSawPageState extends State<ProcessSawPage> {
                   const CircularProgressIndicator(),
                   SizedBox(height: s(16)),
                   Text(
-                    'Menghitung SAW...',
+                    'Harap menunggu...',
                     style: TextStyle(
                       fontSize: s(14),
                       color: colorTextPrimary,

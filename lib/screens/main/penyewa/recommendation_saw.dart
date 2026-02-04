@@ -24,6 +24,137 @@ class RecommendationSawPage extends StatefulWidget {
 }
 
 class _RecommendationSawPageState extends State<RecommendationSawPage> {
+  void _showSkippedDetail(
+    BuildContext context,
+    List<KostTerskipSAW> skipped,
+    double Function(double) s,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(s(18))),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.7,
+          minChildSize: 0.4,
+          maxChildSize: 0.95,
+          builder: (context, controller) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(s(16), s(12), s(16), s(16)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: s(44),
+                      height: s(5),
+                      decoration: BoxDecoration(
+                        color: Colors.black12,
+                        borderRadius: BorderRadius.circular(s(999)),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: s(12)),
+                  Text(
+                    'Kost Tidak Diproses',
+                    style: TextStyle(
+                      fontSize: s(16),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  SizedBox(height: s(6)),
+                  Text(
+                    'Berikut kost yang tidak masuk perangkingan karena ada kriteria yang tidak cocok dengan subkriteria.',
+                    style: TextStyle(
+                      fontSize: s(12),
+                      color: const Color(0xFF1F1F1F).withOpacity(0.7),
+                    ),
+                  ),
+                  SizedBox(height: s(12)),
+                  Expanded(
+                    child: ListView.separated(
+                      controller: controller,
+                      itemCount: skipped.length,
+                      separatorBuilder: (_, __) => SizedBox(height: s(10)),
+                      itemBuilder: (context, index) {
+                        final item = skipped[index];
+                        return Container(
+                          padding: EdgeInsets.all(s(12)),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF5F7FB),
+                            borderRadius: BorderRadius.circular(s(14)),
+                            border: Border.all(
+                              color: const Color(0xFF1C3B98).withOpacity(0.12),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.info_outline_rounded,
+                                    size: s(18),
+                                    color: const Color(0xFF1C3B98),
+                                  ),
+                                  SizedBox(width: s(8)),
+                                  Expanded(
+                                    child: Text(
+                                      item.namaKost,
+                                      style: TextStyle(
+                                        fontSize: s(14),
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFF1F1F1F),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: s(8)),
+                              ...item.alasan.map(
+                                (a) => Padding(
+                                  padding: EdgeInsets.only(bottom: s(6)),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text('• ',
+                                          style: TextStyle(
+                                              fontSize: s(12), height: 1.35)),
+                                      Expanded(
+                                        child: Text(
+                                          a,
+                                          style: TextStyle(
+                                            fontSize: s(12),
+                                            height: 1.35,
+                                            color: const Color(0xFF1F1F1F)
+                                                .withOpacity(0.85),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -94,7 +225,7 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
                   const CircularProgressIndicator(),
                   SizedBox(height: s(16)),
                   Text(
-                    'Menghitung rekomendasi...',
+                    'Harap menunggu...',
                     style: TextStyle(
                       fontSize: s(14),
                       color: colorTextPrimary,
@@ -182,6 +313,7 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
           // Ambil hasil ranking dari SAW
           final hasilSAW = provider.hasilSAW!;
           final rankings = hasilSAW.hasilRanking;
+          final skipped = hasilSAW.kostTerskip;
 
           // Build list of kost items from ranking
           final kostList = provider.kostpenyewa.isNotEmpty
@@ -194,6 +326,84 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (skipped.isNotEmpty) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(s(12)),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF7ED),
+                        borderRadius: BorderRadius.circular(s(14)),
+                        border: Border.all(
+                          color: const Color(0xFFF59E0B).withOpacity(0.35),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: const Color(0xFFF59E0B),
+                            size: s(20),
+                          ),
+                          SizedBox(width: s(10)),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${skipped.length} kost tidak diproses',
+                                  style: TextStyle(
+                                    fontSize: s(13),
+                                    fontWeight: FontWeight.w700,
+                                    color: colorTextPrimary,
+                                  ),
+                                ),
+                                SizedBox(height: s(4)),
+                                Text(
+                                  'Ada kriteria yang tidak cocok dengan subkriteria. Kost ini tidak dimasukkan ke perangkingan.',
+                                  style: TextStyle(
+                                    fontSize: s(12),
+                                    color: colorTextPrimary.withOpacity(0.75),
+                                    height: 1.25,
+                                  ),
+                                ),
+                                SizedBox(height: s(8)),
+                                SizedBox(
+                                  height: s(34),
+                                  child: OutlinedButton(
+                                    onPressed: () => _showSkippedDetail(
+                                      context,
+                                      skipped,
+                                      s,
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: const Color(0xFFB45309),
+                                      side: BorderSide(
+                                        color: const Color(0xFFF59E0B)
+                                            .withOpacity(0.6),
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(s(10)),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Lihat alasan',
+                                      style: TextStyle(
+                                        fontSize: s(12),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: s(12)),
+                  ],
                   Row(
                     children: [
                       Container(
@@ -226,55 +436,112 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
                   ),
                   SizedBox(height: s(12)),
                   Expanded(
-                    child: ListView.separated(
-                      itemCount: rankings.length,
-                      separatorBuilder: (_, __) => SizedBox(height: s(12)),
-                      itemBuilder: (context, index) {
-                        final ranking = rankings[index];
+                    child: rankings.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(s(24)),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.filter_alt_off_rounded,
+                                    size: s(64),
+                                    color: colorPrimary.withOpacity(0.55),
+                                  ),
+                                  SizedBox(height: s(14)),
+                                  Text(
+                                    'Tidak ada kost yang memenuhi penilaian',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: s(15),
+                                      fontWeight: FontWeight.w700,
+                                      color: colorTextPrimary,
+                                    ),
+                                  ),
+                                  SizedBox(height: s(8)),
+                                  Text(
+                                    'Periksa subkriteria (range) yang tersedia atau lihat alasan kost yang dilewati.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: s(12),
+                                      color: colorTextPrimary.withOpacity(0.7),
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                  if (skipped.isNotEmpty) ...[
+                                    SizedBox(height: s(14)),
+                                    ElevatedButton.icon(
+                                      onPressed: () => _showSkippedDetail(
+                                        context,
+                                        skipped,
+                                        s,
+                                      ),
+                                      icon: const Icon(
+                                          Icons.info_outline_rounded),
+                                      label: const Text('Lihat alasan'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: colorPrimary,
+                                        foregroundColor: colorWhite,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            itemCount: rankings.length,
+                            separatorBuilder: (_, __) =>
+                                SizedBox(height: s(12)),
+                            itemBuilder: (context, index) {
+                              final ranking = rankings[index];
 
-                        // Cari data kost berdasarkan idKost dari ranking
-                        final kost = kostList.firstWhere(
-                          (k) => k.id_kost == ranking.idKost,
-                          orElse: () => kostList.first,
-                        );
+                              // Cari data kost berdasarkan idKost dari ranking
+                              final kost = kostList.firstWhere(
+                                (k) => k.id_kost == ranking.idKost,
+                                orElse: () => kostList.first,
+                              );
 
-                        // Cari jarak dari kostData jika tersedia
-                        double? distanceKm;
-                        if (widget.kostData != null) {
-                          final kostDataItem = widget.kostData!.firstWhere(
-                            (m) => m['id_kost'] == ranking.idKost,
-                            orElse: () => {},
-                          );
-                          if (kostDataItem.isNotEmpty) {
-                            distanceKm = (kostDataItem['distanceKm'] as num?)
-                                ?.toDouble();
-                          }
-                        }
+                              // Cari jarak dari kostData jika tersedia
+                              double? distanceKm;
+                              if (widget.kostData != null) {
+                                final kostDataItem =
+                                    widget.kostData!.firstWhere(
+                                  (m) => m['id_kost'] == ranking.idKost,
+                                  orElse: () => {},
+                                );
+                                if (kostDataItem.isNotEmpty) {
+                                  distanceKm =
+                                      (kostDataItem['distanceKm'] as num?)
+                                          ?.toDouble();
+                                }
+                              }
 
-                        return _RankingCard(
-                          rank: ranking.peringkat,
-                          namaKost: ranking.namaKost,
-                          skor: ranking.skor,
-                          harga: kost.harga_kost ?? 0,
-                          distanceKm: distanceKm,
-                          luasKamar: (kost.panjang ?? 0) * (kost.lebar ?? 0),
-                          panjang: kost.panjang ?? 0,
-                          lebar: kost.lebar ?? 0,
-                          imageUrl: kost.gambar_kost,
-                          idKost: ranking.idKost,
-                          idFasilitas: kost.id_fasilitas,
-                          s: s,
-                          colorPrimary: colorPrimary,
-                          colorTextPrimary: colorTextPrimary,
-                          colorBackground: colorBackground,
-                          colorWhite: colorWhite,
-                          shadowColor: shadowColor,
-                          destinationLat: widget.destinationLat,
-                          destinationLng: widget.destinationLng,
-                          per: kost.per!,
-                        );
-                      },
-                    ),
+                              return _RankingCard(
+                                rank: ranking.peringkat,
+                                namaKost: ranking.namaKost,
+                                skor: ranking.skor,
+                                harga: kost.harga_kost ?? 0,
+                                distanceKm: distanceKm,
+                                luasKamar:
+                                    (kost.panjang ?? 0) * (kost.lebar ?? 0),
+                                panjang: kost.panjang ?? 0,
+                                lebar: kost.lebar ?? 0,
+                                imageUrl: kost.gambar_kost,
+                                idKost: ranking.idKost,
+                                idFasilitas: kost.id_fasilitas,
+                                s: s,
+                                colorPrimary: colorPrimary,
+                                colorTextPrimary: colorTextPrimary,
+                                colorBackground: colorBackground,
+                                colorWhite: colorWhite,
+                                shadowColor: shadowColor,
+                                destinationLat: widget.destinationLat,
+                                destinationLng: widget.destinationLng,
+                                per: kost.per!,
+                              );
+                            },
+                          ),
                   ),
                 ],
               ),
@@ -314,21 +581,21 @@ class _RankingCard extends StatelessWidget {
     required this.namaKost,
     required this.skor,
     required this.harga,
-    this.distanceKm,
+    required this.distanceKm,
     required this.luasKamar,
     required this.panjang,
     required this.lebar,
-    this.imageUrl,
+    required this.imageUrl,
     required this.idKost,
-    this.idFasilitas,
+    required this.idFasilitas,
     required this.s,
     required this.colorPrimary,
     required this.colorTextPrimary,
     required this.colorBackground,
     required this.colorWhite,
     required this.shadowColor,
-    this.destinationLat,
-    this.destinationLng,
+    required this.destinationLat,
+    required this.destinationLng,
     required this.per,
   });
 

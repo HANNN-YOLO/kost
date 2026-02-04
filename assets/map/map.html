@@ -23,15 +23,24 @@
       box-shadow: 0 0 10px #4285F4;
     }
 
-    /* marker titik bulat biru untuk lokasi pilihan (lokasi sekarang / tujuan) */
-    .my-location-dot,
+    /* marker titik lokasi saya (hijau) */
+    .my-location-dot {
+      width: 18px;
+      height: 18px;
+      background: #34A853;
+      border-radius: 50%;
+      border: 3px solid white;
+      box-shadow: 0 0 10px #34A853;
+    }
+
+    /* marker titik tujuan (merah) */
     .destination-dot {
       width: 18px;
       height: 18px;
-      background: #4285F4;
+      background: #EA4335;
       border-radius: 50%;
       border: 3px solid white;
-      box-shadow: 0 0 10px #4285F4;
+      box-shadow: 0 0 10px #EA4335;
     }
   </style>
 </head>
@@ -53,8 +62,8 @@
 
       window._lastClick = null;
       window._lastMarker = null;        // marker utama (kost atau titik pilihan)
-      window._myLocationMarker = null;  // marker lokasi saya (biru)
-      window._destinationMarker = null; // marker tujuan (oranye)
+      window._myLocationMarker = null;  // marker lokasi saya (hijau)
+      window._destinationMarker = null; // marker tujuan (merah)
       window._routeLayer = null;        // polyline rute jalan
       window._allKostMarkers = [];
 
@@ -64,7 +73,7 @@
         iconSize: [18, 18]
       });
 
-      // icon khusus untuk titik lokasi yang dipilih (sekarang/tujuan) bulat merah
+      // icon khusus untuk titik lokasi tujuan (bulat merah)
       var destinationIcon = L.divIcon({
         className: 'destination-dot',
         iconSize: [18, 18]
@@ -148,12 +157,12 @@
           map.removeLayer(window._myLocationMarker);
         }
 
-        var redIcon = L.divIcon({
+        var myLocationIcon = L.divIcon({
           className: "my-location-dot",
           iconSize: [18, 18]
         });
 
-        window._myLocationMarker = L.marker([lat, lng], { icon: redIcon }).addTo(map);
+        window._myLocationMarker = L.marker([lat, lng], { icon: myLocationIcon }).addTo(map);
         map.setView([lat, lng], 16);
       };
 

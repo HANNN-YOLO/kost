@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -46,6 +48,58 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
 
   bool _noLowerBound = false;
   bool _noUpperBound = false;
+
+  // Operator strict untuk range:
+  // - Min strict: nilai > min (bukan >=)
+  // - Max strict: nilai < max (bukan <=)
+  bool _strictMin = false;
+  bool _strictMax = false;
+
+  static const String _kategoriMetaDelimiter = '||__META__||';
+
+  String _decodeKategoriLabel(String rawKategori) {
+    final idx = rawKategori.indexOf(_kategoriMetaDelimiter);
+    final label = (idx >= 0) ? rawKategori.substring(0, idx) : rawKategori;
+    return label.trim();
+  }
+
+  _RangeOps _decodeRangeOps(String rawKategori) {
+    final idx = rawKategori.indexOf(_kategoriMetaDelimiter);
+    if (idx < 0) {
+      return const _RangeOps(minInclusive: true, maxInclusive: true);
+    }
+
+    final metaStr = rawKategori.substring(idx + _kategoriMetaDelimiter.length);
+    try {
+      final meta = json.decode(metaStr);
+      if (meta is Map) {
+        final minInc = meta['minInclusive'];
+        final maxInc = meta['maxInclusive'];
+        return _RangeOps(
+          minInclusive: (minInc is bool) ? minInc : true,
+          maxInclusive: (maxInc is bool) ? maxInc : true,
+        );
+      }
+    } catch (_) {
+      // ignore
+    }
+    return const _RangeOps(minInclusive: true, maxInclusive: true);
+  }
+
+  String _encodeKategoriWithOps(
+    String label, {
+    required bool minInclusive,
+    required bool maxInclusive,
+  }) {
+    final cleanLabel = label.trim();
+    if (minInclusive && maxInclusive) return cleanLabel;
+
+    final meta = json.encode({
+      'minInclusive': minInclusive,
+      'maxInclusive': maxInclusive,
+    });
+    return '$cleanLabel$_kategoriMetaDelimiter$meta';
+  }
 
   bool keadaan = true;
   int index = 0;
@@ -123,11 +177,32 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
     return buffer.toString();
   }
 
+  double _parseBobotForSort(String raw) {
+    final normalized = raw.trim().replaceAll(',', '.');
+    return double.tryParse(normalized) ?? 0.0;
+  }
+
+  void _sortSubkriteriaByBobot() {
+    // Urutkan bobot terbesar -> terkecil (lebih relevan untuk SAW).
+    _isinya.sort((a, b) {
+      final bb = _parseBobotForSort(b.bobot.text);
+      final ba = _parseBobotForSort(a.bobot.text);
+      final cmp = bb.compareTo(ba);
+      if (cmp != 0) return cmp;
+      return a.kategori.text
+          .trim()
+          .toLowerCase()
+          .compareTo(b.kategori.text.trim().toLowerCase());
+    });
+  }
+
   String _buildRentangInfoText({
     required num? minVal,
     required num? maxVal,
     required bool noLowerBound,
     required bool noUpperBound,
+    required bool minInclusive,
+    required bool maxInclusive,
     String? unitSuffix,
   }) {
     if (minVal == null && maxVal == null) return 'Rentang: -';
@@ -135,22 +210,28 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
     final suffix = (unitSuffix == null) ? '' : unitSuffix;
 
     if (minVal != null && maxVal != null) {
-      return 'Rentang: ≥ ${_formatNumDisplay(minVal)}$suffix & ≤ ${_formatNumDisplay(maxVal)}$suffix';
+      final opMin = minInclusive ? '≥' : '>';
+      final opMax = maxInclusive ? '≤' : '<';
+      return 'Rentang: $opMin ${_formatNumDisplay(minVal)}$suffix & $opMax ${_formatNumDisplay(maxVal)}$suffix';
     }
 
     if (noLowerBound && maxVal != null) {
-      return 'Rentang: ≤ ${_formatNumDisplay(maxVal)}$suffix';
+      final opMax = maxInclusive ? '≤' : '<';
+      return 'Rentang: $opMax ${_formatNumDisplay(maxVal)}$suffix';
     }
 
     if (noUpperBound && minVal != null) {
-      return 'Rentang: ≥ ${_formatNumDisplay(minVal)}$suffix';
+      final opMin = minInclusive ? '≥' : '>';
+      return 'Rentang: $opMin ${_formatNumDisplay(minVal)}$suffix';
     }
 
     // Jika hanya salah satu terisi tapi checkbox belum dipilih
     if (minVal != null) {
-      return 'Rentang: ≥ ${_formatNumDisplay(minVal)}$suffix (centang "tanpa batas atas")';
+      final opMin = minInclusive ? '≥' : '>';
+      return 'Rentang: $opMin ${_formatNumDisplay(minVal)}$suffix (centang "tanpa batas atas")';
     }
-    return 'Rentang: ≤ ${_formatNumDisplay(maxVal!)}$suffix (centang "tanpa batas bawah")';
+    final opMax = maxInclusive ? '≤' : '<';
+    return 'Rentang: $opMax ${_formatNumDisplay(maxVal!)}$suffix (centang "tanpa batas bawah")';
   }
 
   String _normalizeKategoriForCompare(String raw) {
@@ -196,7 +277,8 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
   }
 
   String _normalizeNamaForCompare(String raw) {
-    return raw.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+    final label = _decodeKategoriLabel(raw);
+    return label.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
   }
 
   bool _isDuplicateNama(String kandidat, {int? ignoreIndex}) {
@@ -411,7 +493,10 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
     String? unitSuffix,
   }) {
     final suffix = unitSuffix ?? '';
-    final rawTitle = rawKategori.trim();
+    final rawTitle = _decodeKategoriLabel(rawKategori);
+    final ops = _decodeRangeOps(rawKategori);
+    final opMin = ops.minInclusive ? '≥' : '>';
+    final opMax = ops.maxInclusive ? '≤' : '<';
 
     if (min != null || max != null) {
       final minVal = min;
@@ -419,7 +504,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
 
       if (minVal != null && maxVal != null) {
         final subtitle =
-            'Rentang: ≥ ${_formatNumDisplay(minVal)}$suffix & ≤ ${_formatNumDisplay(maxVal)}$suffix';
+            'Rentang: $opMin ${_formatNumDisplay(minVal)}$suffix & $opMax ${_formatNumDisplay(maxVal)}$suffix';
         return _KategoriDisplay(
           title: rawTitle.isNotEmpty
               ? rawTitle
@@ -428,7 +513,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
         );
       }
       if (maxVal != null) {
-        final subtitle = 'Rentang: ≤ ${_formatNumDisplay(maxVal)}$suffix';
+        final subtitle = 'Rentang: $opMax ${_formatNumDisplay(maxVal)}$suffix';
         return _KategoriDisplay(
           title: rawTitle.isNotEmpty
               ? rawTitle
@@ -437,7 +522,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
         );
       }
       if (minVal != null) {
-        final subtitle = 'Rentang: ≥ ${_formatNumDisplay(minVal)}$suffix';
+        final subtitle = 'Rentang: $opMin ${_formatNumDisplay(minVal)}$suffix';
         return _KategoriDisplay(
           title: rawTitle.isNotEmpty
               ? rawTitle
@@ -544,6 +629,8 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                   ),
                 );
               }
+
+              _sortSubkriteriaByBobot();
             }
             keadaan =
                 true; // Dikunci agar saat klik Simpan/Tambah, list lokal tidak dihapus
@@ -588,6 +675,8 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                               _maxController.clear();
                               _noLowerBound = false;
                               _noUpperBound = false;
+                              _strictMin = false;
+                              _strictMax = false;
 
                               showDialog(
                                   context: context,
@@ -712,305 +801,545 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                   ),
                                                   if (_isRangeKriteria(
                                                       penghubung.nama)) ...[
-                                                    const SizedBox(height: 16),
-                                                    Align(
-                                                      alignment:
-                                                          Alignment.centerLeft,
-                                                      child: Text(
-                                                        "Range nilai (opsional)",
-                                                        style: TextStyle(
-                                                          fontSize: 12,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          color:
-                                                              Colors.grey[700],
+                                                    const SizedBox(height: 20),
+                                                    Container(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                              16),
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(
+                                                            0xFFFAFBFC),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(12),
+                                                        border: Border.all(
+                                                          color: Colors.grey
+                                                              .withOpacity(0.2),
+                                                          width: 1,
                                                         ),
                                                       ),
-                                                    ),
-                                                    const SizedBox(height: 6),
-                                                    // Field Min & Max dibuat agak renggang supaya tidak terlalu sempit
-                                                    Row(
-                                                      children: [
-                                                        Expanded(
-                                                          child: TextField(
-                                                            controller:
-                                                                _minController,
-                                                            keyboardType:
-                                                                const TextInputType
-                                                                    .numberWithOptions(
-                                                              decimal: true,
-                                                            ),
-                                                            enabled:
-                                                                !_noLowerBound,
-                                                            decoration:
-                                                                InputDecoration(
-                                                              labelText: "Min",
-                                                              hintText:
-                                                                  "misal 700000",
-                                                              filled: true,
-                                                              fillColor:
-                                                                  const Color(
-                                                                      0xFFF5F7FB),
-                                                              border:
-                                                                  OutlineInputBorder(
-                                                                borderRadius:
-                                                                    BorderRadius
-                                                                        .circular(
-                                                                            12),
-                                                                borderSide:
-                                                                    BorderSide
-                                                                        .none,
-                                                              ),
-                                                            ),
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                            width: 16),
-                                                        Expanded(
-                                                          child: TextField(
-                                                            controller:
-                                                                _maxController,
-                                                            keyboardType:
-                                                                const TextInputType
-                                                                    .numberWithOptions(
-                                                              decimal: true,
-                                                            ),
-                                                            enabled:
-                                                                !_noUpperBound,
-                                                            decoration:
-                                                                InputDecoration(
-                                                              labelText: "Max",
-                                                              hintText:
-                                                                  "misal 900000",
-                                                              filled: true,
-                                                              fillColor:
-                                                                  const Color(
-                                                                      0xFFF5F7FB),
-                                                              border:
-                                                                  OutlineInputBorder(
-                                                                borderRadius:
-                                                                    BorderRadius
-                                                                        .circular(
-                                                                            12),
-                                                                borderSide:
-                                                                    BorderSide
-                                                                        .none,
-                                                              ),
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    const SizedBox(height: 4),
-                                                    Align(
-                                                      alignment:
-                                                          Alignment.centerLeft,
                                                       child: Column(
                                                         crossAxisAlignment:
                                                             CrossAxisAlignment
                                                                 .start,
                                                         children: [
                                                           Text(
-                                                            "Jika diisi, sistem menyimpan batas Min/Max (nama tetap sesuai input).",
+                                                            "📊 Pengaturan Range Nilai",
+                                                            style: TextStyle(
+                                                              fontSize: 14,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w700,
+                                                              color: const Color(
+                                                                  0xFF1E3A8A),
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                              height: 4),
+                                                          Text(
+                                                            "Atur batas minimum dan maksimum untuk nilai subkriteria ini",
                                                             style: TextStyle(
                                                               fontSize: 11,
                                                               color: Colors
                                                                   .grey[600],
                                                             ),
                                                           ),
+                                                          const SizedBox(
+                                                              height: 16),
+
+                                                          // Section Nilai Minimum
+                                                          Container(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .all(12),
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              color:
+                                                                  Colors.white,
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          8),
+                                                              border:
+                                                                  Border.all(
+                                                                color: Colors
+                                                                    .blue
+                                                                    .withOpacity(
+                                                                        0.1),
+                                                                width: 1,
+                                                              ),
+                                                            ),
+                                                            child: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                Text(
+                                                                  "🔽 Nilai Minimum",
+                                                                  style:
+                                                                      TextStyle(
+                                                                    fontSize:
+                                                                        12,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w600,
+                                                                    color: Colors
+                                                                            .blue[
+                                                                        700],
+                                                                  ),
+                                                                ),
+                                                                const SizedBox(
+                                                                    height: 8),
+                                                                TextField(
+                                                                  controller:
+                                                                      _minController,
+                                                                  keyboardType:
+                                                                      const TextInputType
+                                                                          .numberWithOptions(
+                                                                    decimal:
+                                                                        true,
+                                                                  ),
+                                                                  enabled:
+                                                                      !_noLowerBound,
+                                                                  decoration:
+                                                                      InputDecoration(
+                                                                    labelText:
+                                                                        "Nilai Min",
+                                                                    hintText:
+                                                                        "misal 700000",
+                                                                    filled:
+                                                                        true,
+                                                                    fillColor:
+                                                                        const Color(
+                                                                            0xFFF5F7FB),
+                                                                    border:
+                                                                        OutlineInputBorder(
+                                                                      borderRadius:
+                                                                          BorderRadius.circular(
+                                                                              8),
+                                                                      borderSide:
+                                                                          BorderSide
+                                                                              .none,
+                                                                    ),
+                                                                    prefixIcon: const Icon(
+                                                                        Icons
+                                                                            .trending_up,
+                                                                        size:
+                                                                            18),
+                                                                  ),
+                                                                ),
+                                                                const SizedBox(
+                                                                    height: 8),
+                                                                // Min-related options
+                                                                AnimatedBuilder(
+                                                                  animation:
+                                                                      Listenable
+                                                                          .merge([
+                                                                    _minController,
+                                                                    _maxController,
+                                                                  ]),
+                                                                  builder:
+                                                                      (context,
+                                                                          _) {
+                                                                    final minFilled =
+                                                                        _minController
+                                                                            .text
+                                                                            .trim()
+                                                                            .isNotEmpty;
+                                                                    final maxFilled =
+                                                                        _maxController
+                                                                            .text
+                                                                            .trim()
+                                                                            .isNotEmpty;
+                                                                    final canNoLowerBound =
+                                                                        !minFilled &&
+                                                                            maxFilled;
+                                                                    final canStrictMin =
+                                                                        minFilled &&
+                                                                            !_noLowerBound;
+
+                                                                    return Column(
+                                                                      children: [
+                                                                        CheckboxListTile(
+                                                                          value: canNoLowerBound
+                                                                              ? _noLowerBound
+                                                                              : false,
+                                                                          onChanged: canNoLowerBound
+                                                                              ? (val) {
+                                                                                  setStateDialog(() {
+                                                                                    _noLowerBound = val ?? false;
+                                                                                    if (_noLowerBound) {
+                                                                                      _noUpperBound = false;
+                                                                                      _minController.clear();
+                                                                                    }
+                                                                                  });
+                                                                                }
+                                                                              : null,
+                                                                          dense:
+                                                                              true,
+                                                                          contentPadding:
+                                                                              EdgeInsets.zero,
+                                                                          title:
+                                                                              Text(
+                                                                            '🚫 Tanpa batas minimum',
+                                                                            style:
+                                                                                TextStyle(fontSize: 12),
+                                                                          ),
+                                                                          subtitle:
+                                                                              Text(
+                                                                            'Hanya gunakan nilai Max (≤ Max)',
+                                                                            style:
+                                                                                TextStyle(fontSize: 10, color: Colors.grey[600]),
+                                                                          ),
+                                                                        ),
+                                                                        CheckboxListTile(
+                                                                          value: canStrictMin
+                                                                              ? _strictMin
+                                                                              : false,
+                                                                          onChanged: canStrictMin
+                                                                              ? (val) {
+                                                                                  setStateDialog(() {
+                                                                                    _strictMin = val ?? false;
+                                                                                  });
+                                                                                }
+                                                                              : null,
+                                                                          dense:
+                                                                              true,
+                                                                          contentPadding:
+                                                                              EdgeInsets.zero,
+                                                                          title:
+                                                                              Text(
+                                                                            '> Gunakan operator "lebih dari" (>)',
+                                                                            style:
+                                                                                TextStyle(fontSize: 12),
+                                                                          ),
+                                                                          subtitle:
+                                                                              Text(
+                                                                            'Jika dicentang: > Min, jika tidak: ≥ Min',
+                                                                            style:
+                                                                                TextStyle(fontSize: 10, color: Colors.grey[600]),
+                                                                          ),
+                                                                        ),
+                                                                      ],
+                                                                    );
+                                                                  },
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
 
                                                           const SizedBox(
-                                                              height: 6),
-                                                          AnimatedBuilder(
-                                                            animation:
-                                                                Listenable
-                                                                    .merge([
-                                                              _minController,
-                                                              _maxController,
-                                                            ]),
-                                                            builder:
-                                                                (context, _) {
-                                                              final minVal =
-                                                                  _tryParseNumFlexible(
-                                                                      _minController
-                                                                          .text
-                                                                          .trim());
-                                                              final maxVal =
-                                                                  _tryParseNumFlexible(
-                                                                      _maxController
-                                                                          .text
-                                                                          .trim());
+                                                              height: 12),
 
-                                                              final unitSuffix =
-                                                                  (penghubung.nama
-                                                                              ?.toLowerCase()
-                                                                              .contains('jarak') ??
-                                                                          false)
-                                                                      ? ' km'
-                                                                      : null;
-
-                                                              final text =
-                                                                  _buildRentangInfoText(
-                                                                minVal: minVal,
-                                                                maxVal: maxVal,
-                                                                noLowerBound:
-                                                                    _noLowerBound,
-                                                                noUpperBound:
-                                                                    _noUpperBound,
-                                                                unitSuffix:
-                                                                    unitSuffix,
-                                                              );
-
-                                                              return Text(
-                                                                text,
-                                                                style:
-                                                                    TextStyle(
-                                                                  fontSize: 12,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w700,
-                                                                  color: Colors
-                                                                          .grey[
-                                                                      800],
+                                                          // Section Nilai Maximum
+                                                          Container(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .all(12),
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              color:
+                                                                  Colors.white,
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          8),
+                                                              border:
+                                                                  Border.all(
+                                                                color: Colors
+                                                                    .red
+                                                                    .withOpacity(
+                                                                        0.1),
+                                                                width: 1,
+                                                              ),
+                                                            ),
+                                                            child: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                Text(
+                                                                  "🔼 Nilai Maksimum",
+                                                                  style:
+                                                                      TextStyle(
+                                                                    fontSize:
+                                                                        12,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w600,
+                                                                    color: Colors
+                                                                            .red[
+                                                                        700],
+                                                                  ),
                                                                 ),
-                                                              );
-                                                            },
+                                                                const SizedBox(
+                                                                    height: 8),
+                                                                TextField(
+                                                                  controller:
+                                                                      _maxController,
+                                                                  keyboardType:
+                                                                      const TextInputType
+                                                                          .numberWithOptions(
+                                                                    decimal:
+                                                                        true,
+                                                                  ),
+                                                                  enabled:
+                                                                      !_noUpperBound,
+                                                                  decoration:
+                                                                      InputDecoration(
+                                                                    labelText:
+                                                                        "Nilai Max",
+                                                                    hintText:
+                                                                        "misal 900000",
+                                                                    filled:
+                                                                        true,
+                                                                    fillColor:
+                                                                        const Color(
+                                                                            0xFFF5F7FB),
+                                                                    border:
+                                                                        OutlineInputBorder(
+                                                                      borderRadius:
+                                                                          BorderRadius.circular(
+                                                                              8),
+                                                                      borderSide:
+                                                                          BorderSide
+                                                                              .none,
+                                                                    ),
+                                                                    prefixIcon: const Icon(
+                                                                        Icons
+                                                                            .trending_down,
+                                                                        size:
+                                                                            18),
+                                                                  ),
+                                                                ),
+                                                                const SizedBox(
+                                                                    height: 8),
+
+                                                                // Max-related options
+                                                                AnimatedBuilder(
+                                                                  animation:
+                                                                      Listenable
+                                                                          .merge([
+                                                                    _minController,
+                                                                    _maxController,
+                                                                  ]),
+                                                                  builder:
+                                                                      (context,
+                                                                          _) {
+                                                                    final minFilled =
+                                                                        _minController
+                                                                            .text
+                                                                            .trim()
+                                                                            .isNotEmpty;
+                                                                    final maxFilled =
+                                                                        _maxController
+                                                                            .text
+                                                                            .trim()
+                                                                            .isNotEmpty;
+                                                                    final canNoUpperBound =
+                                                                        minFilled &&
+                                                                            !maxFilled;
+                                                                    final canStrictMax =
+                                                                        maxFilled &&
+                                                                            !_noUpperBound;
+
+                                                                    return Column(
+                                                                      children: [
+                                                                        CheckboxListTile(
+                                                                          value: canNoUpperBound
+                                                                              ? _noUpperBound
+                                                                              : false,
+                                                                          onChanged: canNoUpperBound
+                                                                              ? (val) {
+                                                                                  setStateDialog(() {
+                                                                                    _noUpperBound = val ?? false;
+                                                                                    if (_noUpperBound) {
+                                                                                      _noLowerBound = false;
+                                                                                      _maxController.clear();
+                                                                                    }
+                                                                                  });
+                                                                                }
+                                                                              : null,
+                                                                          dense:
+                                                                              true,
+                                                                          contentPadding:
+                                                                              EdgeInsets.zero,
+                                                                          title:
+                                                                              Text(
+                                                                            '🚫 Tanpa batas maksimum',
+                                                                            style:
+                                                                                TextStyle(fontSize: 12),
+                                                                          ),
+                                                                          subtitle:
+                                                                              Text(
+                                                                            'Hanya gunakan nilai Min (≥ Min)',
+                                                                            style:
+                                                                                TextStyle(fontSize: 10, color: Colors.grey[600]),
+                                                                          ),
+                                                                        ),
+                                                                        CheckboxListTile(
+                                                                          value: canStrictMax
+                                                                              ? _strictMax
+                                                                              : false,
+                                                                          onChanged: canStrictMax
+                                                                              ? (val) {
+                                                                                  setStateDialog(() {
+                                                                                    _strictMax = val ?? false;
+                                                                                  });
+                                                                                }
+                                                                              : null,
+                                                                          dense:
+                                                                              true,
+                                                                          contentPadding:
+                                                                              EdgeInsets.zero,
+                                                                          title:
+                                                                              Text(
+                                                                            '< Gunakan operator "kurang dari" (<)',
+                                                                            style:
+                                                                                TextStyle(fontSize: 12),
+                                                                          ),
+                                                                          subtitle:
+                                                                              Text(
+                                                                            'Jika dicentang: < Max, jika tidak: ≤ Max',
+                                                                            style:
+                                                                                TextStyle(fontSize: 10, color: Colors.grey[600]),
+                                                                          ),
+                                                                        ),
+                                                                      ],
+                                                                    );
+                                                                  },
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+
+                                                          const SizedBox(
+                                                              height: 12),
+
+                                                          // Preview section
+                                                          Container(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .all(12),
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              color: const Color(
+                                                                  0xFFF0F9FF),
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          8),
+                                                              border:
+                                                                  Border.all(
+                                                                color: const Color(
+                                                                    0xFF0284C7),
+                                                                width: 1,
+                                                              ),
+                                                            ),
+                                                            child: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                Row(
+                                                                  children: [
+                                                                    Icon(
+                                                                        Icons
+                                                                            .preview,
+                                                                        size:
+                                                                            16,
+                                                                        color: const Color(
+                                                                            0xFF0284C7)),
+                                                                    const SizedBox(
+                                                                        width:
+                                                                            6),
+                                                                    Text(
+                                                                      "Preview Range",
+                                                                      style:
+                                                                          TextStyle(
+                                                                        fontSize:
+                                                                            12,
+                                                                        fontWeight:
+                                                                            FontWeight.w600,
+                                                                        color: const Color(
+                                                                            0xFF0284C7),
+                                                                      ),
+                                                                    ),
+                                                                  ],
+                                                                ),
+                                                                const SizedBox(
+                                                                    height: 6),
+                                                                AnimatedBuilder(
+                                                                  animation:
+                                                                      Listenable
+                                                                          .merge([
+                                                                    _minController,
+                                                                    _maxController,
+                                                                  ]),
+                                                                  builder:
+                                                                      (context,
+                                                                          _) {
+                                                                    final minVal =
+                                                                        _tryParseNumFlexible(_minController
+                                                                            .text
+                                                                            .trim());
+                                                                    final maxVal =
+                                                                        _tryParseNumFlexible(_maxController
+                                                                            .text
+                                                                            .trim());
+                                                                    final unitSuffix = (penghubung.nama?.toLowerCase().contains('jarak') ??
+                                                                            false)
+                                                                        ? ' km'
+                                                                        : null;
+                                                                    final text =
+                                                                        _buildRentangInfoText(
+                                                                      minVal:
+                                                                          minVal,
+                                                                      maxVal:
+                                                                          maxVal,
+                                                                      noLowerBound:
+                                                                          _noLowerBound,
+                                                                      noUpperBound:
+                                                                          _noUpperBound,
+                                                                      minInclusive:
+                                                                          !_strictMin,
+                                                                      maxInclusive:
+                                                                          !_strictMax,
+                                                                      unitSuffix:
+                                                                          unitSuffix,
+                                                                    );
+                                                                    return Text(
+                                                                      text,
+                                                                      style:
+                                                                          TextStyle(
+                                                                        fontSize:
+                                                                            12,
+                                                                        fontWeight:
+                                                                            FontWeight.w600,
+                                                                        color: const Color(
+                                                                            0xFF0284C7),
+                                                                      ),
+                                                                    );
+                                                                  },
+                                                                ),
+                                                              ],
+                                                            ),
                                                           ),
 
                                                           const SizedBox(
                                                               height: 8),
-
-                                                          // Checkbox hanya bisa dipakai jika salah satu sisi kosong
-                                                          AnimatedBuilder(
-                                                            animation:
-                                                                Listenable
-                                                                    .merge([
-                                                              _minController,
-                                                              _maxController,
-                                                            ]),
-                                                            builder:
-                                                                (context, _) {
-                                                              final minFilled =
-                                                                  _minController
-                                                                      .text
-                                                                      .trim()
-                                                                      .isNotEmpty;
-                                                              final maxFilled =
-                                                                  _maxController
-                                                                      .text
-                                                                      .trim()
-                                                                      .isNotEmpty;
-
-                                                              final bothFilled =
-                                                                  minFilled &&
-                                                                      maxFilled;
-
-                                                              final canNoLowerBound =
-                                                                  !bothFilled &&
-                                                                      maxFilled;
-                                                              final canNoUpperBound =
-                                                                  !bothFilled &&
-                                                                      minFilled;
-
-                                                              // Auto-reset state yang sudah tidak valid
-                                                              if (!canNoLowerBound &&
-                                                                  _noLowerBound) {
-                                                                WidgetsBinding
-                                                                    .instance
-                                                                    .addPostFrameCallback(
-                                                                  (_) {
-                                                                    setStateDialog(
-                                                                        () {
-                                                                      _noLowerBound =
-                                                                          false;
-                                                                    });
-                                                                  },
-                                                                );
-                                                              }
-                                                              if (!canNoUpperBound &&
-                                                                  _noUpperBound) {
-                                                                WidgetsBinding
-                                                                    .instance
-                                                                    .addPostFrameCallback(
-                                                                  (_) {
-                                                                    setStateDialog(
-                                                                        () {
-                                                                      _noUpperBound =
-                                                                          false;
-                                                                    });
-                                                                  },
-                                                                );
-                                                              }
-
-                                                              return Column(
-                                                                children: [
-                                                                  CheckboxListTile(
-                                                                    value: canNoLowerBound
-                                                                        ? _noLowerBound
-                                                                        : false,
-                                                                    onChanged: canNoLowerBound
-                                                                        ? (val) {
-                                                                            setStateDialog(() {
-                                                                              _noLowerBound = val ?? false;
-                                                                              if (_noLowerBound) {
-                                                                                _noUpperBound = false;
-                                                                                _minController.clear();
-                                                                              }
-                                                                            });
-                                                                          }
-                                                                        : null,
-                                                                    dense: true,
-                                                                    contentPadding:
-                                                                        EdgeInsets
-                                                                            .zero,
-                                                                    title:
-                                                                        const Text(
-                                                                      'Tanpa batas bawah (≤ Max)',
-                                                                    ),
-                                                                  ),
-                                                                  CheckboxListTile(
-                                                                    value: canNoUpperBound
-                                                                        ? _noUpperBound
-                                                                        : false,
-                                                                    onChanged: canNoUpperBound
-                                                                        ? (val) {
-                                                                            setStateDialog(() {
-                                                                              _noUpperBound = val ?? false;
-                                                                              if (_noUpperBound) {
-                                                                                _noLowerBound = false;
-                                                                                _maxController.clear();
-                                                                              }
-                                                                            });
-                                                                          }
-                                                                        : null,
-                                                                    dense: true,
-                                                                    contentPadding:
-                                                                        EdgeInsets
-                                                                            .zero,
-                                                                    title:
-                                                                        const Text(
-                                                                      'Tanpa batas atas (≥ Min)',
-                                                                    ),
-                                                                  ),
-                                                                ],
-                                                              );
-                                                            },
+                                                          Text(
+                                                            "💡 Tips: Pilih 'tanpa batas' untuk menggunakan hanya satu sisi. Pilih operator '<' atau '>' untuk batasan yang lebih ketat.",
+                                                            style: TextStyle(
+                                                              fontSize: 10,
+                                                              color: Colors
+                                                                  .grey[600],
+                                                              fontStyle:
+                                                                  FontStyle
+                                                                      .italic,
+                                                            ),
                                                           ),
                                                         ],
-                                                      ),
-                                                    ),
-
-                                                    const SizedBox(height: 4),
-                                                    Align(
-                                                      alignment:
-                                                          Alignment.centerLeft,
-                                                      child: Text(
-                                                        'Centang "tanpa batas" jika ingin hanya menggunakan salah satu sisi (misal ≤ 9 atau ≥ 20).',
-                                                        style: TextStyle(
-                                                          fontSize: 11,
-                                                          color:
-                                                              Colors.grey[600],
-                                                        ),
                                                       ),
                                                     ),
                                                   ],
@@ -1077,6 +1406,8 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                 }
 
                                                 final kategoriLabel = namaBaru;
+                                                var kategoriToSave =
+                                                    kategoriLabel;
                                                 num? nilaiMin;
                                                 num? nilaiMax;
                                                 if (_isRangeKriteria(
@@ -1199,6 +1530,19 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                     nilaiMin = minVal;
                                                     nilaiMax = maxVal;
                                                   }
+
+                                                  final minInclusive =
+                                                      !(nilaiMin != null &&
+                                                          _strictMin);
+                                                  final maxInclusive =
+                                                      !(nilaiMax != null &&
+                                                          _strictMax);
+                                                  kategoriToSave =
+                                                      _encodeKategoriWithOps(
+                                                    kategoriLabel,
+                                                    minInclusive: minInclusive,
+                                                    maxInclusive: maxInclusive,
+                                                  );
                                                 }
 
                                                 if (_isDuplicateNama(
@@ -1258,15 +1602,20 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                     id_auth: penghubung.id_auth,
                                                     id_kriteria:
                                                         kSekarang?.id_kriteria,
-                                                    kategoriawal: kategoriLabel,
+                                                    kategoriawal:
+                                                        kategoriToSave,
                                                     bobotawal: bobotRaw,
                                                     nilaiMin: nilaiMin,
                                                     nilaiMax: nilaiMax,
                                                   ));
+
+                                                  _sortSubkriteriaByBobot();
                                                   namacontroller.clear();
                                                   bobotcontroller.clear();
                                                   _minController.clear();
                                                   _maxController.clear();
+                                                  _strictMin = false;
+                                                  _strictMax = false;
                                                   _hasChanges = true;
                                                   Navigator.pop(context);
                                                 });
@@ -1527,13 +1876,22 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                         final item =
                                                             _isinya[idx];
                                                         namacontroller.text =
-                                                            item.kategori.text;
+                                                            _decodeKategoriLabel(
+                                                                item.kategori
+                                                                    .text);
                                                         bobotcontroller.text =
                                                             item.bobot.text;
                                                         _minController.clear();
                                                         _maxController.clear();
                                                         _noLowerBound = false;
                                                         _noUpperBound = false;
+                                                        final ops =
+                                                            _decodeRangeOps(item
+                                                                .kategori.text);
+                                                        _strictMin =
+                                                            !ops.minInclusive;
+                                                        _strictMax =
+                                                            !ops.maxInclusive;
 
                                                         // Prefill min/max & checkbox: utamakan kolom DB (nilaiMin/nilaiMax). Fallback ke parsing string kategori.
                                                         if (_isRangeKriteria(
@@ -1570,9 +1928,11 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                       null);
                                                         } else {
                                                           // Coba prefill dari string kategori (legacy)
-                                                          final kat = item
-                                                              .kategori.text
-                                                              .trim();
+                                                          final kat =
+                                                              _decodeKategoriLabel(
+                                                                      item.kategori
+                                                                          .text)
+                                                                  .trim();
                                                           final matches = RegExp(
                                                                   r'(\d+(?:[\.,]\d+)?)')
                                                               .allMatches(kat)
@@ -1788,178 +2148,332 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                               ),
                                                                             ),
                                                                             if (_isRangeKriteria(penghubung.nama)) ...[
-                                                                              const SizedBox(height: 16),
-                                                                              Align(
-                                                                                alignment: Alignment.centerLeft,
-                                                                                child: Text(
-                                                                                  "Range nilai (opsional)",
-                                                                                  style: TextStyle(
-                                                                                    fontSize: 12,
-                                                                                    fontWeight: FontWeight.w600,
-                                                                                    color: Colors.grey[700],
+                                                                              const SizedBox(height: 20),
+                                                                              Container(
+                                                                                padding: const EdgeInsets.all(16),
+                                                                                decoration: BoxDecoration(
+                                                                                  color: const Color(0xFFFAFBFC),
+                                                                                  borderRadius: BorderRadius.circular(12),
+                                                                                  border: Border.all(
+                                                                                    color: Colors.grey.withOpacity(0.2),
+                                                                                    width: 1,
                                                                                   ),
                                                                                 ),
-                                                                              ),
-                                                                              const SizedBox(height: 6),
-                                                                              // Field Min & Max dibuat agak renggang supaya tidak terlalu sempit
-                                                                              Row(
-                                                                                children: [
-                                                                                  Expanded(
-                                                                                    child: TextField(
-                                                                                      controller: _minController,
-                                                                                      keyboardType: const TextInputType.numberWithOptions(
-                                                                                        decimal: true,
-                                                                                      ),
-                                                                                      enabled: !_noLowerBound,
-                                                                                      decoration: InputDecoration(
-                                                                                        labelText: "Min",
-                                                                                        hintText: "misal 700000",
-                                                                                        filled: true,
-                                                                                        fillColor: const Color(0xFFF5F7FB),
-                                                                                        border: OutlineInputBorder(
-                                                                                          borderRadius: BorderRadius.circular(12),
-                                                                                          borderSide: BorderSide.none,
-                                                                                        ),
+                                                                                child: Column(
+                                                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                                                  children: [
+                                                                                    Text(
+                                                                                      "📊 Pengaturan Range Nilai",
+                                                                                      style: TextStyle(
+                                                                                        fontSize: 14,
+                                                                                        fontWeight: FontWeight.w700,
+                                                                                        color: const Color(0xFF1E3A8A),
                                                                                       ),
                                                                                     ),
-                                                                                  ),
-                                                                                  const SizedBox(width: 16),
-                                                                                  Expanded(
-                                                                                    child: TextField(
-                                                                                      controller: _maxController,
-                                                                                      keyboardType: const TextInputType.numberWithOptions(
-                                                                                        decimal: true,
-                                                                                      ),
-                                                                                      enabled: !_noUpperBound,
-                                                                                      decoration: InputDecoration(
-                                                                                        labelText: "Max",
-                                                                                        hintText: "misal 900000",
-                                                                                        filled: true,
-                                                                                        fillColor: const Color(0xFFF5F7FB),
-                                                                                        border: OutlineInputBorder(
-                                                                                          borderRadius: BorderRadius.circular(12),
-                                                                                          borderSide: BorderSide.none,
-                                                                                        ),
+                                                                                    const SizedBox(height: 4),
+                                                                                    Text(
+                                                                                      "Atur batas minimum dan maksimum untuk nilai subkriteria ini",
+                                                                                      style: TextStyle(
+                                                                                        fontSize: 11,
+                                                                                        color: Colors.grey[600],
                                                                                       ),
                                                                                     ),
-                                                                                  ),
-                                                                                ],
-                                                                              ),
-                                                                              const SizedBox(height: 4),
-                                                                              Align(
-                                                                                alignment: Alignment.centerLeft,
-                                                                                child: Text(
-                                                                                  "Jika diisi, sistem menyimpan batas Min/Max (nama tetap sesuai input).",
-                                                                                  style: TextStyle(
-                                                                                    fontSize: 11,
-                                                                                    color: Colors.grey[600],
-                                                                                  ),
+                                                                                    const SizedBox(height: 16),
+
+                                                                                    // Section Nilai Minimum
+                                                                                    Container(
+                                                                                      padding: const EdgeInsets.all(12),
+                                                                                      decoration: BoxDecoration(
+                                                                                        color: Colors.white,
+                                                                                        borderRadius: BorderRadius.circular(8),
+                                                                                        border: Border.all(
+                                                                                          color: Colors.blue.withOpacity(0.1),
+                                                                                          width: 1,
+                                                                                        ),
+                                                                                      ),
+                                                                                      child: Column(
+                                                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                                                        children: [
+                                                                                          Text(
+                                                                                            "🔽 Nilai Minimum",
+                                                                                            style: TextStyle(
+                                                                                              fontSize: 12,
+                                                                                              fontWeight: FontWeight.w600,
+                                                                                              color: Colors.blue[700],
+                                                                                            ),
+                                                                                          ),
+                                                                                          const SizedBox(height: 8),
+                                                                                          TextField(
+                                                                                            controller: _minController,
+                                                                                            keyboardType: const TextInputType.numberWithOptions(
+                                                                                              decimal: true,
+                                                                                            ),
+                                                                                            enabled: !_noLowerBound,
+                                                                                            decoration: InputDecoration(
+                                                                                              labelText: "Nilai Min",
+                                                                                              hintText: "misal 700000",
+                                                                                              filled: true,
+                                                                                              fillColor: const Color(0xFFF5F7FB),
+                                                                                              border: OutlineInputBorder(
+                                                                                                borderRadius: BorderRadius.circular(8),
+                                                                                                borderSide: BorderSide.none,
+                                                                                              ),
+                                                                                              prefixIcon: const Icon(Icons.trending_up, size: 18),
+                                                                                            ),
+                                                                                          ),
+                                                                                          const SizedBox(height: 8),
+
+                                                                                          // Min-related options
+                                                                                          AnimatedBuilder(
+                                                                                            animation: Listenable.merge([
+                                                                                              _minController,
+                                                                                              _maxController,
+                                                                                            ]),
+                                                                                            builder: (context, _) {
+                                                                                              final minFilled = _minController.text.trim().isNotEmpty;
+                                                                                              final maxFilled = _maxController.text.trim().isNotEmpty;
+                                                                                              final canNoLowerBound = !minFilled && maxFilled;
+                                                                                              final canStrictMin = minFilled && !_noLowerBound;
+
+                                                                                              return Column(
+                                                                                                children: [
+                                                                                                  CheckboxListTile(
+                                                                                                    value: canNoLowerBound ? _noLowerBound : false,
+                                                                                                    onChanged: canNoLowerBound
+                                                                                                        ? (val) {
+                                                                                                            setStateDialog(() {
+                                                                                                              _noLowerBound = val ?? false;
+                                                                                                              if (_noLowerBound) {
+                                                                                                                _noUpperBound = false;
+                                                                                                                _minController.clear();
+                                                                                                              }
+                                                                                                            });
+                                                                                                          }
+                                                                                                        : null,
+                                                                                                    dense: true,
+                                                                                                    contentPadding: EdgeInsets.zero,
+                                                                                                    title: Text(
+                                                                                                      '🚫 Tanpa batas minimum',
+                                                                                                      style: TextStyle(fontSize: 12),
+                                                                                                    ),
+                                                                                                    subtitle: Text(
+                                                                                                      'Hanya gunakan nilai Max (≤ Max)',
+                                                                                                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                                                                                                    ),
+                                                                                                  ),
+                                                                                                  CheckboxListTile(
+                                                                                                    value: canStrictMin ? _strictMin : false,
+                                                                                                    onChanged: canStrictMin
+                                                                                                        ? (val) {
+                                                                                                            setStateDialog(() {
+                                                                                                              _strictMin = val ?? false;
+                                                                                                            });
+                                                                                                          }
+                                                                                                        : null,
+                                                                                                    dense: true,
+                                                                                                    contentPadding: EdgeInsets.zero,
+                                                                                                    title: Text(
+                                                                                                      '> Gunakan operator "lebih dari" (>)',
+                                                                                                      style: TextStyle(fontSize: 12),
+                                                                                                    ),
+                                                                                                    subtitle: Text(
+                                                                                                      'Jika dicentang: > Min, jika tidak: ≥ Min',
+                                                                                                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                                                                                                    ),
+                                                                                                  ),
+                                                                                                ],
+                                                                                              );
+                                                                                            },
+                                                                                          ),
+                                                                                        ],
+                                                                                      ),
+                                                                                    ),
+
+                                                                                    const SizedBox(height: 12),
+
+                                                                                    // Section Nilai Maximum
+                                                                                    Container(
+                                                                                      padding: const EdgeInsets.all(12),
+                                                                                      decoration: BoxDecoration(
+                                                                                        color: Colors.white,
+                                                                                        borderRadius: BorderRadius.circular(8),
+                                                                                        border: Border.all(
+                                                                                          color: Colors.red.withOpacity(0.1),
+                                                                                          width: 1,
+                                                                                        ),
+                                                                                      ),
+                                                                                      child: Column(
+                                                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                                                        children: [
+                                                                                          Text(
+                                                                                            "🔼 Nilai Maksimum",
+                                                                                            style: TextStyle(
+                                                                                              fontSize: 12,
+                                                                                              fontWeight: FontWeight.w600,
+                                                                                              color: Colors.red[700],
+                                                                                            ),
+                                                                                          ),
+                                                                                          const SizedBox(height: 8),
+                                                                                          TextField(
+                                                                                            controller: _maxController,
+                                                                                            keyboardType: const TextInputType.numberWithOptions(
+                                                                                              decimal: true,
+                                                                                            ),
+                                                                                            enabled: !_noUpperBound,
+                                                                                            decoration: InputDecoration(
+                                                                                              labelText: "Nilai Max",
+                                                                                              hintText: "misal 900000",
+                                                                                              filled: true,
+                                                                                              fillColor: const Color(0xFFF5F7FB),
+                                                                                              border: OutlineInputBorder(
+                                                                                                borderRadius: BorderRadius.circular(8),
+                                                                                                borderSide: BorderSide.none,
+                                                                                              ),
+                                                                                              prefixIcon: const Icon(Icons.trending_down, size: 18),
+                                                                                            ),
+                                                                                          ),
+                                                                                          const SizedBox(height: 8),
+
+                                                                                          // Max-related options
+                                                                                          AnimatedBuilder(
+                                                                                            animation: Listenable.merge([
+                                                                                              _minController,
+                                                                                              _maxController,
+                                                                                            ]),
+                                                                                            builder: (context, _) {
+                                                                                              final minFilled = _minController.text.trim().isNotEmpty;
+                                                                                              final maxFilled = _maxController.text.trim().isNotEmpty;
+                                                                                              final canNoUpperBound = minFilled && !maxFilled;
+                                                                                              final canStrictMax = maxFilled && !_noUpperBound;
+
+                                                                                              return Column(
+                                                                                                children: [
+                                                                                                  CheckboxListTile(
+                                                                                                    value: canNoUpperBound ? _noUpperBound : false,
+                                                                                                    onChanged: canNoUpperBound
+                                                                                                        ? (val) {
+                                                                                                            setStateDialog(() {
+                                                                                                              _noUpperBound = val ?? false;
+                                                                                                              if (_noUpperBound) {
+                                                                                                                _noLowerBound = false;
+                                                                                                                _maxController.clear();
+                                                                                                              }
+                                                                                                            });
+                                                                                                          }
+                                                                                                        : null,
+                                                                                                    dense: true,
+                                                                                                    contentPadding: EdgeInsets.zero,
+                                                                                                    title: Text(
+                                                                                                      '🚫 Tanpa batas maksimum',
+                                                                                                      style: TextStyle(fontSize: 12),
+                                                                                                    ),
+                                                                                                    subtitle: Text(
+                                                                                                      'Hanya gunakan nilai Min (≥ Min)',
+                                                                                                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                                                                                                    ),
+                                                                                                  ),
+                                                                                                  CheckboxListTile(
+                                                                                                    value: canStrictMax ? _strictMax : false,
+                                                                                                    onChanged: canStrictMax
+                                                                                                        ? (val) {
+                                                                                                            setStateDialog(() {
+                                                                                                              _strictMax = val ?? false;
+                                                                                                            });
+                                                                                                          }
+                                                                                                        : null,
+                                                                                                    dense: true,
+                                                                                                    contentPadding: EdgeInsets.zero,
+                                                                                                    title: Text(
+                                                                                                      '< Gunakan operator "kurang dari" (<)',
+                                                                                                      style: TextStyle(fontSize: 12),
+                                                                                                    ),
+                                                                                                    subtitle: Text(
+                                                                                                      'Jika dicentang: < Max, jika tidak: ≤ Max',
+                                                                                                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                                                                                                    ),
+                                                                                                  ),
+                                                                                                ],
+                                                                                              );
+                                                                                            },
+                                                                                          ),
+                                                                                        ],
+                                                                                      ),
+                                                                                    ),
+
+                                                                                    const SizedBox(height: 12),
+
+                                                                                    // Preview section
+                                                                                    Container(
+                                                                                      padding: const EdgeInsets.all(12),
+                                                                                      decoration: BoxDecoration(
+                                                                                        color: const Color(0xFFF0F9FF),
+                                                                                        borderRadius: BorderRadius.circular(8),
+                                                                                        border: Border.all(
+                                                                                          color: const Color(0xFF0284C7),
+                                                                                          width: 1,
+                                                                                        ),
+                                                                                      ),
+                                                                                      child: Column(
+                                                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                                                        children: [
+                                                                                          Row(
+                                                                                            children: [
+                                                                                              Icon(Icons.preview, size: 16, color: const Color(0xFF0284C7)),
+                                                                                              const SizedBox(width: 6),
+                                                                                              Text(
+                                                                                                "Preview Range",
+                                                                                                style: TextStyle(
+                                                                                                  fontSize: 12,
+                                                                                                  fontWeight: FontWeight.w600,
+                                                                                                  color: const Color(0xFF0284C7),
+                                                                                                ),
+                                                                                              ),
+                                                                                            ],
+                                                                                          ),
+                                                                                          const SizedBox(height: 6),
+                                                                                          AnimatedBuilder(
+                                                                                            animation: Listenable.merge([
+                                                                                              _minController,
+                                                                                              _maxController,
+                                                                                            ]),
+                                                                                            builder: (context, _) {
+                                                                                              final minVal = _tryParseNumFlexible(_minController.text.trim());
+                                                                                              final maxVal = _tryParseNumFlexible(_maxController.text.trim());
+                                                                                              final unitSuffix = (penghubung.nama?.toLowerCase().contains('jarak') ?? false) ? ' km' : null;
+                                                                                              final text = _buildRentangInfoText(
+                                                                                                minVal: minVal,
+                                                                                                maxVal: maxVal,
+                                                                                                noLowerBound: _noLowerBound,
+                                                                                                noUpperBound: _noUpperBound,
+                                                                                                minInclusive: !_strictMin,
+                                                                                                maxInclusive: !_strictMax,
+                                                                                                unitSuffix: unitSuffix,
+                                                                                              );
+                                                                                              return Text(
+                                                                                                text,
+                                                                                                style: TextStyle(
+                                                                                                  fontSize: 12,
+                                                                                                  fontWeight: FontWeight.w600,
+                                                                                                  color: const Color(0xFF0284C7),
+                                                                                                ),
+                                                                                              );
+                                                                                            },
+                                                                                          ),
+                                                                                        ],
+                                                                                      ),
+                                                                                    ),
+
+                                                                                    const SizedBox(height: 8),
+                                                                                    Text(
+                                                                                      "💡 Tips: Pilih 'tanpa batas' untuk menggunakan hanya satu sisi. Pilih operator '<' atau '>' untuk batasan yang lebih ketat.",
+                                                                                      style: TextStyle(
+                                                                                        fontSize: 10,
+                                                                                        color: Colors.grey[600],
+                                                                                        fontStyle: FontStyle.italic,
+                                                                                      ),
+                                                                                    ),
+                                                                                  ],
                                                                                 ),
-                                                                              ),
-
-                                                                              const SizedBox(height: 6),
-                                                                              AnimatedBuilder(
-                                                                                animation: Listenable.merge([
-                                                                                  _minController,
-                                                                                  _maxController,
-                                                                                ]),
-                                                                                builder: (context, _) {
-                                                                                  final minVal = _tryParseNumFlexible(_minController.text.trim());
-                                                                                  final maxVal = _tryParseNumFlexible(_maxController.text.trim());
-
-                                                                                  final unitSuffix = (penghubung.nama?.toLowerCase().contains('jarak') ?? false) ? ' km' : null;
-
-                                                                                  final text = _buildRentangInfoText(
-                                                                                    minVal: minVal,
-                                                                                    maxVal: maxVal,
-                                                                                    noLowerBound: _noLowerBound,
-                                                                                    noUpperBound: _noUpperBound,
-                                                                                    unitSuffix: unitSuffix,
-                                                                                  );
-
-                                                                                  return Text(
-                                                                                    text,
-                                                                                    style: TextStyle(
-                                                                                      fontSize: 12,
-                                                                                      fontWeight: FontWeight.w700,
-                                                                                      color: Colors.grey[800],
-                                                                                    ),
-                                                                                  );
-                                                                                },
-                                                                              ),
-                                                                              const SizedBox(height: 8),
-                                                                              // Checkbox hanya bisa dipakai jika salah satu sisi kosong
-                                                                              AnimatedBuilder(
-                                                                                animation: Listenable.merge([
-                                                                                  _minController,
-                                                                                  _maxController,
-                                                                                ]),
-                                                                                builder: (context, _) {
-                                                                                  final minFilled = _minController.text.trim().isNotEmpty;
-                                                                                  final maxFilled = _maxController.text.trim().isNotEmpty;
-
-                                                                                  final bothFilled = minFilled && maxFilled;
-                                                                                  final canNoLowerBound = !bothFilled && maxFilled;
-                                                                                  final canNoUpperBound = !bothFilled && minFilled;
-
-                                                                                  if (!canNoLowerBound && _noLowerBound) {
-                                                                                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                                                                                      setStateDialog(() {
-                                                                                        _noLowerBound = false;
-                                                                                      });
-                                                                                    });
-                                                                                  }
-                                                                                  if (!canNoUpperBound && _noUpperBound) {
-                                                                                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                                                                                      setStateDialog(() {
-                                                                                        _noUpperBound = false;
-                                                                                      });
-                                                                                    });
-                                                                                  }
-
-                                                                                  return Column(
-                                                                                    children: [
-                                                                                      CheckboxListTile(
-                                                                                        value: canNoLowerBound ? _noLowerBound : false,
-                                                                                        onChanged: canNoLowerBound
-                                                                                            ? (val) {
-                                                                                                setStateDialog(() {
-                                                                                                  _noLowerBound = val ?? false;
-                                                                                                  if (_noLowerBound) {
-                                                                                                    _noUpperBound = false;
-                                                                                                    _minController.clear();
-                                                                                                  }
-                                                                                                });
-                                                                                              }
-                                                                                            : null,
-                                                                                        dense: true,
-                                                                                        contentPadding: EdgeInsets.zero,
-                                                                                        title: const Text(
-                                                                                          'Tanpa batas bawah (≤)',
-                                                                                        ),
-                                                                                      ),
-                                                                                      CheckboxListTile(
-                                                                                        value: canNoUpperBound ? _noUpperBound : false,
-                                                                                        onChanged: canNoUpperBound
-                                                                                            ? (val) {
-                                                                                                setStateDialog(() {
-                                                                                                  _noUpperBound = val ?? false;
-                                                                                                  if (_noUpperBound) {
-                                                                                                    _noLowerBound = false;
-                                                                                                    _maxController.clear();
-                                                                                                  }
-                                                                                                });
-                                                                                              }
-                                                                                            : null,
-                                                                                        dense: true,
-                                                                                        contentPadding: EdgeInsets.zero,
-                                                                                        title: const Text(
-                                                                                          'Tanpa batas atas (≥)',
-                                                                                        ),
-                                                                                      ),
-                                                                                    ],
-                                                                                  );
-                                                                                },
                                                                               ),
                                                                             ],
                                                                           ],
@@ -2073,6 +2587,8 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
 
                                                                           final kategoriLabel =
                                                                               namaBaru;
+                                                                          var kategoriToSave =
+                                                                              kategoriLabel;
                                                                           if (_isRangeKriteria(
                                                                               penghubung.nama)) {
                                                                             final minText =
@@ -2171,6 +2687,19 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                 nilaiMin;
                                                                             _isinya[editinde!].nilaiMax =
                                                                                 nilaiMax;
+
+                                                                            // Simpan operator strict/inclusive ke kategori (metadata), tanpa mengubah label.
+                                                                            final minInclusive =
+                                                                                !(nilaiMin != null && _strictMin);
+                                                                            final maxInclusive =
+                                                                                !(nilaiMax != null && _strictMax);
+
+                                                                            kategoriToSave =
+                                                                                _encodeKategoriWithOps(
+                                                                              kategoriLabel,
+                                                                              minInclusive: minInclusive,
+                                                                              maxInclusive: maxInclusive,
+                                                                            );
                                                                           } else {
                                                                             // Jika bukan kriteria range, pastikan kolom range dikosongkan
                                                                             _isinya[editinde!].nilaiMin =
@@ -2197,13 +2726,19 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                           setState(
                                                                               () {
                                                                             _isinya[editinde!].kategori.text =
-                                                                                kategoriLabel;
+                                                                                kategoriToSave;
                                                                             _isinya[editinde!].bobot.text =
                                                                                 bobotRaw;
+
+                                                                            _sortSubkriteriaByBobot();
                                                                             _hasChanges =
                                                                                 true;
                                                                             _minController.clear();
                                                                             _maxController.clear();
+                                                                            _strictMin =
+                                                                                false;
+                                                                            _strictMax =
+                                                                                false;
                                                                             Navigator.pop(context);
                                                                           });
                                                                         },
@@ -2346,4 +2881,11 @@ class _KategoriDisplay {
   final String? subtitle;
 
   const _KategoriDisplay({required this.title, required this.subtitle});
+}
+
+class _RangeOps {
+  final bool minInclusive;
+  final bool maxInclusive;
+
+  const _RangeOps({required this.minInclusive, required this.maxInclusive});
 }

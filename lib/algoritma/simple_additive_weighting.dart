@@ -14,11 +14,21 @@
 ///    - V_i = Σ(w_j * r_ij)
 /// 4. Perangkingan berdasarkan nilai V (tertinggi = terbaik)
 
+import 'dart:convert';
 import 'dart:math' as math;
 import '../models/kost_model.dart';
 import '../models/fasilitas_model.dart';
 import '../models/kriteria_models.dart';
 import '../models/subkriteria_models.dart';
+
+const String _kategoriMetaDelimiter = '||__META__||';
+
+class _RangeOps {
+  final bool minInclusive;
+  final bool maxInclusive;
+
+  const _RangeOps({required this.minInclusive, required this.maxInclusive});
+}
 
 /// Model untuk menyimpan hasil SAW
 class HasilSAW {
@@ -28,6 +38,7 @@ class HasilSAW {
   final List<List<double>> matriksTerbobot;
   final List<HasilPreferensi> hasilPreferensi;
   final List<HasilRanking> hasilRanking;
+  final List<KostTerskipSAW> kostTerskip;
   final List<String> namaKriteria;
   final List<double> bobotKriteria;
   final List<String> atributKriteria;
@@ -39,9 +50,34 @@ class HasilSAW {
     required this.matriksTerbobot,
     required this.hasilPreferensi,
     required this.hasilRanking,
+    this.kostTerskip = const [],
     required this.namaKriteria,
     required this.bobotKriteria,
     required this.atributKriteria,
+  });
+}
+
+/// Kost yang tidak diproses dalam SAW karena ada kriteria yang tidak cocok
+/// dengan subkriteria (nilai konversi = 0).
+class KostTerskipSAW {
+  final int idKost;
+  final String namaKost;
+  final List<String> alasan;
+
+  KostTerskipSAW({
+    required this.idKost,
+    required this.namaKost,
+    required this.alasan,
+  });
+}
+
+class _DataAlternatifBuildResult {
+  final List<DataAlternatif> alternatif;
+  final List<KostTerskipSAW> terskip;
+
+  _DataAlternatifBuildResult({
+    required this.alternatif,
+    required this.terskip,
   });
 }
 
@@ -241,7 +277,7 @@ class SimpleAdditiveWeighting {
     // STEP 1: Buat Data Alternatif
     print("\n📋 STEP 1: Membuat Data Alternatif");
     print("-" * 50);
-    final dataAlternatif = _buatDataAlternatif(
+    final build = _buatDataAlternatif(
       listKost,
       listFasilitas,
       sortedKriteria, // Gunakan kriteria yang sudah diurutkan
@@ -251,6 +287,9 @@ class SimpleAdditiveWeighting {
       jarakKostMap, // Tambahkan parameter jarak dari road distance
     );
 
+    final dataAlternatif = build.alternatif;
+    final kostTerskip = build.terskip;
+
     // Ambil nama kriteria dan BOBOT DECIMAL dari database
     final namaKriteria = sortedKriteria.map((k) => k.kategori ?? '').toList();
     // PENTING: Gunakan bobot_decimal dari database, bukan hasil perhitungan ROC
@@ -259,6 +298,29 @@ class SimpleAdditiveWeighting {
     final atributKriteria = sortedKriteria.map((k) => k.atribut ?? '').toList();
 
     print("📊 Jumlah Alternatif: ${dataAlternatif.length}");
+    if (kostTerskip.isNotEmpty) {
+      print(
+          "⚠️ Ada ${kostTerskip.length} kost yang tidak diproses karena tidak cocok dengan subkriteria.");
+      for (final k in kostTerskip) {
+        print("   - ${k.namaKost} (id=${k.idKost}): ${k.alasan.join(' | ')}");
+      }
+    }
+
+    if (dataAlternatif.isEmpty) {
+      // Tidak bisa lanjut membuat matriks, tapi tetap kembalikan info kostTerskip
+      return HasilSAW(
+        dataAlternatif: const [],
+        matriksKeputusan: const [],
+        matriksNormalisasi: const [],
+        matriksTerbobot: const [],
+        hasilPreferensi: const [],
+        hasilRanking: const [],
+        kostTerskip: kostTerskip,
+        namaKriteria: namaKriteria,
+        bobotKriteria: bobotKriteria,
+        atributKriteria: atributKriteria,
+      );
+    }
     print("📊 Jumlah Kriteria: ${namaKriteria.length}");
     print("📊 Kriteria: $namaKriteria");
     print("📊 Bobot: $bobotKriteria");
@@ -333,6 +395,7 @@ class SimpleAdditiveWeighting {
       matriksTerbobot: matriksTerbobot,
       hasilPreferensi: hasilPreferensi,
       hasilRanking: hasilRanking,
+      kostTerskip: kostTerskip,
       namaKriteria: namaKriteria,
       bobotKriteria: bobotKriteria,
       atributKriteria: atributKriteria,
@@ -349,7 +412,7 @@ class SimpleAdditiveWeighting {
   ///    - Konversi ke bobot subkriteria
   /// 4. Simpan dalam DataAlternatif
   /// ============================================
-  static List<DataAlternatif> _buatDataAlternatif(
+  static _DataAlternatifBuildResult _buatDataAlternatif(
     List<KostModel> listKost,
     List<FasilitasModel> listFasilitas,
     List<KriteriaModels> listKriteria,
@@ -360,6 +423,7 @@ class SimpleAdditiveWeighting {
         jarakKostMap, // Map id_kost -> jarak dalam km (dari road distance)
   ) {
     List<DataAlternatif> hasil = [];
+    List<KostTerskipSAW> terskip = [];
 
     // SORTING: Urutkan kost berdasarkan id_kost dari terkecil ke terbesar
     final sortedKost = List<KostModel>.from(listKost);
@@ -381,7 +445,7 @@ class SimpleAdditiveWeighting {
 
     for (int i = 0; i < sortedKost.length; i++) {
       final kost = sortedKost[i];
-      final kode = "A${i + 1}";
+      final kode = "A${hasil.length + 1}";
 
       print(
           "\n🏠 $kode: ${kost.nama_kost} (id_kost=${kost.id_kost}, id_fasilitas=${kost.id_fasilitas})");
@@ -403,12 +467,17 @@ class SimpleAdditiveWeighting {
       // Buat map nilai kriteria (konversi) dan nilai mentah
       Map<String, dynamic> nilaiKriteria = {};
       Map<String, dynamic> nilaiMentah = {};
+      final List<String> alasanTerskip = [];
 
       for (var kriteria in listKriteria) {
         final kategori = kriteria.kategori?.toLowerCase() ?? '';
         final idKriteria = kriteria.id_kriteria ?? 0;
         dynamic nilaiAsli;
         double nilaiNumerik;
+
+        final namaKritAsli = kriteria.kategori ?? 'Kriteria';
+        final subCount =
+            listSubkriteria.where((s) => s.id_kriteria == idKriteria).length;
 
         // Cek apakah kriteria adalah jarak
         if (kategori.contains('jarak')) {
@@ -450,8 +519,11 @@ class SimpleAdditiveWeighting {
           } else {
             print(
                 "      ⚠️ Tidak ada data jarak! jarakKostMap=${jarakKostMap != null}, userLat=$userLat, userLng=$userLng");
-            nilaiAsli = 0.0;
-            nilaiNumerik = 1.0;
+            nilaiAsli = null;
+            nilaiNumerik = 0.0;
+            alasanTerskip.add(
+              '$namaKritAsli: lokasi/koordinat tidak lengkap untuk menghitung jarak.',
+            );
           }
         } else {
           nilaiAsli = _ambilNilaiKriteria(kost, fasilitas, kategori);
@@ -467,6 +539,25 @@ class SimpleAdditiveWeighting {
 
         nilaiKriteria[kriteria.kategori ?? ''] = nilaiNumerik;
 
+        // Jika nilaiNumerik 0, berarti tidak ada subkriteria yang cocok / belum ada subkriteria
+        if (nilaiNumerik <= 0) {
+          if (subCount == 0) {
+            alasanTerskip
+                .add('$namaKritAsli: belum ada subkriteria untuk menilai.');
+          } else if (kategori.contains('jarak') && nilaiAsli is num) {
+            alasanTerskip.add(
+              '$namaKritAsli: nilai "${(nilaiAsli as num).toDouble().toStringAsFixed(2)} km" tidak cocok dengan subkriteria.',
+            );
+          } else if (!kategori.contains('jarak')) {
+            final nilaiDisplay =
+                (nilaiAsli == null || nilaiAsli.toString().isEmpty)
+                    ? '-'
+                    : nilaiAsli.toString();
+            alasanTerskip.add(
+                '$namaKritAsli: nilai "$nilaiDisplay" tidak cocok dengan subkriteria.');
+          }
+        }
+
         // Simpan nilai mentah untuk tampilan
         // Format khusus untuk beberapa kriteria
         if (kategori.contains('biaya') || kategori.contains('harga')) {
@@ -476,8 +567,12 @@ class SimpleAdditiveWeighting {
           nilaiMentah[kriteria.kategori ?? ''] =
               'Rp ${_formatCurrency(hargaAsliDb)}/$periodeDb';
         } else if (kategori.contains('jarak')) {
-          nilaiMentah[kriteria.kategori ?? ''] =
-              '${(nilaiAsli as double).toStringAsFixed(2)} km';
+          if (nilaiAsli is num) {
+            nilaiMentah[kriteria.kategori ?? ''] =
+                '${(nilaiAsli as num).toDouble().toStringAsFixed(2)} km';
+          } else {
+            nilaiMentah[kriteria.kategori ?? ''] = '-';
+          }
         } else if (kategori.contains('luas')) {
           nilaiMentah[kriteria.kategori ?? ''] =
               '${kost.panjang ?? 0}x${kost.lebar ?? 0} m²';
@@ -492,16 +587,35 @@ class SimpleAdditiveWeighting {
             "   C${kriteria.ranking}: ${kriteria.kategori} = $nilaiAsli → Bobot: $nilaiNumerik");
       }
 
-      hasil.add(DataAlternatif(
-        kode: kode,
-        idKost: kost.id_kost ?? 0,
-        namaKost: kost.nama_kost ?? 'Tidak diketahui',
-        nilaiKriteria: nilaiKriteria,
-        nilaiMentah: nilaiMentah,
-      ));
+      // Jika ada kriteria yang tidak cocok, kost tidak diproses dalam SAW.
+      if (alasanTerskip.isNotEmpty) {
+        terskip.add(
+          KostTerskipSAW(
+            idKost: kost.id_kost ?? 0,
+            namaKost: kost.nama_kost ?? 'Tidak diketahui',
+            alasan: alasanTerskip,
+          ),
+        );
+        print(
+            '   ⛔ Kost dilewati dari SAW karena: ${alasanTerskip.join(' | ')}');
+        continue;
+      }
+
+      hasil.add(
+        DataAlternatif(
+          kode: kode,
+          idKost: kost.id_kost ?? 0,
+          namaKost: kost.nama_kost ?? 'Tidak diketahui',
+          nilaiKriteria: nilaiKriteria,
+          nilaiMentah: nilaiMentah,
+        ),
+      );
     }
 
-    return hasil;
+    return _DataAlternatifBuildResult(
+      alternatif: hasil,
+      terskip: terskip,
+    );
   }
 
   /// Mengambil nilai kriteria dari model kost/fasilitas
@@ -671,7 +785,7 @@ class SimpleAdditiveWeighting {
 
     if (subkriteria.isEmpty) {
       print("    ⚠️ Tidak ada subkriteria untuk id_kriteria=$idKriteria");
-      return (nilai is num) ? nilai.toDouble() : 1.0;
+      return 0.0;
     }
 
     // Jika nilai adalah numerik (Biaya, Fasilitas, Luas Kamar, Jarak)
@@ -689,7 +803,7 @@ class SimpleAdditiveWeighting {
       return hasil;
     }
 
-    return 1.0;
+    return 0.0;
   }
 
   /// Cocokkan nilai numerik dengan range subkriteria dari database
@@ -702,10 +816,13 @@ class SimpleAdditiveWeighting {
 
       // Prioritas: gunakan kolom numeric (nilai_min/nilai_max) jika tersedia
       if (sub.nilai_min != null || sub.nilai_max != null) {
+        final ops = _decodeRangeOpsFromKategori(sub.kategori);
         final cocok = _nilaiCocokDenganMinMax(
           nilai,
           sub.nilai_min,
           sub.nilai_max,
+          minInclusive: ops.minInclusive,
+          maxInclusive: ops.maxInclusive,
         );
         if (cocok) {
           print(
@@ -733,24 +850,60 @@ class SimpleAdditiveWeighting {
     }
 
     print("      ⚠️ Tidak ada range yang cocok untuk nilai $nilai");
-    return 1.0;
+    return 0.0;
   }
 
   /// Cek apakah nilai cocok dengan batas min/max numeric.
   /// - min & max terisi: min <= nilai <= max
   /// - hanya max: nilai <= max
   /// - hanya min: nilai >= min
-  static bool _nilaiCocokDenganMinMax(double nilai, num? min, num? max) {
+  static _RangeOps _decodeRangeOpsFromKategori(String? rawKategori) {
+    if (rawKategori == null) {
+      return const _RangeOps(minInclusive: true, maxInclusive: true);
+    }
+
+    final idx = rawKategori.indexOf(_kategoriMetaDelimiter);
+    if (idx < 0) {
+      return const _RangeOps(minInclusive: true, maxInclusive: true);
+    }
+
+    final metaStr = rawKategori.substring(idx + _kategoriMetaDelimiter.length);
+    try {
+      final meta = json.decode(metaStr);
+      if (meta is Map) {
+        final minInc = meta['minInclusive'];
+        final maxInc = meta['maxInclusive'];
+        return _RangeOps(
+          minInclusive: (minInc is bool) ? minInc : true,
+          maxInclusive: (maxInc is bool) ? maxInc : true,
+        );
+      }
+    } catch (_) {
+      // ignore
+    }
+
+    return const _RangeOps(minInclusive: true, maxInclusive: true);
+  }
+
+  static bool _nilaiCocokDenganMinMax(
+    double nilai,
+    num? min,
+    num? max, {
+    bool minInclusive = true,
+    bool maxInclusive = true,
+  }) {
     final minVal = min?.toDouble();
     final maxVal = max?.toDouble();
     if (minVal != null && maxVal != null) {
-      return nilai >= minVal && nilai <= maxVal;
+      final lowerOk = minInclusive ? (nilai >= minVal) : (nilai > minVal);
+      final upperOk = maxInclusive ? (nilai <= maxVal) : (nilai < maxVal);
+      return lowerOk && upperOk;
     }
     if (maxVal != null) {
-      return nilai <= maxVal;
+      return maxInclusive ? (nilai <= maxVal) : (nilai < maxVal);
     }
     if (minVal != null) {
-      return nilai >= minVal;
+      return minInclusive ? (nilai >= minVal) : (nilai > minVal);
     }
     return false;
   }
@@ -861,7 +1014,7 @@ class SimpleAdditiveWeighting {
     }
 
     print("      ⚠️ Tidak ada string yang cocok untuk: $nilai");
-    return 1.0;
+    return 0.0;
   }
 
   /// Konversi jarak (km) ke nilai subkriteria berdasarkan range dari DATABASE
@@ -887,7 +1040,7 @@ class SimpleAdditiveWeighting {
 
     if (subkriteriaJarak.isEmpty) {
       print("     ⚠️ Tidak ada subkriteria jarak!");
-      return 1.0;
+      return 0.0;
     }
 
     for (var sub in subkriteriaJarak) {
@@ -896,7 +1049,14 @@ class SimpleAdditiveWeighting {
 
       // Prioritas: gunakan kolom numeric (nilai_min/nilai_max) jika tersedia
       if (sub.nilai_min != null || sub.nilai_max != null) {
-        if (_nilaiCocokDenganMinMax(jarakKm, sub.nilai_min, sub.nilai_max)) {
+        final ops = _decodeRangeOpsFromKategori(sub.kategori);
+        if (_nilaiCocokDenganMinMax(
+          jarakKm,
+          sub.nilai_min,
+          sub.nilai_max,
+          minInclusive: ops.minInclusive,
+          maxInclusive: ops.maxInclusive,
+        )) {
           print(
               "     ✅ Match (min/max): '${sub.kategori}' [min=${sub.nilai_min}, max=${sub.nilai_max}] → bobot $bobot");
           return bobot;
@@ -912,7 +1072,7 @@ class SimpleAdditiveWeighting {
     }
 
     print("     ⚠️ Tidak ada range yang cocok untuk jarak $jarakKm km");
-    return 1.0;
+    return 0.0;
   }
 
   /// Cek apakah jarak cocok dengan range subkriteria - FLEKSIBEL
@@ -1090,12 +1250,13 @@ class SimpleAdditiveWeighting {
         kolom.add(matriks[i][j]);
       }
 
-      double maxKolom = kolom.reduce((a, b) => a > b ? a : b);
-      double minKolom = kolom.reduce((a, b) => a < b ? a : b);
-
-      // Hindari pembagian dengan nol
-      if (maxKolom == 0) maxKolom = 1;
-      if (minKolom == 0) minKolom = 1;
+      // Abaikan nilai 0 (menandakan tidak ada subkriteria cocok) saat mencari min/max,
+      // agar tidak merusak normalisasi semua alternatif.
+      final nonZero = kolom.where((v) => v > 0).toList();
+      final double maxKolom =
+          nonZero.isNotEmpty ? nonZero.reduce((a, b) => a > b ? a : b) : 0.0;
+      final double minKolom =
+          nonZero.isNotEmpty ? nonZero.reduce((a, b) => a < b ? a : b) : 0.0;
 
       String atribut =
           j < atributKriteria.length ? atributKriteria[j] : 'Benefit';
@@ -1114,12 +1275,20 @@ class SimpleAdditiveWeighting {
 
         if (atribut.toLowerCase() == 'cost') {
           // Cost: r_ij = min(x_j) / x_ij
-          matriksNormal[i][j] = nilai != 0 ? minKolom / nilai : 0;
+          if (nilai <= 0 || minKolom <= 0) {
+            matriksNormal[i][j] = 0.0;
+          } else {
+            matriksNormal[i][j] = minKolom / nilai;
+          }
           print(
               "│  r${i + 1}${j + 1} = min(x${j + 1}) / x${i + 1}${j + 1} = $minKolom / $nilai = ${matriksNormal[i][j].toStringAsFixed(4)}");
         } else {
           // Benefit: r_ij = x_ij / max(x_j)
-          matriksNormal[i][j] = maxKolom != 0 ? nilai / maxKolom : 0;
+          if (nilai <= 0 || maxKolom <= 0) {
+            matriksNormal[i][j] = 0.0;
+          } else {
+            matriksNormal[i][j] = nilai / maxKolom;
+          }
           print(
               "│  r${i + 1}${j + 1} = x${i + 1}${j + 1} / max(x${j + 1}) = $nilai / $maxKolom = ${matriksNormal[i][j].toStringAsFixed(4)}");
         }

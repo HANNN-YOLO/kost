@@ -16,6 +16,7 @@ import '../../custom/showdialog_eror.dart';
 import '../../custom/custom_editfotov2.dart';
 import '../../custom/textfield_with_dropdown.dart';
 import 'package:provider/provider.dart';
+import '../../../utils/thousands_separator_input_formatter.dart';
 import '../../../providers/kost_provider.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:collection/collection.dart';
@@ -292,7 +293,9 @@ class _FormAddHouseState extends State<FormHouse> {
         _namakost.text = pakai.nama_kost ?? "";
         _notlpn.text = pakai.notlp_kost.toString() ?? "";
         _alamat.text = pakai.alamat_kost ?? "";
-        _harga.text = pakai.harga_kost.toString() ?? "";
+        _harga.text = ThousandsSeparatorInputFormatter.formatDigits(
+          (pakai.harga_kost ?? 0).toString(),
+        );
         _panjang.text = pakai.panjang.toString() ?? "00";
         _lebar.text = pakai.lebar.toString() ?? "00";
         _koordinatController.text =
@@ -520,6 +523,9 @@ class _FormAddHouseState extends State<FormHouse> {
                                 tinggi: tinggiLayar,
                                 isi: _harga,
                                 jenis: TextInputType.number,
+                                inputFormatters: const [
+                                  ThousandsSeparatorInputFormatter(),
+                                ],
                                 manalistnya: penghubung.per,
                                 label2: penghubung.pernama,
                                 pilihan: penghubung.pernama,
@@ -533,6 +539,9 @@ class _FormAddHouseState extends State<FormHouse> {
                                 tinggi: tinggiLayar,
                                 isi: _harga,
                                 jenis: TextInputType.number,
+                                inputFormatters: const [
+                                  ThousandsSeparatorInputFormatter(),
+                                ],
                                 manalistnya: penghubung.per,
                                 label2: penghubung.pernama,
                                 pilihan: penghubung.pernama,
@@ -1230,7 +1239,9 @@ class _FormAddHouseState extends State<FormHouse> {
                                           penghubung.namanya,
                                           _alamat.text,
                                           int.parse(_notlpn.text),
-                                          int.parse(_harga.text),
+                                          ThousandsSeparatorInputFormatter
+                                                  .tryParseInt(_harga.text) ??
+                                              0,
                                           penghubung.batasjammalams,
                                           penghubung.jenislistriks,
                                           penghubung.jenispembayaranairs,
@@ -1353,7 +1364,9 @@ class _FormAddHouseState extends State<FormHouse> {
                                         _namakost.text,
                                         _alamat.text,
                                         penghubung.namanya,
-                                        int.parse(_harga.text),
+                                        ThousandsSeparatorInputFormatter
+                                                .tryParseInt(_harga.text) ??
+                                            0,
                                         _koordinatController.text,
                                         penghubung.jeniskosts,
                                         penghubung.jeniskeamanans,
@@ -1598,7 +1611,7 @@ class _FormAddHouseState extends State<FormHouse> {
       return "Nomor telepon hanya boleh berisi angka.";
     }
 
-    if (int.tryParse(harga) == null) {
+    if (ThousandsSeparatorInputFormatter.tryParseInt(harga) == null) {
       return "Harga kost hanya boleh berisi angka.";
     }
 

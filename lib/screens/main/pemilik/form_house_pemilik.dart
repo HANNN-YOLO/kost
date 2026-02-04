@@ -15,6 +15,7 @@ import '../../custom/custom_UploadFotov2.dart';
 import '../../custom/showdialog_eror.dart';
 import '../../custom/custom_editfotov2.dart';
 import 'package:provider/provider.dart';
+import '../../../utils/thousands_separator_input_formatter.dart';
 import '../../../providers/kost_provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/profil_provider.dart';
@@ -314,7 +315,9 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
             _namakost.text = pakai.nama_kost ?? "";
             _notlpn.text = pakai.notlp_kost.toString() ?? "";
             _alamat.text = pakai.alamat_kost ?? "";
-            _harga.text = pakai.harga_kost.toString() ?? "";
+            _harga.text = ThousandsSeparatorInputFormatter.formatDigits(
+              (pakai.harga_kost ?? 0).toString(),
+            );
             _panjang.text = pakai.panjang.toString() ?? "00";
             _lebar.text = pakai.lebar.toString() ?? "00";
             _koordinatController.text =
@@ -399,6 +402,9 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
           .kostpemilik
           .firstWhere((element) => element.id_kost == terima);
     }
+
+    int? _parseHarga() =>
+        ThousandsSeparatorInputFormatter.tryParseInt(_harga.text);
 
     return
         // penghubung2 == null &&
@@ -512,6 +518,9 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                     tinggi: tinggiLayar,
                                     isi: _harga,
                                     jenis: TextInputType.number,
+                                    inputFormatters: const [
+                                      ThousandsSeparatorInputFormatter(),
+                                    ],
                                     manalistnya: penghubung.per,
                                     label2: penghubung.pernama,
                                     pilihan: penghubung.pernama,
@@ -525,6 +534,9 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                     tinggi: tinggiLayar,
                                     isi: _harga,
                                     jenis: TextInputType.number,
+                                    inputFormatters: const [
+                                      ThousandsSeparatorInputFormatter(),
+                                    ],
                                     manalistnya: penghubung.per,
                                     label2: penghubung.pernama,
                                     pilihan: penghubung.pernama,
@@ -1208,6 +1220,12 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                                   label: errorMessage);
                                             },
                                           );
+
+                                          if (mounted) {
+                                            setState(() {
+                                              _isSubmitting = false;
+                                            });
+                                          }
                                           return;
                                         }
 
@@ -1233,7 +1251,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                             _namakost.text,
                                             int.parse(_notlpn.text),
                                             _alamat.text,
-                                            int.parse(_harga.text),
+                                            _parseHarga() ?? 0,
                                             penghubung.jeniskosts,
                                             penghubung.jeniskeamanans,
                                             int.parse(_panjang.text),
@@ -1339,6 +1357,12 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                                   label: errorMessage);
                                             },
                                           );
+
+                                          if (mounted) {
+                                            setState(() {
+                                              _isSubmitting = false;
+                                            });
+                                          }
                                           return;
                                         }
 
@@ -1363,7 +1387,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                             _namakost.text,
                                             _alamat.text,
                                             int.parse(_notlpn.text),
-                                            int.parse(_harga.text),
+                                            _parseHarga() ?? 0,
                                             penghubung.jeniskosts,
                                             penghubung.jeniskeamanans,
                                             int.parse(_panjang.text),
@@ -1531,6 +1555,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
         fasilitas.lemari ||
         fasilitas.ac ||
         fasilitas.tv ||
+        fasilitas.kipas ||
         fasilitas.dapur_dalam ||
         fasilitas.wifi;
 
@@ -1542,7 +1567,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
       return "Nomor telepon hanya boleh berisi angka.";
     }
 
-    if (int.tryParse(harga) == null) {
+    if (ThousandsSeparatorInputFormatter.tryParseInt(harga) == null) {
       return "Harga kost hanya boleh berisi angka.";
     }
 
@@ -1629,6 +1654,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
         fasilitas.lemari ||
         fasilitas.ac ||
         fasilitas.tv ||
+        fasilitas.kipas ||
         fasilitas.dapur_dalam ||
         fasilitas.wifi;
 

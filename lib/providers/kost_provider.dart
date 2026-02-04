@@ -643,58 +643,64 @@ class KostProvider with ChangeNotifier {
       String per) async {
     try {
       final ambil = await _kekost.uploadgambar(foto);
-      if (ambil != null) {
-        final namanya = await _kefasilitas.createdatapemilik(
-          token,
-          id_auth,
-          tempat_tidur,
-          kamar_mandi_dalam,
-          meja,
-          tempat_parkir,
-          lemari,
-          ac,
-          tv,
-          kipas,
-          dapur_dalam,
-          wifi,
-        );
+      final namanya = await _kefasilitas.createdatapemilik(
+        token,
+        id_auth,
+        tempat_tidur,
+        kamar_mandi_dalam,
+        meja,
+        tempat_parkir,
+        lemari,
+        ac,
+        tv,
+        kipas,
+        dapur_dalam,
+        wifi,
+      );
 
-        List<String> sementara = koordinat.split(',');
-        double garis_lintang = double.parse(sementara[0].trim());
-        double garis_bujur = double.parse(sementara[1]);
-
-        if (ambil != null &&
-            namanya['id_fasilitas'] != null &&
-            garis_lintang != null &&
-            garis_bujur != null) {
-          await _kekost.createddatapemilik(
-            token,
-            id_auth,
-            namanya['id_fasilitas'],
-            nama_pemilik,
-            nama_kost,
-            alamat,
-            telpon,
-            harga,
-            jenis_kost,
-            keamanan,
-            panjang,
-            lebar,
-            batas_jam_malam,
-            jenis_pembayaran_air,
-            jenis_listrik,
-            garis_lintang,
-            garis_bujur,
-            ambil,
-            per,
-          );
-        }
+      final idFasilitas = namanya['id_fasilitas'];
+      if (idFasilitas == null) {
+        throw 'Gagal membuat fasilitas (id_fasilitas kosong).';
       }
+
+      final parts = koordinat.split(',');
+      if (parts.length != 2) {
+        throw 'Format titik koordinat tidak valid. Contoh: -5.147665, 119.432731';
+      }
+      final garis_lintang = double.tryParse(parts[0].trim());
+      final garis_bujur = double.tryParse(parts[1].trim());
+      if (garis_lintang == null || garis_bujur == null) {
+        throw 'Format titik koordinat tidak valid. Contoh: -5.147665, 119.432731';
+      }
+
+      await _kekost.createddatapemilik(
+        token,
+        id_auth,
+        idFasilitas,
+        nama_pemilik,
+        nama_kost,
+        alamat,
+        telpon,
+        harga,
+        jenis_kost,
+        keamanan,
+        panjang,
+        lebar,
+        batas_jam_malam,
+        jenis_pembayaran_air,
+        jenis_listrik,
+        garis_lintang,
+        garis_bujur,
+        ambil,
+        per,
+      );
+
+      await readdatapemilik(id_auth, token, force: true);
     } catch (e) {
-      throw e;
+      rethrow;
+    } finally {
+      notifyListeners();
     }
-    await readdatapemilik(id_authnya!, token, force: true);
-    notifyListeners();
   }
 
   Future<void> updateddatapemilik(
@@ -1020,8 +1026,13 @@ class KostProvider with ChangeNotifier {
       }
 
       print("\n✅ PERHITUNGAN SAW BERHASIL!");
-      print(
-          "   Hasil ranking terbaik: ${_hasilSAW!.hasilRanking.first.namaKost}");
+      if (_hasilSAW!.hasilRanking.isNotEmpty) {
+        print(
+            "   Hasil ranking terbaik: ${_hasilSAW!.hasilRanking.first.namaKost}");
+      } else {
+        print(
+            "   ⚠️ Tidak ada kost yang lolos penilaian (semua tidak cocok dengan subkriteria).");
+      }
     } catch (e) {
       print("❌ ERROR SAW: $e");
       _errorSAW = e.toString();
