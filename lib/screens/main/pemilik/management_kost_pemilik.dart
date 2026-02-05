@@ -44,18 +44,20 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
                 title: "Daftar Kost",
                 subtitle: "Kelola properti kost milik Anda",
                 onAdd: () {
-                  if (penghubung2.mydata.isEmpty) {
-                    showDialog(
-                      context: context,
-                      builder: (context) {
-                        return ShowdialogEror(
-                            label: "Isi data Profil lebih dahulu");
-                      },
-                    );
-                  } else {
-                    Navigator.of(context, rootNavigator: true)
-                        .pushNamed('/form-house-pemilik');
-                  }
+                  // if (penghubung2.mydata.isEmpty) {
+                  //   showDialog(
+                  //     context: context,
+                  //     builder: (context) {
+                  //       return ShowdialogEror(
+                  //           label: "Isi data Profil lebih dahulu");
+                  //     },
+                  //   );
+                  // } else {
+                  //   Navigator.of(context, rootNavigator: true)
+                  //       .pushNamed('/form-house-pemilik');
+                  // }
+                  Navigator.of(context, rootNavigator: true)
+                      .pushNamed('/form-house-pemilik');
                 },
                 warnaUtama: warnaUtama,
               ),

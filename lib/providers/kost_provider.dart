@@ -902,7 +902,7 @@ class KostProvider with ChangeNotifier {
     _jarakKostMap = jarakMap;
     print("📏 Jarak kost di-set: ${_jarakKostMap.length} kost");
     for (var entry in _jarakKostMap.entries) {
-      print("   id_kost=${entry.key} → ${entry.value.toStringAsFixed(2)} km");
+      print(" id_kost=${entry.key} → ${entry.value.toStringAsFixed(2)} km");
     }
     notifyListeners();
   }

@@ -493,9 +493,9 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                           builder: (context, value, child) {
                             return terima != null
                                 ? _inputField('Nomor Telepon', tinggiLayar,
-                                    lebarLayar, _notlpn, true)
+                                    lebarLayar, _notlpn, false)
                                 : _inputField('Nomor Telepon', tinggiLayar,
-                                    lebarLayar, _notlpn, true);
+                                    lebarLayar, _notlpn, false);
                           },
                         ),
 

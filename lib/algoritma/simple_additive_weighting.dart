@@ -561,11 +561,19 @@ class SimpleAdditiveWeighting {
         // Simpan nilai mentah untuk tampilan
         // Format khusus untuk beberapa kriteria
         if (kategori.contains('biaya') || kategori.contains('harga')) {
-          // Tampilkan harga ASLI dari database beserta periode pembayarannya
+          // Tampilkan harga yang SUDAH DIKONVERSI ke per-BULAN
+          // Jika periode = Tahun, harga dibagi 12
+          // Jika periode = Bulan, gunakan harga langsung
           final hargaAsliDb = kost.harga_kost ?? 0;
-          final periodeDb = kost.per ?? 'bulan';
+          final periodeDb = (kost.per ?? 'bulan').toLowerCase();
+          int hargaPerBulan;
+          if (periodeDb.contains('tahun')) {
+            hargaPerBulan = (hargaAsliDb / 12).round();
+          } else {
+            hargaPerBulan = hargaAsliDb;
+          }
           nilaiMentah[kriteria.kategori ?? ''] =
-              'Rp ${_formatCurrency(hargaAsliDb)}/$periodeDb';
+              'Rp ${_formatCurrency(hargaPerBulan)}/Bulan';
         } else if (kategori.contains('jarak')) {
           if (nilaiAsli is num) {
             nilaiMentah[kriteria.kategori ?? ''] =
