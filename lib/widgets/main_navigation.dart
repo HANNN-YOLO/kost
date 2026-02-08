@@ -23,7 +23,10 @@ class _MainNavigationState extends State<MainNavigation> {
       case 1:
         return KostHomePage();
       case 2:
-        return UserProfilePage();
+        return UserProfilePage(
+          showTanggalLahir: false,
+          showJenisKelamin: false,
+        );
       default:
         return KostHomePage();
     }

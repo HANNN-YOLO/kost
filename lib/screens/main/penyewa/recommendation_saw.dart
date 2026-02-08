@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import 'dart:math' as math;
 
 import 'process_saw.dart';
 import 'package:provider/provider.dart';
@@ -23,7 +26,237 @@ class RecommendationSawPage extends StatefulWidget {
   State<RecommendationSawPage> createState() => _RecommendationSawPageState();
 }
 
+int? _parseIdrToInt(String raw) {
+  final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+  if (digits.isEmpty) return null;
+  return int.tryParse(digits);
+}
+
+class _ThousandsSeparatorInputFormatter extends TextInputFormatter {
+  static String _format(String digits) {
+    if (digits.isEmpty) return '';
+    final rev = digits.split('').reversed.toList();
+    final parts = <String>[];
+    for (int i = 0; i < rev.length; i += 3) {
+      parts.add(rev.sublist(i, (i + 3).clamp(0, rev.length)).join());
+    }
+    return parts.join('.').split('').reversed.join();
+  }
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    final formatted = _format(digits);
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
 class _RecommendationSawPageState extends State<RecommendationSawPage> {
+  final TextEditingController _hargaMaxC = TextEditingController();
+  final TextEditingController _luasMaxC = TextEditingController();
+
+  String _jenisKostFilter = 'Semua';
+  String _keamananFilter = 'Semua';
+  String _batasJamMalamFilter = 'Semua';
+  String _jenisListrikFilter = 'Semua';
+  String _jenisPembayaranAirFilter = 'Semua';
+  double? _jarakMaxKm;
+
+  final Set<String> _fasilitasWajib = <String>{};
+
+  static const List<String> _opsiJenisKost = <String>[
+    'Semua',
+    'Umum',
+    'Khusus Putri',
+    'Khusus Putra',
+  ];
+
+  static const List<double> _opsiJarakKm = <double>[1, 3, 5, 10];
+
+  static const List<String> _opsiFasilitas = <String>[
+    'Tempat Tidur',
+    'Kamar Mandi dalam',
+    'Meja',
+    'Tempat Parkir',
+    'Lemari',
+    'AC',
+    'TV',
+    'Kipas Angin',
+    'Dapur dalam',
+    'WiFi',
+  ];
+
+  @override
+  void dispose() {
+    _hargaMaxC.dispose();
+    _luasMaxC.dispose();
+    super.dispose();
+  }
+
+  void _resetFilter() {
+    setState(() {
+      _hargaMaxC.clear();
+      _luasMaxC.clear();
+      _jenisKostFilter = 'Semua';
+      _keamananFilter = 'Semua';
+      _batasJamMalamFilter = 'Semua';
+      _jenisListrikFilter = 'Semua';
+      _jenisPembayaranAirFilter = 'Semua';
+      _jarakMaxKm = null;
+      _fasilitasWajib.clear();
+    });
+  }
+
+  List<String> _getSubkriteriaOptions(
+    KostProvider provider,
+    bool Function(String lowerNamaKriteria) match,
+  ) {
+    final listKriteria = provider.listKriteria;
+    final listSubkriteria = provider.listSubkriteria;
+    if (listKriteria.isEmpty || listSubkriteria.isEmpty) return [];
+
+    final matchedIds = listKriteria
+        .where((k) {
+          final nama = (k.kategori ?? '').toLowerCase();
+          return match(nama);
+        })
+        .map((k) => k.id_kriteria)
+        .whereType<int>()
+        .toSet();
+
+    if (matchedIds.isEmpty) return [];
+
+    final Map<String, String> unique = <String, String>{};
+    for (final s in listSubkriteria) {
+      final id = s.id_kriteria;
+      if (id == null || !matchedIds.contains(id)) continue;
+      final raw = (s.kategori ?? '').trim();
+      if (raw.isEmpty) continue;
+      unique.putIfAbsent(raw.toLowerCase(), () => raw);
+    }
+
+    final hasil = unique.values.toList();
+    hasil.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return hasil;
+  }
+
+  Future<void> _openFilterSheet({
+    required double Function(double) s,
+    required Color colorPrimary,
+    required Color colorTextPrimary,
+    required Color colorWhite,
+    required Color shadowColor,
+    required List<String> keamananOptions,
+    required List<String> batasJamMalamOptions,
+    required List<String> jenisListrikOptions,
+    required List<String> jenisPembayaranAirOptions,
+    required List<String> fasilitasOptions,
+    required int totalRankings,
+    required int filteredRankings,
+  }) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colorWhite,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(s(18))),
+      ),
+      clipBehavior: Clip.antiAlias,
+      builder: (sheetContext) {
+        return _SawFilterSheet(
+          s: s,
+          colorPrimary: colorPrimary,
+          colorTextPrimary: colorTextPrimary,
+          colorWhite: colorWhite,
+          shadowColor: shadowColor,
+          keamananOptions: keamananOptions,
+          batasJamMalamOptions: batasJamMalamOptions,
+          jenisListrikOptions: jenisListrikOptions,
+          jenisPembayaranAirOptions: jenisPembayaranAirOptions,
+          fasilitasOptions: fasilitasOptions,
+          totalRankings: totalRankings,
+          filteredRankings: filteredRankings,
+          initialHargaMax: _hargaMaxC.text,
+          initialLuasMax: _luasMaxC.text,
+          initialJenisKost: _jenisKostFilter,
+          initialKeamanan: _keamananFilter,
+          initialBatasJamMalam: _batasJamMalamFilter,
+          initialJenisListrik: _jenisListrikFilter,
+          initialJenisPembayaranAir: _jenisPembayaranAirFilter,
+          initialJarakMaxKm: _jarakMaxKm,
+          initialFasilitasWajib: _fasilitasWajib,
+          onResetAll: () => _resetFilter(),
+          onApply: (
+            hargaMax,
+            luasMax,
+            jenisKost,
+            keamanan,
+            batasJamMalam,
+            jenisListrik,
+            jenisPembayaranAir,
+            jarakMaxKm,
+            fasilitasWajib,
+          ) {
+            setState(() {
+              _hargaMaxC.text = hargaMax;
+              _luasMaxC.text = luasMax;
+              _jenisKostFilter = jenisKost;
+              _keamananFilter = keamanan;
+              _batasJamMalamFilter = batasJamMalam;
+              _jenisListrikFilter = jenisListrik;
+              _jenisPembayaranAirFilter = jenisPembayaranAir;
+              _jarakMaxKm = jarakMaxKm;
+              _fasilitasWajib
+                ..clear()
+                ..addAll(fasilitasWajib);
+            });
+          },
+        );
+      },
+    );
+  }
+
+  double? _getDistanceKmFromArgs(int idKost) {
+    if (widget.kostData == null) return null;
+    for (final m in widget.kostData!) {
+      if (m['id_kost'] == idKost) {
+        final v = m['distanceKm'];
+        if (v is num) return v.toDouble();
+        return null;
+      }
+    }
+    return null;
+  }
+
+  double _deg2rad(double deg) => deg * (3.141592653589793 / 180.0);
+
+  double? _haversineKm({
+    required double? lat1,
+    required double? lng1,
+    required double? lat2,
+    required double? lng2,
+  }) {
+    if (lat1 == null || lng1 == null || lat2 == null || lng2 == null) {
+      return null;
+    }
+    const double R = 6371.0;
+    final double dLat = _deg2rad(lat2 - lat1);
+    final double dLng = _deg2rad(lng2 - lng1);
+    final double a = (math.sin(dLat / 2) * math.sin(dLat / 2)) +
+        (math.cos(_deg2rad(lat1)) *
+            math.cos(_deg2rad(lat2)) *
+            math.sin(dLng / 2) *
+            math.sin(dLng / 2));
+    final double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return R * c;
+  }
+
   void _showSkippedDetail(
     BuildContext context,
     List<KostTerskipSAW> skipped,
@@ -158,6 +391,7 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
   @override
   void initState() {
     super.initState();
+
     // Jalankan perhitungan SAW saat halaman dibuka
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<KostProvider>().hitungSAW(
@@ -320,6 +554,163 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
               ? provider.kostpenyewa
               : provider.kost;
 
+          final Map<int, dynamic> kostById = <int, dynamic>{};
+          for (final k in kostList) {
+            final id = k.id_kost;
+            if (id is int) kostById[id] = k;
+          }
+
+          // Opsi dropdown diambil dari subkriteria (fallback ke data kost kalau subkriteria kosong)
+          List<String> _fallbackFromKost(String? Function(dynamic k) pick) {
+            final Set<String> values = <String>{};
+            for (final k in kostList) {
+              final v = (pick(k) ?? '').trim();
+              if (v.isNotEmpty && v.toLowerCase() != 'pilih') values.add(v);
+            }
+            final list = values.toList()..sort();
+            return list;
+          }
+
+          final subKeamanan = _getSubkriteriaOptions(
+            provider,
+            (nama) => nama.contains('keamanan'),
+          );
+          final subJamMalam = _getSubkriteriaOptions(
+            provider,
+            (nama) => nama.contains('batas') || nama.contains('jam malam'),
+          );
+          final subListrik = _getSubkriteriaOptions(
+            provider,
+            (nama) => nama.contains('listrik'),
+          );
+          final subAir = _getSubkriteriaOptions(
+            provider,
+            (nama) => nama.contains('air') || nama.contains('pembayaran'),
+          );
+
+          final List<String> keamananOptions = <String>[
+            'Semua',
+            ...((subKeamanan.isNotEmpty)
+                ? subKeamanan
+                : _fallbackFromKost((k) => (k.keamanan ?? '').toString())),
+          ];
+          final List<String> batasJamMalamOptions = <String>[
+            'Semua',
+            ...((subJamMalam.isNotEmpty)
+                ? subJamMalam
+                : _fallbackFromKost(
+                    (k) => (k.batas_jam_malam ?? '').toString(),
+                  )),
+          ];
+          final List<String> jenisListrikOptions = <String>[
+            'Semua',
+            ...((subListrik.isNotEmpty)
+                ? subListrik
+                : _fallbackFromKost((k) => (k.jenis_listrik ?? '').toString())),
+          ];
+          final List<String> jenisPembayaranAirOptions = <String>[
+            'Semua',
+            ...((subAir.isNotEmpty)
+                ? subAir
+                : _fallbackFromKost(
+                    (k) => (k.jenis_pembayaran_air ?? '').toString(),
+                  )),
+          ];
+
+          // Opsi fasilitas diambil dari fasilitas yang ada pada data kost (comma-separated)
+          final Map<String, String> fasilitasUnique = <String, String>{};
+          for (final k in kostList) {
+            final raw = (k.fasilitas ?? '').toString();
+            if (raw.trim().isEmpty) continue;
+            for (final part in raw.split(',')) {
+              final item = part.trim();
+              if (item.isEmpty) continue;
+              fasilitasUnique.putIfAbsent(item.toLowerCase(), () => item);
+            }
+          }
+          final List<String> fasilitasOptions = (fasilitasUnique.isNotEmpty)
+              ? (fasilitasUnique.values.toList()
+                ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase())))
+              : _opsiFasilitas;
+
+          bool passesFilter(dynamic kost, HasilRanking ranking) {
+            final int harga = (kost.harga_kost ?? 0) as int;
+            final int? hargaMax = _parseIdrToInt(_hargaMaxC.text.trim());
+            if (hargaMax != null && harga > hargaMax) return false;
+
+            if (_jenisKostFilter != 'Semua') {
+              final jenis = (kost.jenis_kost ?? '').toString();
+              if (jenis != _jenisKostFilter) return false;
+            }
+
+            if (_keamananFilter != 'Semua') {
+              final keamanan = (kost.keamanan ?? '').toString();
+              if (keamanan != _keamananFilter) return false;
+            }
+
+            if (_batasJamMalamFilter != 'Semua') {
+              final v = (kost.batas_jam_malam ?? '').toString();
+              if (v != _batasJamMalamFilter) return false;
+            }
+
+            if (_jenisListrikFilter != 'Semua') {
+              final v = (kost.jenis_listrik ?? '').toString();
+              if (v != _jenisListrikFilter) return false;
+            }
+
+            if (_jenisPembayaranAirFilter != 'Semua') {
+              final v = (kost.jenis_pembayaran_air ?? '').toString();
+              if (v != _jenisPembayaranAirFilter) return false;
+            }
+
+            final num? luasMax = num.tryParse(_luasMaxC.text.trim());
+            if (luasMax != null) {
+              final num? panjang = kost.panjang;
+              final num? lebar = kost.lebar;
+              if (panjang == null || lebar == null) return false;
+              final num luas = panjang * lebar;
+              if (luas > luasMax) return false;
+            }
+
+            if (_jarakMaxKm != null) {
+              double? d = _getDistanceKmFromArgs(ranking.idKost);
+              d ??= _haversineKm(
+                lat1: widget.destinationLat,
+                lng1: widget.destinationLng,
+                lat2: kost.garis_lintang,
+                lng2: kost.garis_bujur,
+              );
+              if (d == null) return false;
+              if (d > _jarakMaxKm!) return false;
+            }
+
+            if (_fasilitasWajib.isNotEmpty) {
+              final raw = (kost.fasilitas ?? '').toString();
+              final Set<String> fasilitasKost = raw
+                  .split(',')
+                  .map((e) => e.trim().toLowerCase())
+                  .where((e) => e.isNotEmpty)
+                  .toSet();
+              for (final f in _fasilitasWajib) {
+                if (!fasilitasKost.contains(f.toLowerCase())) {
+                  return false;
+                }
+              }
+            }
+
+            return true;
+          }
+
+          // Filter setelah perangkingan SAW (sesuai pilihan)
+          final List<HasilRanking> filteredRankings = <HasilRanking>[];
+          for (final r in rankings) {
+            final found = kostById[r.idKost];
+            if (found == null) continue;
+            if (passesFilter(found, r)) {
+              filteredRankings.add(r);
+            }
+          }
+
           return SafeArea(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: s(16), vertical: s(8)),
@@ -434,9 +825,54 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
                       ),
                     ],
                   ),
+                  SizedBox(height: s(10)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Menampilkan ${filteredRankings.length} dari ${rankings.length}',
+                          style: TextStyle(
+                            fontSize: s(12),
+                            fontWeight: FontWeight.w700,
+                            color: colorTextPrimary.withOpacity(0.75),
+                          ),
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => _openFilterSheet(
+                          s: s,
+                          colorPrimary: colorPrimary,
+                          colorTextPrimary: colorTextPrimary,
+                          colorWhite: colorWhite,
+                          shadowColor: shadowColor,
+                          keamananOptions: keamananOptions,
+                          batasJamMalamOptions: batasJamMalamOptions,
+                          jenisListrikOptions: jenisListrikOptions,
+                          jenisPembayaranAirOptions: jenisPembayaranAirOptions,
+                          fasilitasOptions: fasilitasOptions,
+                          totalRankings: rankings.length,
+                          filteredRankings: filteredRankings.length,
+                        ),
+                        icon: const Icon(Icons.filter_alt_rounded),
+                        label: const Text('Filter'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: colorPrimary,
+                          side:
+                              BorderSide(color: colorPrimary.withOpacity(0.35)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(s(12)),
+                          ),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: s(12),
+                            vertical: s(10),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   SizedBox(height: s(12)),
                   Expanded(
-                    child: rankings.isEmpty
+                    child: filteredRankings.isEmpty
                         ? Center(
                             child: Padding(
                               padding: EdgeInsets.all(s(24)),
@@ -490,32 +926,35 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
                             ),
                           )
                         : ListView.separated(
-                            itemCount: rankings.length,
+                            itemCount: filteredRankings.length,
                             separatorBuilder: (_, __) =>
                                 SizedBox(height: s(12)),
                             itemBuilder: (context, index) {
-                              final ranking = rankings[index];
+                              final ranking = filteredRankings[index];
 
                               // Cari data kost berdasarkan idKost dari ranking
-                              final kost = kostList.firstWhere(
-                                (k) => k.id_kost == ranking.idKost,
-                                orElse: () => kostList.first,
-                              );
+                              dynamic kost;
+                              for (final k in kostList) {
+                                if (k.id_kost == ranking.idKost) {
+                                  kost = k;
+                                  break;
+                                }
+                              }
+
+                              if (kost == null) {
+                                return const SizedBox.shrink();
+                              }
 
                               // Cari jarak dari kostData jika tersedia
                               double? distanceKm;
-                              if (widget.kostData != null) {
-                                final kostDataItem =
-                                    widget.kostData!.firstWhere(
-                                  (m) => m['id_kost'] == ranking.idKost,
-                                  orElse: () => {},
-                                );
-                                if (kostDataItem.isNotEmpty) {
-                                  distanceKm =
-                                      (kostDataItem['distanceKm'] as num?)
-                                          ?.toDouble();
-                                }
-                              }
+                              distanceKm =
+                                  _getDistanceKmFromArgs(ranking.idKost);
+                              distanceKm ??= _haversineKm(
+                                lat1: widget.destinationLat,
+                                lng1: widget.destinationLng,
+                                lat2: kost.garis_lintang,
+                                lng2: kost.garis_bujur,
+                              );
 
                               return _RankingCard(
                                 rank: ranking.peringkat,
@@ -548,6 +987,576 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+Widget _filterTextField({
+  required TextEditingController controller,
+  required String hintText,
+  required double Function(double) s,
+  required Color colorPrimary,
+  List<TextInputFormatter>? inputFormatters,
+}) {
+  return TextField(
+    controller: controller,
+    keyboardType: TextInputType.number,
+    inputFormatters: inputFormatters,
+    decoration: InputDecoration(
+      hintText: hintText,
+      isDense: true,
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: s(12),
+        vertical: s(12),
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(s(12)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(s(12)),
+        borderSide: BorderSide(color: colorPrimary.withOpacity(0.18)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(s(12)),
+        borderSide: BorderSide(color: colorPrimary.withOpacity(0.45)),
+      ),
+    ),
+  );
+}
+
+Widget _filterDropdown({
+  required String label,
+  required String value,
+  required List<String> items,
+  required double Function(double) s,
+  required Color colorPrimary,
+  required ValueChanged<String?> onChanged,
+}) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        label,
+        style: TextStyle(
+          fontSize: s(12),
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      SizedBox(height: s(8)),
+      Container(
+        padding: EdgeInsets.symmetric(horizontal: s(12)),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(s(12)),
+          border: Border.all(color: colorPrimary.withOpacity(0.18)),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: value,
+            isExpanded: true,
+            items: items
+                .map(
+                  (e) => DropdownMenuItem<String>(
+                    value: e,
+                    child: Text(
+                      e,
+                      style: TextStyle(
+                        fontSize: s(12),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: onChanged,
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+Widget _choiceChip({
+  required String label,
+  required bool selected,
+  required double Function(double) s,
+  required Color colorPrimary,
+  required VoidCallback onTap,
+}) {
+  return InkWell(
+    onTap: onTap,
+    child: Container(
+      padding: EdgeInsets.symmetric(horizontal: s(12), vertical: s(8)),
+      decoration: BoxDecoration(
+        color: selected ? colorPrimary : colorPrimary.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(s(999)),
+        border: Border.all(color: colorPrimary.withOpacity(0.18)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: s(11),
+          fontWeight: FontWeight.w700,
+          color: selected ? Colors.white : colorPrimary,
+        ),
+      ),
+    ),
+  );
+}
+
+class _SawFilterSheet extends StatefulWidget {
+  final double Function(double) s;
+  final Color colorPrimary;
+  final Color colorTextPrimary;
+  final Color colorWhite;
+  final Color shadowColor;
+
+  final List<String> keamananOptions;
+  final List<String> batasJamMalamOptions;
+  final List<String> jenisListrikOptions;
+  final List<String> jenisPembayaranAirOptions;
+  final List<String> fasilitasOptions;
+
+  final int totalRankings;
+  final int filteredRankings;
+
+  final String initialHargaMax;
+  final String initialLuasMax;
+  final String initialJenisKost;
+  final String initialKeamanan;
+  final String initialBatasJamMalam;
+  final String initialJenisListrik;
+  final String initialJenisPembayaranAir;
+  final double? initialJarakMaxKm;
+  final Set<String> initialFasilitasWajib;
+
+  final VoidCallback onResetAll;
+
+  final void Function(
+    String hargaMax,
+    String luasMax,
+    String jenisKost,
+    String keamanan,
+    String batasJamMalam,
+    String jenisListrik,
+    String jenisPembayaranAir,
+    double? jarakMaxKm,
+    Set<String> fasilitasWajib,
+  ) onApply;
+
+  const _SawFilterSheet({
+    required this.s,
+    required this.colorPrimary,
+    required this.colorTextPrimary,
+    required this.colorWhite,
+    required this.shadowColor,
+    required this.keamananOptions,
+    required this.batasJamMalamOptions,
+    required this.jenisListrikOptions,
+    required this.jenisPembayaranAirOptions,
+    required this.fasilitasOptions,
+    required this.totalRankings,
+    required this.filteredRankings,
+    required this.initialHargaMax,
+    required this.initialLuasMax,
+    required this.initialJenisKost,
+    required this.initialKeamanan,
+    required this.initialBatasJamMalam,
+    required this.initialJenisListrik,
+    required this.initialJenisPembayaranAir,
+    required this.initialJarakMaxKm,
+    required this.initialFasilitasWajib,
+    required this.onResetAll,
+    required this.onApply,
+  });
+
+  @override
+  State<_SawFilterSheet> createState() => _SawFilterSheetState();
+}
+
+class _SawFilterSheetState extends State<_SawFilterSheet> {
+  late final TextEditingController _hargaMax;
+  late final TextEditingController _luasMax;
+
+  late String _jenisKost;
+  late String _keamanan;
+  late String _batasJamMalam;
+  late String _jenisListrik;
+  late String _jenisPembayaranAir;
+  double? _jarakMaxKm;
+  late final Set<String> _fasilitasWajib;
+
+  @override
+  void initState() {
+    super.initState();
+    _hargaMax = TextEditingController(text: widget.initialHargaMax);
+    _luasMax = TextEditingController(text: widget.initialLuasMax);
+    _jenisKost = widget.initialJenisKost;
+    _keamanan = widget.initialKeamanan;
+    _batasJamMalam = widget.initialBatasJamMalam;
+    _jenisListrik = widget.initialJenisListrik;
+    _jenisPembayaranAir = widget.initialJenisPembayaranAir;
+    _jarakMaxKm = widget.initialJarakMaxKm;
+    _fasilitasWajib = <String>{...widget.initialFasilitasWajib};
+  }
+
+  @override
+  void dispose() {
+    _hargaMax.dispose();
+    _luasMax.dispose();
+    super.dispose();
+  }
+
+  void _resetLocal() {
+    setState(() {
+      _hargaMax.clear();
+      _luasMax.clear();
+      _jenisKost = 'Semua';
+      _keamanan = 'Semua';
+      _batasJamMalam = 'Semua';
+      _jenisListrik = 'Semua';
+      _jenisPembayaranAir = 'Semua';
+      _jarakMaxKm = null;
+      _fasilitasWajib.clear();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.s;
+    final colorPrimary = widget.colorPrimary;
+    final colorTextPrimary = widget.colorTextPrimary;
+    final colorWhite = widget.colorWhite;
+
+    final keamananValue =
+        widget.keamananOptions.contains(_keamanan) ? _keamanan : 'Semua';
+    final jamMalamValue = widget.batasJamMalamOptions.contains(_batasJamMalam)
+        ? _batasJamMalam
+        : 'Semua';
+    final listrikValue = widget.jenisListrikOptions.contains(_jenisListrik)
+        ? _jenisListrik
+        : 'Semua';
+    final airValue =
+        widget.jenisPembayaranAirOptions.contains(_jenisPembayaranAir)
+            ? _jenisPembayaranAir
+            : 'Semua';
+
+    return SafeArea(
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.82,
+          minChildSize: 0.45,
+          maxChildSize: 0.95,
+          builder: (context, controller) {
+            return ListView(
+              controller: controller,
+              physics: const ClampingScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(s(16), s(12), s(16), s(16)),
+              children: [
+                Center(
+                  child: Container(
+                    width: s(44),
+                    height: s(5),
+                    decoration: BoxDecoration(
+                      color: Colors.black12,
+                      borderRadius: BorderRadius.circular(s(999)),
+                    ),
+                  ),
+                ),
+                SizedBox(height: s(10)),
+                Row(
+                  children: [
+                    Icon(Icons.filter_alt_rounded,
+                        color: colorPrimary, size: s(18)),
+                    SizedBox(width: s(8)),
+                    Expanded(
+                      child: Text(
+                        'Filter',
+                        style: TextStyle(
+                          fontSize: s(14),
+                          fontWeight: FontWeight.w800,
+                          color: colorTextPrimary,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${widget.filteredRankings}/${widget.totalRankings}',
+                      style: TextStyle(
+                        fontSize: s(12),
+                        fontWeight: FontWeight.w800,
+                        color: colorPrimary,
+                      ),
+                    ),
+                    SizedBox(width: s(8)),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                      color: colorPrimary,
+                      tooltip: 'Tutup',
+                    ),
+                  ],
+                ),
+                SizedBox(height: s(12)),
+                Text(
+                  'Harga Maksimum (Rp)',
+                  style: TextStyle(
+                    fontSize: s(12),
+                    fontWeight: FontWeight.w700,
+                    color: colorTextPrimary,
+                  ),
+                ),
+                SizedBox(height: s(8)),
+                _filterTextField(
+                  controller: _hargaMax,
+                  hintText: 'Contoh: 1500000',
+                  s: s,
+                  colorPrimary: colorPrimary,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    _ThousandsSeparatorInputFormatter(),
+                  ],
+                ),
+                SizedBox(height: s(12)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _filterDropdown(
+                        label: 'Jenis Kost',
+                        value: _jenisKost,
+                        items: _RecommendationSawPageState._opsiJenisKost,
+                        s: s,
+                        colorPrimary: colorPrimary,
+                        onChanged: (v) {
+                          if (v == null) return;
+                          setState(() => _jenisKost = v);
+                        },
+                      ),
+                    ),
+                    SizedBox(width: s(10)),
+                    Expanded(
+                      child: _filterDropdown(
+                        label: 'Keamanan',
+                        value: keamananValue,
+                        items: widget.keamananOptions,
+                        s: s,
+                        colorPrimary: colorPrimary,
+                        onChanged: (v) {
+                          if (v == null) return;
+                          setState(() => _keamanan = v);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: s(12)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _filterDropdown(
+                        label: 'Batas Jam Malam',
+                        value: jamMalamValue,
+                        items: widget.batasJamMalamOptions,
+                        s: s,
+                        colorPrimary: colorPrimary,
+                        onChanged: (v) {
+                          if (v == null) return;
+                          setState(() => _batasJamMalam = v);
+                        },
+                      ),
+                    ),
+                    SizedBox(width: s(10)),
+                    Expanded(
+                      child: _filterDropdown(
+                        label: 'Jenis Listrik',
+                        value: listrikValue,
+                        items: widget.jenisListrikOptions,
+                        s: s,
+                        colorPrimary: colorPrimary,
+                        onChanged: (v) {
+                          if (v == null) return;
+                          setState(() => _jenisListrik = v);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: s(12)),
+                _filterDropdown(
+                  label: 'Pembayaran Air',
+                  value: airValue,
+                  items: widget.jenisPembayaranAirOptions,
+                  s: s,
+                  colorPrimary: colorPrimary,
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setState(() => _jenisPembayaranAir = v);
+                  },
+                ),
+                SizedBox(height: s(12)),
+                Text(
+                  'Jarak Maksimum',
+                  style: TextStyle(
+                    fontSize: s(12),
+                    fontWeight: FontWeight.w700,
+                    color: colorTextPrimary,
+                  ),
+                ),
+                SizedBox(height: s(8)),
+                Wrap(
+                  spacing: s(8),
+                  runSpacing: s(8),
+                  children: [
+                    _choiceChip(
+                      label: 'Semua',
+                      selected: _jarakMaxKm == null,
+                      s: s,
+                      colorPrimary: colorPrimary,
+                      onTap: () => setState(() => _jarakMaxKm = null),
+                    ),
+                    ..._RecommendationSawPageState._opsiJarakKm.map(
+                      (km) => _choiceChip(
+                        label: '${km.toStringAsFixed(0)} km',
+                        selected: _jarakMaxKm == km,
+                        s: s,
+                        colorPrimary: colorPrimary,
+                        onTap: () => setState(() => _jarakMaxKm = km),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: s(12)),
+                Text(
+                  'Luas Kamar Maksimum (m²)',
+                  style: TextStyle(
+                    fontSize: s(12),
+                    fontWeight: FontWeight.w700,
+                    color: colorTextPrimary,
+                  ),
+                ),
+                SizedBox(height: s(8)),
+                _filterTextField(
+                  controller: _luasMax,
+                  hintText: 'Contoh: 14',
+                  s: s,
+                  colorPrimary: colorPrimary,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
+                ),
+                SizedBox(height: s(12)),
+                Text(
+                  'Fasilitas Wajib',
+                  style: TextStyle(
+                    fontSize: s(12),
+                    fontWeight: FontWeight.w700,
+                    color: colorTextPrimary,
+                  ),
+                ),
+                SizedBox(height: s(8)),
+                Wrap(
+                  spacing: s(8),
+                  runSpacing: s(8),
+                  children: widget.fasilitasOptions.map((f) {
+                    final bool selected = _fasilitasWajib
+                        .map((e) => e.toLowerCase())
+                        .contains(f.toLowerCase());
+                    return FilterChip(
+                      label: Text(
+                        f,
+                        style: TextStyle(
+                          fontSize: s(11),
+                          fontWeight: FontWeight.w700,
+                          color: selected ? colorWhite : colorPrimary,
+                        ),
+                      ),
+                      selected: selected,
+                      selectedColor: colorPrimary,
+                      backgroundColor: colorPrimary.withOpacity(0.08),
+                      side: BorderSide(
+                        color: colorPrimary.withOpacity(0.20),
+                      ),
+                      onSelected: (v) {
+                        setState(() {
+                          final existing = _fasilitasWajib.firstWhere(
+                            (x) => x.toLowerCase() == f.toLowerCase(),
+                            orElse: () => '',
+                          );
+                          if (v) {
+                            if (existing.isEmpty) _fasilitasWajib.add(f);
+                          } else {
+                            if (existing.isNotEmpty)
+                              _fasilitasWajib.remove(existing);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+                SizedBox(height: s(14)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          widget.onResetAll();
+                          _resetLocal();
+                        },
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Reset'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: colorPrimary,
+                          side:
+                              BorderSide(color: colorPrimary.withOpacity(0.35)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(s(12)),
+                          ),
+                          padding: EdgeInsets.symmetric(vertical: s(12)),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: s(10)),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          widget.onApply(
+                            _hargaMax.text,
+                            _luasMax.text,
+                            _jenisKost,
+                            _keamanan,
+                            _batasJamMalam,
+                            _jenisListrik,
+                            _jenisPembayaranAir,
+                            _jarakMaxKm,
+                            _fasilitasWajib,
+                          );
+                          Navigator.of(context).pop();
+                        },
+                        icon: const Icon(Icons.check_rounded),
+                        label: const Text('Terapkan'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: colorPrimary,
+                          foregroundColor: colorWhite,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(s(12)),
+                          ),
+                          padding: EdgeInsets.symmetric(vertical: s(12)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: s(4)),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

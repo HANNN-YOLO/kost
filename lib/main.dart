@@ -175,7 +175,10 @@ class App extends StatelessWidget {
                 // state user
                 "/mainavigation": (_) => MainNavigation(),
                 "/kost-home": (_) => KostHomePage(),
-                "/profil-user": (_) => UserProfilePage(),
+                "/profil-user": (_) => UserProfilePage(
+                      showTanggalLahir: false,
+                      showJenisKelamin: false,
+                    ),
                 "/recomended-user": (_) => UserRecommendationPage(),
 
                 // state Admin

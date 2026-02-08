@@ -58,6 +58,9 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
 
   List<inputanlist> _listini = [];
 
+  // Key untuk WebView container
+  final GlobalKey _webViewKey = GlobalKey();
+
   // Opsi lokasi untuk titik koordinat (mirip halaman rekomendasi penyewa)
   String _selectedLocationOption = 'Lokasi Tujuan';
 
@@ -190,7 +193,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
 
   // Sinkronkan mode peta dengan opsi lokasi yang terpilih
   Future<void> _syncMapModeWithLocationOption() async {
-    if (!_mapLoaded) return;
+    if (!_mapLoaded || !mounted) return;
 
     try {
       if (_selectedLocationOption == _optLokasiTujuan) {
@@ -210,6 +213,8 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
 
   // Parse koordinat dan update peta
   void _parseAndUpdateMap(String text) {
+    if (!mounted) return;
+
     // Parse koordinat (format: "lat, lng" atau "lat,lng")
     try {
       final parts = text.split(',').map((e) => e.trim()).toList();
@@ -246,21 +251,25 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
   // Minta lokasi sekarang perangkat (menggunakan Geolocator dari KostProvider)
   Future<void> _useCurrentLocation() async {
     try {
-      if (!_mapLoaded) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Map belum siap, coba lagi sebentar...'),
-          ),
-        );
+      if (!_mapLoaded || !mounted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Map belum siap, coba lagi sebentar...'),
+            ),
+          );
+        }
         return;
       }
 
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('GPS belum aktif, nyalakan dulu.')),
-        );
-        await Geolocator.openLocationSettings();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('GPS belum aktif, nyalakan dulu.')),
+          );
+          await Geolocator.openLocationSettings();
+        }
         return;
       }
 
@@ -268,17 +277,21 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Izin lokasi ditolak.')),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Izin lokasi ditolak.')),
+            );
+          }
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Izin lokasi ditolak permanen.')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Izin lokasi ditolak permanen.')),
+          );
+        }
         return;
       }
 
@@ -286,15 +299,19 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
         desiredAccuracy: LocationAccuracy.high,
       );
 
+      if (!mounted) return;
+
       final lat = pos.latitude;
       final lng = pos.longitude;
 
       _koordinatController.text = '$lat, $lng';
       await _updateMapLocation(lat, lng);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal mengambil lokasi: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal mengambil lokasi: $e')),
+        );
+      }
     }
   }
 
@@ -328,7 +345,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
             if (pakai != null) {
               _namapemilik.text = pakai.pemilik_kost ?? "";
               _namakost.text = pakai.nama_kost ?? "";
-              _notlpn.text = pakai.notlp_kost.toString() ?? "";
+              // Nomor telepon mengikuti profil pemilik (bukan dari data kost)
               _alamat.text = pakai.alamat_kost ?? "";
               _harga.text = ThousandsSeparatorInputFormatter.formatDigits(
                 (pakai.harga_kost ?? 0).toString(),
@@ -383,19 +400,40 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
 
   @override
   void dispose() {
-    // final penghubung = Provider.of<KostProvider>(context);
-    // penghubung.dispose();
-    // penghubung.inputan.dispose();
+    // Cancel semua async operations
+    _debounceTimer?.cancel();
+
+    // Remove semua listeners sebelum dispose
+    _koordinatController.removeListener(_onKoordinatChanged);
+    for (final controller in [
+      _namapemilik,
+      _namakost,
+      _notlpn,
+      _alamat,
+      _harga,
+      _panjang,
+      _lebar,
+      _koordinatController,
+    ]) {
+      controller.removeListener(_onFormFieldChanged);
+    }
+
+    // Dispose controllers
     _namakost.dispose();
     _notlpn.dispose();
     _alamat.dispose();
     _harga.dispose();
     _lebar.dispose();
     _panjang.dispose();
-    _debounceTimer?.cancel();
-    _koordinatController.removeListener(_onKoordinatChanged);
+    _namapemilik.dispose();
     _koordinatController.dispose();
-    // _namaFasilitasController.dispose();
+
+    // Dispose list controllers
+    for (var item in _listini) {
+      item.bersih();
+    }
+    _listini.clear();
+
     super.dispose();
   }
 
@@ -408,9 +446,15 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
 
     final penghubung3 = Provider.of<ProfilProvider>(context);
 
-    // Jika profil sudah ada, isi otomatis nomor telepon sekali saja
-    if (penghubung3.mydata.isNotEmpty && _notlpn.text.isEmpty) {
-      _notlpn.text = penghubung3.mydata.first.kontak.toString();
+    // Nomor telepon kost selalu mengikuti nomor telepon profil pemilik.
+    // Jika profil belum diisi, field ini akan kosong dan tidak bisa diedit.
+    final int? profilKontak =
+        penghubung3.mydata.isNotEmpty ? penghubung3.mydata.first.kontak : null;
+    final String profilNoHp = (profilKontak != null && profilKontak != 0)
+        ? profilKontak.toString()
+        : '';
+    if (_notlpn.text != profilNoHp) {
+      _notlpn.text = profilNoHp;
     }
 
     final tinggiLayar = MediaQuery.of(context).size.height;
@@ -539,9 +583,9 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                           builder: (context, value, child) {
                             return terima != null
                                 ? _inputField('Nomor Telepon', tinggiLayar,
-                                    lebarLayar, _notlpn, false)
+                                    lebarLayar, _notlpn, true)
                                 : _inputField('Nomor Telepon', tinggiLayar,
-                                    lebarLayar, _notlpn, false);
+                                    lebarLayar, _notlpn, true);
                           },
                         ),
 
@@ -1224,55 +1268,73 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                         Consumer<KostProvider>(
                           builder: (context, value, child) {
                             return terima != null
-                                ? Container(
-                                    height: tinggiLayar * 5,
-                                    width: double.infinity,
-                                    child: ListView.separated(
-                                      itemCount: _listini.length,
-                                      separatorBuilder: (context, index) {
-                                        return SizedBox(
-                                            height: tinggiLayar * 0.05);
-                                      },
-                                      itemBuilder: (context, index) {
-                                        return Textfield1barisFull(
-                                          jenis: TextInputType.text,
-                                          bk: TextCapitalization.words,
-                                          ketikan: _listini[index].fasilitas,
-                                          tulis: false,
-                                          label: "Nama Fasilitas",
-                                          fungsienter: () {
-                                            setState(() {
-                                              _listini.add(inputanlist());
-                                            });
-                                          },
-                                        );
-                                      },
-                                    ),
+                                ? ListView.separated(
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    itemCount: _listini.length,
+                                    separatorBuilder: (context, index) {
+                                      return Column(
+                                        children: [
+                                          SizedBox(height: tinggiLayar * 0.02),
+                                          Divider(
+                                            color: Colors.grey.shade300,
+                                            thickness: 1,
+                                            height: 1,
+                                          ),
+                                          SizedBox(height: tinggiLayar * 0.02),
+                                        ],
+                                      );
+                                    },
+                                    itemBuilder: (context, index) {
+                                      return Textfield1barisFull(
+                                        jenis: TextInputType.text,
+                                        bk: TextCapitalization.words,
+                                        ketikan: _listini[index].fasilitas,
+                                        tulis: false,
+                                        label: "Nama Fasilitas ${index + 1}",
+                                        fungsienter: () {
+                                          setState(() {
+                                            _listini.add(inputanlist());
+                                          });
+                                        },
+                                      );
+                                    },
                                   )
-                                : Container(
-                                    height: tinggiLayar * 5,
-                                    width: double.infinity,
-                                    child: ListView.separated(
-                                      itemCount: _listini.length,
-                                      separatorBuilder: (context, index) {
-                                        return SizedBox(
-                                            height: tinggiLayar * 0.05);
-                                      },
-                                      itemBuilder: (context, index) {
-                                        return Textfield1barisFull(
-                                          jenis: TextInputType.text,
-                                          bk: TextCapitalization.words,
-                                          ketikan: _listini[index].fasilitas,
-                                          tulis: false,
-                                          label: "Nama Fasilitas",
-                                          fungsienter: () {
+                                : ListView.separated(
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    itemCount: _listini.length,
+                                    separatorBuilder: (context, index) {
+                                      return Column(
+                                        children: [
+                                          SizedBox(height: tinggiLayar * 0.02),
+                                          Divider(
+                                            color: Colors.grey.shade300,
+                                            thickness: 1,
+                                            height: 1,
+                                          ),
+                                          SizedBox(height: tinggiLayar * 0.02),
+                                        ],
+                                      );
+                                    },
+                                    itemBuilder: (context, index) {
+                                      return Textfield1barisFull(
+                                        jenis: TextInputType.text,
+                                        bk: TextCapitalization.words,
+                                        ketikan: _listini[index].fasilitas,
+                                        tulis: false,
+                                        label: "Nama Fasilitas ${index + 1}",
+                                        fungsienter: () {
+                                          if (mounted) {
                                             setState(() {
                                               _listini.add(inputanlist());
                                             });
-                                          },
-                                        );
-                                      },
-                                    ),
+                                          }
+                                        },
+                                      );
+                                    },
                                   );
                           },
                         ),
@@ -1378,7 +1440,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                             penghubung.foto,
                                             _namapemilik.text,
                                             _namakost.text,
-                                            int.parse(_notlpn.text),
+                                            int.tryParse(_notlpn.text) ?? 0,
                                             _alamat.text,
                                             ThousandsSeparatorInputFormatter
                                                     .tryParseInt(_harga.text) ??
@@ -1472,6 +1534,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                 onPressed: !canSubmit
                                     ? null
                                     : () async {
+                                        if (!mounted) return;
                                         setState(() {
                                           _isSubmitting = true;
                                         });
@@ -1539,7 +1602,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                             _namapemilik.text,
                                             _namakost.text,
                                             _alamat.text,
-                                            int.parse(_notlpn.text),
+                                            int.tryParse(_notlpn.text) ?? 0,
                                             ThousandsSeparatorInputFormatter
                                                     .tryParseInt(_harga.text) ??
                                                 0,
@@ -1680,9 +1743,11 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
     final lebar = _lebar.text.trim();
     final koordinat = _koordinatController.text.trim();
 
+    final bool hasAtLeastOneFasilitas =
+        _listini.any((item) => item.fasilitas.text.trim().isNotEmpty);
+
     if (namaPemilik.isEmpty ||
         namaKost.isEmpty ||
-        noTelp.isEmpty ||
         alamat.isEmpty ||
         harga.isEmpty ||
         panjang.isEmpty ||
@@ -1703,6 +1768,10 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
       return "Foto kost wajib di-upload.";
     }
 
+    if (!hasAtLeastOneFasilitas) {
+      return "Harap isi minimal 1 fasilitas kost.";
+    }
+
     // final fasilitas = penghubung.inputan;
     // final bool hasFacility = fasilitas.tempat_tidur ||
     //     fasilitas.kamar_mandi_dalam ||
@@ -1719,7 +1788,8 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
     //   return "Harap pilih minimal satu fasilitas kost.";
     // }
 
-    if (int.tryParse(noTelp) == null) {
+    // Nomor telepon mengikuti profil dan boleh kosong jika profil belum diisi.
+    if (noTelp.isNotEmpty && int.tryParse(noTelp) == null) {
       return "Nomor telepon hanya boleh berisi angka.";
     }
 
@@ -1779,9 +1849,11 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
     final lebar = _lebar.text.trim();
     final koordinat = _koordinatController.text.trim();
 
+    final bool hasAtLeastOneFasilitas =
+        _listini.any((item) => item.fasilitas.text.trim().isNotEmpty);
+
     if (namaPemilik.isEmpty ||
         namaKost.isEmpty ||
-        noTelp.isEmpty ||
         alamat.isEmpty ||
         harga.isEmpty ||
         panjang.isEmpty ||
@@ -1799,6 +1871,10 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
     }
 
     if (!isEdit && penghubung.foto == null) {
+      return false;
+    }
+
+    if (!hasAtLeastOneFasilitas) {
       return false;
     }
 
@@ -1960,6 +2036,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
           child: SizedBox(
             height: tinggi * 0.3,
             child: Container(
+              key: _webViewKey,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(8),

@@ -194,7 +194,11 @@ class _ProfilePemilikPageState extends State<ProfilePemilikPage> {
   Widget build(BuildContext context) {
     // Gunakan UI & fungsi yang sama seperti profil penyewa,
     // tetapi tanpa menampilkan tombol "Keluar Akun".
-    return UserProfilePage(showLogoutButton: false);
+    return UserProfilePage(
+      showLogoutButton: false,
+      showTanggalLahir: false,
+      showJenisKelamin: false,
+    );
   }
 }
 

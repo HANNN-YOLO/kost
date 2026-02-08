@@ -7,9 +7,17 @@ import '../../../providers/kost_provider.dart';
 import 'admin_places_page.dart';
 import '../shared/formatCurrency.dart';
 
-class ManagementBoardingHouse extends StatelessWidget {
+class ManagementBoardingHouse extends StatefulWidget {
   static const arah = "/management-board-admin";
   const ManagementBoardingHouse({super.key});
+
+  @override
+  State<ManagementBoardingHouse> createState() =>
+      _ManagementBoardingHouseState();
+}
+
+class _ManagementBoardingHouseState extends State<ManagementBoardingHouse> {
+  bool _isNavigating = false;
 
   @override
   Widget build(BuildContext context) {
@@ -90,14 +98,23 @@ class ManagementBoardingHouse extends StatelessWidget {
                         color: Colors.transparent,
                         child: InkWell(
                           borderRadius: BorderRadius.circular(6),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => FormHouse(),
-                              ),
-                            );
-                          },
+                          onTap: _isNavigating
+                              ? null
+                              : () async {
+                                  if (_isNavigating) return;
+                                  setState(() => _isNavigating = true);
+
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const FormHouse(),
+                                    ),
+                                  );
+
+                                  if (mounted) {
+                                    setState(() => _isNavigating = false);
+                                  }
+                                },
                           child: Container(
                             width: lebarLayar * 0.09,
                             height: lebarLayar * 0.09,

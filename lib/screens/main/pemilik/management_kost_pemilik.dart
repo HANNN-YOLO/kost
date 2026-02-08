@@ -20,6 +20,7 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
   static Color warnaUtama = Color(0xFF1E3A8A);
   static Color aksenBiru = Color(0xFF007BFF);
   bool _isDeleting = false;
+  bool _isNavigating = false;
 
   @override
   Widget build(BuildContext context) {
@@ -43,22 +44,19 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
               _HeaderBar(
                 title: "Daftar Kost",
                 subtitle: "Kelola properti kost milik Anda",
-                onAdd: () {
-                  // if (penghubung2.mydata.isEmpty) {
-                  //   showDialog(
-                  //     context: context,
-                  //     builder: (context) {
-                  //       return ShowdialogEror(
-                  //           label: "Isi data Profil lebih dahulu");
-                  //     },
-                  //   );
-                  // } else {
-                  //   Navigator.of(context, rootNavigator: true)
-                  //       .pushNamed('/form-house-pemilik');
-                  // }
-                  Navigator.of(context, rootNavigator: true)
-                      .pushNamed('/form-house-pemilik');
-                },
+                onAdd: _isNavigating
+                    ? null
+                    : () async {
+                        if (_isNavigating) return;
+                        setState(() => _isNavigating = true);
+
+                        await Navigator.of(context, rootNavigator: true)
+                            .pushNamed('/form-house-pemilik');
+
+                        if (mounted) {
+                          setState(() => _isNavigating = false);
+                        }
+                      },
                 warnaUtama: warnaUtama,
               ),
 

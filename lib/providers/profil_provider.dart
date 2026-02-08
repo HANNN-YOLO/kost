@@ -21,6 +21,18 @@ class ProfilProvider with ChangeNotifier {
     int angka,
     List<AuthModel> hasil,
   ) async {
+    // Jika user berganti (login akun lain) dalam 1 sesi aplikasi,
+    // pastikan cache foto lokal tidak "nyangkut" ke akun berikutnya.
+    final int? previousAuthId = id_auth;
+    final bool authChanged = previousAuthId != null && previousAuthId != angka;
+    if (authChanged) {
+      _isinya = null;
+      _mydata = [];
+      this.hasil = [];
+      id_profil = null;
+      defaults = 'Jenis Kelamin';
+    }
+
     _accesstoken = value;
     _email = isi;
     id_auth = angka;
@@ -28,8 +40,16 @@ class ProfilProvider with ChangeNotifier {
     if (_accesstoken != null &&
         _email != null &&
         id_auth != null &&
-        _listauth != null) {
-      if (_listauth.first.role == "Admin") {
+        _listauth.isNotEmpty) {
+      AuthModel? currentAuth;
+      for (final a in _listauth) {
+        if (a.id_auth == id_auth) {
+          currentAuth = a;
+          break;
+        }
+      }
+
+      if (currentAuth?.role == "Admin") {
         readuser();
       }
       readdata(_accesstoken!, id_auth!);
@@ -113,6 +133,35 @@ class ProfilProvider with ChangeNotifier {
     } catch (e) {
       throw e;
     }
+    await readdata(_accesstoken!, id_auth!);
+    notifyListeners();
+  }
+
+  Future<void> createprofilFlexible(
+    XFile? foto,
+    DateTime tgllahir,
+    String jkl,
+    int hp,
+  ) async {
+    try {
+      // Foto opsional: jika tidak ada foto, simpan link kosong agar profil tetap bisa dibuat.
+      String link = '';
+      if (foto != null) {
+        link = await _ref.uploadfoto(foto, _accesstoken!);
+      }
+
+      await _ref.createprofil(
+        id_auth!,
+        _accesstoken!,
+        link,
+        tgllahir,
+        jkl,
+        hp,
+      );
+    } catch (e) {
+      throw e;
+    }
+
     await readdata(_accesstoken!, id_auth!);
     notifyListeners();
   }
@@ -262,7 +311,7 @@ class ProfilProvider with ChangeNotifier {
 
     _mydata = [];
     _isinya = null;
-    defaults = "jenis Kelamin";
+    defaults = 'Jenis Kelamin';
 
     id_profil = null;
     id_auth = null;

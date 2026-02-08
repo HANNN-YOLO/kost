@@ -101,6 +101,11 @@ class AuthProvider with ChangeNotifier {
         throw "Harap pilih role sebagai Pemilik atau Penyewa.";
       }
 
+      // Validasi panjang password (minimal 6 karakter)
+      if (pas1.length < 6) {
+        throw "Kata sandi harus terdiri dari minimal 6 huruf atau angka.";
+      }
+
       if (pas1 != pas2) {
         throw "Sandi tidak sama dengan Konfirmasi Sandi pada saat di input";
       }

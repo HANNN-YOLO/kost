@@ -120,7 +120,7 @@ class DetailKost extends StatelessWidget {
                       _StatChip(
                         icon: Icons.sell_outlined,
                         label: 'Harga',
-                        value: terima!.harga_kost.toString(),
+                        value: formatCurrency(terima!.harga_kost ?? 0),
                       ),
                       _StatChip(
                           icon: Icons.king_bed_outlined,
@@ -187,21 +187,21 @@ class DetailKost extends StatelessWidget {
                       _MapWidget(
                         latitude: terima.garis_lintang ?? -5.147665,
                         longitude: terima.garis_bujur ?? 119.432731,
-                        // destinationLat: destinationLat,
-                        // destinationLng: destinationLng,
+                        destinationLat: destinationLat,
+                        destinationLng: destinationLng,
                       ),
-                      // if (distanceKm != null) ...[
-                      //   const SizedBox(height: 8),
-                      //   Text(
-                      //     'Jarak kost ke tujuan Anda: '
-                      //     '${distanceKm!.toStringAsFixed(2)} km',
-                      //     style: const TextStyle(
-                      //       fontSize: 13,
-                      //       fontWeight: FontWeight.w600,
-                      //       color: Colors.black54,
-                      //     ),
-                      //   ),
-                      // ],
+                      if (distanceKm != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Jarak kost ke tujuan Anda: '
+                          '${distanceKm!.toStringAsFixed(2)} km',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black54,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],

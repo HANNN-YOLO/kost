@@ -970,6 +970,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                     _noLowerBound = val ?? false;
                                                                                     if (_noLowerBound) {
                                                                                       _noUpperBound = false;
+                                                                                      _strictMin = false;
                                                                                       _minController.clear();
                                                                                     }
                                                                                   });
@@ -992,32 +993,65 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                 TextStyle(fontSize: 10, color: Colors.grey[600]),
                                                                           ),
                                                                         ),
-                                                                        CheckboxListTile(
-                                                                          value: canStrictMin
-                                                                              ? _strictMin
-                                                                              : false,
-                                                                          onChanged: canStrictMin
-                                                                              ? (val) {
-                                                                                  setStateDialog(() {
-                                                                                    _strictMin = val ?? false;
-                                                                                  });
-                                                                                }
-                                                                              : null,
-                                                                          dense:
-                                                                              true,
-                                                                          contentPadding:
-                                                                              EdgeInsets.zero,
-                                                                          title:
+                                                                        const SizedBox(
+                                                                            height:
+                                                                                6),
+                                                                        Row(
+                                                                          children: [
+                                                                            Expanded(
+                                                                              child: Text(
+                                                                                'Operator minimum',
+                                                                                style: TextStyle(
+                                                                                  fontSize: 11,
+                                                                                  fontWeight: FontWeight.w600,
+                                                                                  color: Colors.grey[700],
+                                                                                ),
+                                                                              ),
+                                                                            ),
+                                                                            ToggleButtons(
+                                                                              isSelected: [
+                                                                                canStrictMin ? !_strictMin : true,
+                                                                                canStrictMin ? _strictMin : false,
+                                                                              ],
+                                                                              onPressed: canStrictMin
+                                                                                  ? (idx) {
+                                                                                      setStateDialog(() {
+                                                                                        _strictMin = (idx == 1);
+                                                                                      });
+                                                                                    }
+                                                                                  : null,
+                                                                              borderRadius: BorderRadius.circular(10),
+                                                                              constraints: const BoxConstraints(
+                                                                                minHeight: 34,
+                                                                                minWidth: 44,
+                                                                              ),
+                                                                              children: const [
+                                                                                Padding(
+                                                                                  padding: EdgeInsets.symmetric(horizontal: 10),
+                                                                                  child: Text('≥'),
+                                                                                ),
+                                                                                Padding(
+                                                                                  padding: EdgeInsets.symmetric(horizontal: 10),
+                                                                                  child: Text('>'),
+                                                                                ),
+                                                                              ],
+                                                                            ),
+                                                                          ],
+                                                                        ),
+                                                                        const SizedBox(
+                                                                            height:
+                                                                                4),
+                                                                        Align(
+                                                                          alignment:
+                                                                              Alignment.centerLeft,
+                                                                          child:
                                                                               Text(
-                                                                            '> Gunakan operator "lebih dari" (>)',
+                                                                            'Pilih ">" untuk batas lebih ketat, atau "≥" untuk inklusif.',
                                                                             style:
-                                                                                TextStyle(fontSize: 12),
-                                                                          ),
-                                                                          subtitle:
-                                                                              Text(
-                                                                            'Jika dicentang: > Min, jika tidak: ≥ Min',
-                                                                            style:
-                                                                                TextStyle(fontSize: 10, color: Colors.grey[600]),
+                                                                                TextStyle(
+                                                                              fontSize: 10,
+                                                                              color: Colors.grey[600],
+                                                                            ),
                                                                           ),
                                                                         ),
                                                                       ],
@@ -1155,6 +1189,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                     _noUpperBound = val ?? false;
                                                                                     if (_noUpperBound) {
                                                                                       _noLowerBound = false;
+                                                                                      _strictMax = false;
                                                                                       _maxController.clear();
                                                                                     }
                                                                                   });
@@ -1177,32 +1212,65 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                 TextStyle(fontSize: 10, color: Colors.grey[600]),
                                                                           ),
                                                                         ),
-                                                                        CheckboxListTile(
-                                                                          value: canStrictMax
-                                                                              ? _strictMax
-                                                                              : false,
-                                                                          onChanged: canStrictMax
-                                                                              ? (val) {
-                                                                                  setStateDialog(() {
-                                                                                    _strictMax = val ?? false;
-                                                                                  });
-                                                                                }
-                                                                              : null,
-                                                                          dense:
-                                                                              true,
-                                                                          contentPadding:
-                                                                              EdgeInsets.zero,
-                                                                          title:
+                                                                        const SizedBox(
+                                                                            height:
+                                                                                6),
+                                                                        Row(
+                                                                          children: [
+                                                                            Expanded(
+                                                                              child: Text(
+                                                                                'Operator maksimum',
+                                                                                style: TextStyle(
+                                                                                  fontSize: 11,
+                                                                                  fontWeight: FontWeight.w600,
+                                                                                  color: Colors.grey[700],
+                                                                                ),
+                                                                              ),
+                                                                            ),
+                                                                            ToggleButtons(
+                                                                              isSelected: [
+                                                                                canStrictMax ? !_strictMax : true,
+                                                                                canStrictMax ? _strictMax : false,
+                                                                              ],
+                                                                              onPressed: canStrictMax
+                                                                                  ? (idx) {
+                                                                                      setStateDialog(() {
+                                                                                        _strictMax = (idx == 1);
+                                                                                      });
+                                                                                    }
+                                                                                  : null,
+                                                                              borderRadius: BorderRadius.circular(10),
+                                                                              constraints: const BoxConstraints(
+                                                                                minHeight: 34,
+                                                                                minWidth: 44,
+                                                                              ),
+                                                                              children: const [
+                                                                                Padding(
+                                                                                  padding: EdgeInsets.symmetric(horizontal: 10),
+                                                                                  child: Text('≤'),
+                                                                                ),
+                                                                                Padding(
+                                                                                  padding: EdgeInsets.symmetric(horizontal: 10),
+                                                                                  child: Text('<'),
+                                                                                ),
+                                                                              ],
+                                                                            ),
+                                                                          ],
+                                                                        ),
+                                                                        const SizedBox(
+                                                                            height:
+                                                                                4),
+                                                                        Align(
+                                                                          alignment:
+                                                                              Alignment.centerLeft,
+                                                                          child:
                                                                               Text(
-                                                                            '< Gunakan operator "kurang dari" (<)',
+                                                                            'Pilih "<" untuk batas lebih ketat, atau "≤" untuk inklusif.',
                                                                             style:
-                                                                                TextStyle(fontSize: 12),
-                                                                          ),
-                                                                          subtitle:
-                                                                              Text(
-                                                                            'Jika dicentang: < Max, jika tidak: ≤ Max',
-                                                                            style:
-                                                                                TextStyle(fontSize: 10, color: Colors.grey[600]),
+                                                                                TextStyle(
+                                                                              fontSize: 10,
+                                                                              color: Colors.grey[600],
+                                                                            ),
                                                                           ),
                                                                         ),
                                                                       ],
@@ -2245,6 +2313,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                                               _noLowerBound = val ?? false;
                                                                                                               if (_noLowerBound) {
                                                                                                                 _noUpperBound = false;
+                                                                                                                _strictMin = false;
                                                                                                                 _minController.clear();
                                                                                                               }
                                                                                                             });
@@ -2261,24 +2330,58 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                                       style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                                                                                                     ),
                                                                                                   ),
-                                                                                                  CheckboxListTile(
-                                                                                                    value: canStrictMin ? _strictMin : false,
-                                                                                                    onChanged: canStrictMin
-                                                                                                        ? (val) {
-                                                                                                            setStateDialog(() {
-                                                                                                              _strictMin = val ?? false;
-                                                                                                            });
-                                                                                                          }
-                                                                                                        : null,
-                                                                                                    dense: true,
-                                                                                                    contentPadding: EdgeInsets.zero,
-                                                                                                    title: Text(
-                                                                                                      '> Gunakan operator "lebih dari" (>)',
-                                                                                                      style: TextStyle(fontSize: 12),
-                                                                                                    ),
-                                                                                                    subtitle: Text(
-                                                                                                      'Jika dicentang: > Min, jika tidak: ≥ Min',
-                                                                                                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                                                                                                  const SizedBox(height: 6),
+                                                                                                  Row(
+                                                                                                    children: [
+                                                                                                      Expanded(
+                                                                                                        child: Text(
+                                                                                                          'Operator minimum',
+                                                                                                          style: TextStyle(
+                                                                                                            fontSize: 11,
+                                                                                                            fontWeight: FontWeight.w600,
+                                                                                                            color: Colors.grey[700],
+                                                                                                          ),
+                                                                                                        ),
+                                                                                                      ),
+                                                                                                      ToggleButtons(
+                                                                                                        isSelected: [
+                                                                                                          canStrictMin ? !_strictMin : true,
+                                                                                                          canStrictMin ? _strictMin : false,
+                                                                                                        ],
+                                                                                                        onPressed: canStrictMin
+                                                                                                            ? (idx) {
+                                                                                                                setStateDialog(() {
+                                                                                                                  _strictMin = (idx == 1);
+                                                                                                                });
+                                                                                                              }
+                                                                                                            : null,
+                                                                                                        borderRadius: BorderRadius.circular(10),
+                                                                                                        constraints: const BoxConstraints(
+                                                                                                          minHeight: 34,
+                                                                                                          minWidth: 44,
+                                                                                                        ),
+                                                                                                        children: const [
+                                                                                                          Padding(
+                                                                                                            padding: EdgeInsets.symmetric(horizontal: 10),
+                                                                                                            child: Text('≥'),
+                                                                                                          ),
+                                                                                                          Padding(
+                                                                                                            padding: EdgeInsets.symmetric(horizontal: 10),
+                                                                                                            child: Text('>'),
+                                                                                                          ),
+                                                                                                        ],
+                                                                                                      ),
+                                                                                                    ],
+                                                                                                  ),
+                                                                                                  const SizedBox(height: 4),
+                                                                                                  Align(
+                                                                                                    alignment: Alignment.centerLeft,
+                                                                                                    child: Text(
+                                                                                                      'Pilih ">" untuk batas lebih ketat, atau "≥" untuk inklusif.',
+                                                                                                      style: TextStyle(
+                                                                                                        fontSize: 10,
+                                                                                                        color: Colors.grey[600],
+                                                                                                      ),
                                                                                                     ),
                                                                                                   ),
                                                                                                 ],
@@ -2356,6 +2459,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                                               _noUpperBound = val ?? false;
                                                                                                               if (_noUpperBound) {
                                                                                                                 _noLowerBound = false;
+                                                                                                                _strictMax = false;
                                                                                                                 _maxController.clear();
                                                                                                               }
                                                                                                             });
@@ -2372,24 +2476,58 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                                       style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                                                                                                     ),
                                                                                                   ),
-                                                                                                  CheckboxListTile(
-                                                                                                    value: canStrictMax ? _strictMax : false,
-                                                                                                    onChanged: canStrictMax
-                                                                                                        ? (val) {
-                                                                                                            setStateDialog(() {
-                                                                                                              _strictMax = val ?? false;
-                                                                                                            });
-                                                                                                          }
-                                                                                                        : null,
-                                                                                                    dense: true,
-                                                                                                    contentPadding: EdgeInsets.zero,
-                                                                                                    title: Text(
-                                                                                                      '< Gunakan operator "kurang dari" (<)',
-                                                                                                      style: TextStyle(fontSize: 12),
-                                                                                                    ),
-                                                                                                    subtitle: Text(
-                                                                                                      'Jika dicentang: < Max, jika tidak: ≤ Max',
-                                                                                                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                                                                                                  const SizedBox(height: 6),
+                                                                                                  Row(
+                                                                                                    children: [
+                                                                                                      Expanded(
+                                                                                                        child: Text(
+                                                                                                          'Operator maksimum',
+                                                                                                          style: TextStyle(
+                                                                                                            fontSize: 11,
+                                                                                                            fontWeight: FontWeight.w600,
+                                                                                                            color: Colors.grey[700],
+                                                                                                          ),
+                                                                                                        ),
+                                                                                                      ),
+                                                                                                      ToggleButtons(
+                                                                                                        isSelected: [
+                                                                                                          canStrictMax ? !_strictMax : true,
+                                                                                                          canStrictMax ? _strictMax : false,
+                                                                                                        ],
+                                                                                                        onPressed: canStrictMax
+                                                                                                            ? (idx) {
+                                                                                                                setStateDialog(() {
+                                                                                                                  _strictMax = (idx == 1);
+                                                                                                                });
+                                                                                                              }
+                                                                                                            : null,
+                                                                                                        borderRadius: BorderRadius.circular(10),
+                                                                                                        constraints: const BoxConstraints(
+                                                                                                          minHeight: 34,
+                                                                                                          minWidth: 44,
+                                                                                                        ),
+                                                                                                        children: const [
+                                                                                                          Padding(
+                                                                                                            padding: EdgeInsets.symmetric(horizontal: 10),
+                                                                                                            child: Text('≤'),
+                                                                                                          ),
+                                                                                                          Padding(
+                                                                                                            padding: EdgeInsets.symmetric(horizontal: 10),
+                                                                                                            child: Text('<'),
+                                                                                                          ),
+                                                                                                        ],
+                                                                                                      ),
+                                                                                                    ],
+                                                                                                  ),
+                                                                                                  const SizedBox(height: 4),
+                                                                                                  Align(
+                                                                                                    alignment: Alignment.centerLeft,
+                                                                                                    child: Text(
+                                                                                                      'Pilih "<" untuk batas lebih ketat, atau "≤" untuk inklusif.',
+                                                                                                      style: TextStyle(
+                                                                                                        fontSize: 10,
+                                                                                                        color: Colors.grey[600],
+                                                                                                      ),
                                                                                                     ),
                                                                                                   ),
                                                                                                 ],

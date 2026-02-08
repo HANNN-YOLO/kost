@@ -463,4 +463,73 @@ class KostService {
       throw "gagal updated data kost pemilik ${updated.body}";
     }
   }
+
+  /// Update `notlp_kost` untuk semua kost pemilik yang sebelumnya masih kosong.
+  ///
+  /// Target: kost dengan `id_auth` pemilik dan `notlp_kost` = 0 atau NULL.
+  /// Ini dipakai agar ketika pemilik mengisi nomor HP di profil, detail kost lama
+  /// otomatis ikut menampilkan nomor terbaru.
+  Future<void> updateNoTelpKostPemilikJikaKosong(
+    String token,
+    int id_auth,
+    int noTelpBaru,
+  ) async {
+    final url = Uri.parse(
+      "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_auth=eq.$id_auth&or=(notlp_kost.eq.0,notlp_kost.is.null)",
+    );
+
+    final updated = await htpp.patch(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apipublic}',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'notlp_kost': noTelpBaru,
+      }),
+    );
+
+    // Supabase default PATCH biasanya 204 (no content)
+    if (updated.statusCode == 204 ||
+        updated.statusCode == 200 ||
+        updated.statusCode == 201) {
+      return;
+    }
+
+    throw "gagal update no tlp kost pemilik ${updated.body}";
+  }
+
+  /// Paksa update `notlp_kost` untuk SEMUA kost milik pemilik.
+  /// Dipakai ketika pemilik mengganti nomor HP di profil dan ingin semua kost
+  /// ikut menyesuaikan.
+  Future<void> updateNoTelpKostPemilikSemua(
+    String token,
+    int id_auth,
+    int noTelpBaru,
+  ) async {
+    final url = Uri.parse(
+      "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_auth=eq.$id_auth",
+    );
+
+    final updated = await htpp.patch(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apipublic}',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'notlp_kost': noTelpBaru,
+      }),
+    );
+
+    if (updated.statusCode == 204 ||
+        updated.statusCode == 200 ||
+        updated.statusCode == 201) {
+      return;
+    }
+
+    throw "gagal update no tlp semua kost pemilik ${updated.body}";
+  }
 }

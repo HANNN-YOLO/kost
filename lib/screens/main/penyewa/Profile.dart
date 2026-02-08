@@ -9,6 +9,8 @@ import 'package:provider/provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/profil_provider.dart';
 import '../../../providers/kost_provider.dart';
+import '../../../services/profil_service.dart';
+import '../../../services/kost_service.dart';
 import 'package:intl/intl.dart';
 
 class UserProfilePage extends StatefulWidget {
@@ -18,7 +20,20 @@ class UserProfilePage extends StatefulWidget {
   /// Default: true (untuk profil penyewa).
   final bool showLogoutButton;
 
-  UserProfilePage({Key? key, this.showLogoutButton = true}) : super(key: key);
+  /// Kontrol apakah field tanggal lahir ditampilkan.
+  /// Default: true.
+  final bool showTanggalLahir;
+
+  /// Kontrol apakah field jenis kelamin ditampilkan.
+  /// Default: true.
+  final bool showJenisKelamin;
+
+  UserProfilePage({
+    Key? key,
+    this.showLogoutButton = true,
+    this.showTanggalLahir = true,
+    this.showJenisKelamin = true,
+  }) : super(key: key);
 
   @override
   State<UserProfilePage> createState() => _UserProfilePageState();
@@ -132,11 +147,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
     bool changed = false;
 
-    if (currentTgl != (_initialTglText ?? '')) {
+    if (widget.showTanggalLahir && currentTgl != (_initialTglText ?? '')) {
       changed = true;
     } else if (currentNoHp != (_initialNoHpText ?? '')) {
       changed = true;
-    } else if (currentGender != _initialGender) {
+    } else if (widget.showJenisKelamin && currentGender != _initialGender) {
       changed = true;
     }
 
@@ -676,37 +691,41 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       builder: (context, value, child) {
                         return Column(
                           children: [
-                            _IconTextField(
-                              controller: tglLahirController,
-                              label: 'Tanggal Lahir',
-                              icon: Icons.calendar_today_outlined,
-                              readOnly: true,
-                              onTap: () async {
-                                final penanggalan = await showDatePicker(
-                                  context: context,
-                                  firstDate: DateTime(1945),
-                                  lastDate: DateTime(9999),
-                                  initialDate: DateTime.now(),
-                                );
+                            if (widget.showTanggalLahir)
+                              _IconTextField(
+                                controller: tglLahirController,
+                                label: 'Tanggal Lahir',
+                                icon: Icons.calendar_today_outlined,
+                                readOnly: true,
+                                onTap: () async {
+                                  final penanggalan = await showDatePicker(
+                                    context: context,
+                                    firstDate: DateTime(1945),
+                                    lastDate: DateTime(9999),
+                                    initialDate: DateTime.now(),
+                                  );
 
-                                if (penanggalan != null) {
-                                  tglLahirController.text =
-                                      '${penanggalan.day.toString().padLeft(2, '0')}-'
-                                      '${penanggalan.month.toString().padLeft(2, '0')}-'
-                                      '${penanggalan.year.toString()}';
-                                }
-                              },
-                            ),
-                            CustomDropdownSearch(
-                              manalistnya: penghubung2.jkl,
-                              label: 'Jenis Kelamin',
-                              pilihan: penghubung2.defaults!,
-                              fungsi: (value) {
-                                penghubung2.pilihan(value);
-                                _recomputeHasChanges();
-                              },
-                            ),
-                            SizedBox(height: 20),
+                                  if (penanggalan != null) {
+                                    tglLahirController.text =
+                                        '${penanggalan.day.toString().padLeft(2, '0')}-'
+                                        '${penanggalan.month.toString().padLeft(2, '0')}-'
+                                        '${penanggalan.year.toString()}';
+                                  }
+                                },
+                              ),
+                            if (widget.showJenisKelamin)
+                              CustomDropdownSearch(
+                                manalistnya: penghubung2.jkl,
+                                label: 'Jenis Kelamin',
+                                pilihan: penghubung2.defaults!,
+                                fungsi: (value) {
+                                  penghubung2.pilihan(value);
+                                  _recomputeHasChanges();
+                                },
+                              ),
+                            if (widget.showTanggalLahir ||
+                                widget.showJenisKelamin)
+                              SizedBox(height: 20),
                             _IconTextField(
                               controller: noHpController,
                               label: 'No. Hp',
@@ -784,14 +803,27 @@ class _UserProfilePageState extends State<UserProfilePage> {
               onPressed: _isSaving || !_hasChanges
                   ? null
                   : () async {
-                      // Validasi input dasar
-                      if (tglLahirController.text.isEmpty ||
-                          penghubung2.defaults == null ||
-                          penghubung2.defaults == 'Jenis Kelamin') {
+                      // Validasi fleksibel - tidak wajib semua field diisi
+                      // User bisa update partial data
+                      bool hasValidData = false;
+
+                      if (widget.showTanggalLahir &&
+                          tglLahirController.text.isNotEmpty)
+                        hasValidData = true;
+                      if (noHpController.text.isNotEmpty) hasValidData = true;
+                      if (widget.showJenisKelamin &&
+                          penghubung2.defaults != null &&
+                          penghubung2.defaults != 'Jenis Kelamin')
+                        hasValidData = true;
+
+                      // Profil baru: minimal isi salah satu (No HP atau Foto)
+                      if (penghubung2.mydata.isEmpty &&
+                          !hasValidData &&
+                          penghubung2.isinya == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              'Lengkapi tanggal lahir,  dan jenis kelamin.',
+                              'Minimal isi satu data untuk disimpan.',
                             ),
                           ),
                         );
@@ -802,7 +834,24 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       final String hpText = noHpController.text.trim();
                       int? hp;
                       if (hpText.isEmpty) {
-                        // Jika dikosongkan, anggap 0 = "Tidak di publish"
+                        // Jika sebelumnya sudah ada nomor HP tersimpan, jangan izinkan dikosongkan.
+                        final int existingHp = penghubung2.mydata.isNotEmpty
+                            ? (penghubung2.mydata[index].kontak ?? 0)
+                            : 0;
+
+                        if (existingHp != 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Nomor HP tidak boleh dikosongkan karena sudah pernah disimpan.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
+                        // Profil baru / belum pernah isi no hp: boleh kosong
+                        // 0 = "Tidak di publish"
                         hp = 0;
                       } else {
                         hp = int.tryParse(hpText);
@@ -814,6 +863,17 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           );
                           return;
                         }
+
+                        if (hpText.length < 10) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Nomor HP minimal 10 digit.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
                       }
 
                       try {
@@ -821,27 +881,66 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           _isSaving = true;
                         });
 
-                        final tgl = DateFormat('dd-MM-yyyy')
-                            .parse(tglLahirController.text);
-
-                        if (penghubung2.mydata.isEmpty) {
-                          if (penghubung2.isinya == null) {
+                        // Parsing tanggal lahir (opsional, hanya jika field ditampilkan dan diisi)
+                        DateTime? tgl;
+                        if (widget.showTanggalLahir &&
+                            tglLahirController.text.isNotEmpty) {
+                          try {
+                            tgl = DateFormat('dd-MM-yyyy')
+                                .parse(tglLahirController.text);
+                          } catch (e) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  'Silakan unggah foto profil terlebih dahulu.',
+                                  'Format tanggal tidak valid. Gunakan format dd-MM-yyyy.',
                                 ),
                               ),
                             );
+                            setState(() {
+                              _isSaving = false;
+                            });
                             return;
                           }
+                        }
 
-                          await penghubung2.createprofil(
-                            penghubung2.isinya!,
-                            tgl,
-                            penghubung2.defaults!,
-                            hp!,
-                          );
+                        if (penghubung2.mydata.isEmpty) {
+                          // Mode buat profil baru
+                          // Foto tidak wajib - bisa dibuat profil tanpa foto
+                          // Gunakan default values untuk field yang kosong
+
+                          final DateTime tglToSave =
+                              tgl ?? DateTime(2000, 1, 1);
+                          final String genderToSave = widget.showJenisKelamin
+                              ? ((penghubung2.defaults != null &&
+                                      penghubung2.defaults != 'Jenis Kelamin')
+                                  ? penghubung2.defaults!
+                                  : 'Laki-Laki')
+                              : 'Laki-Laki';
+                          final int hpToSave = hp ?? 0;
+
+                          // Profil baru: boleh simpan tanpa upload foto
+                          if (penghubung2.isinya != null) {
+                            await penghubung2.createprofil(
+                              penghubung2.isinya!,
+                              tglToSave,
+                              genderToSave,
+                              hpToSave,
+                            );
+                          } else {
+                            final service = ProfilService();
+                            await service.createprofil(
+                              penghubung2.id_auth!,
+                              penghubung2.accesstoken!,
+                              '',
+                              tglToSave,
+                              genderToSave,
+                              hpToSave,
+                            );
+                            await penghubung2.readdata(
+                              penghubung2.accesstoken!,
+                              penghubung2.id_auth!,
+                            );
+                          }
 
                           setState(() {
                             tglLahirController.text = DateFormat('dd-MM-yyyy')
@@ -857,6 +956,27 @@ class _UserProfilePageState extends State<UserProfilePage> {
                             _hasChanges = false;
                           });
                           if (mounted) {
+                            // Pemilik: setelah profil diisi, update semua kost pemilik agar mengikuti no HP profil.
+                            if ((penghubung.mydata[index].role ?? '') ==
+                                    'Pemilik' &&
+                                (hpToSave != 0)) {
+                              try {
+                                final kostService = KostService();
+                                await kostService.updateNoTelpKostPemilikSemua(
+                                  penghubung2.accesstoken!,
+                                  penghubung2.id_auth!,
+                                  hpToSave,
+                                );
+
+                                await penghubung3.readdatapemilik(
+                                  penghubung2.id_auth!,
+                                  penghubung2.accesstoken!,
+                                );
+                              } catch (_) {
+                                // non-fatal: profil tetap tersimpan
+                              }
+                            }
+
                             await _showSuccessDialog(
                               context,
                               title: 'Profil Tersimpan',
@@ -865,12 +985,25 @@ class _UserProfilePageState extends State<UserProfilePage> {
                             );
                           }
                         } else {
+                          // Mode update - gunakan data lama jika field tidak diubah
+                          final tglToSave =
+                              tgl ?? penghubung2.mydata[index].tgllahir!;
+                          final genderToSave = widget.showJenisKelamin
+                              ? ((penghubung2.defaults != null &&
+                                      penghubung2.defaults != 'Jenis Kelamin')
+                                  ? penghubung2.defaults!
+                                  : (penghubung2.mydata[index].jkl ??
+                                      'Laki-Laki'))
+                              : (penghubung2.mydata[index].jkl ?? 'Laki-Laki');
+                          final hpToSave =
+                              hp ?? penghubung2.mydata[index].kontak ?? 0;
+
                           await penghubung2.updateprofil(
                             penghubung2.isinya,
                             penghubung2.mydata[index].foto,
-                            tgl,
-                            penghubung2.defaults!,
-                            hp!,
+                            tglToSave,
+                            genderToSave,
+                            hpToSave,
                           );
 
                           setState(() {
@@ -887,6 +1020,27 @@ class _UserProfilePageState extends State<UserProfilePage> {
                             _hasChanges = false;
                           });
                           if (mounted) {
+                            // Pemilik: setiap perubahan no HP profil harus mengubah no HP semua kost.
+                            if ((penghubung.mydata[index].role ?? '') ==
+                                    'Pemilik' &&
+                                (hpToSave != 0)) {
+                              try {
+                                final kostService = KostService();
+                                await kostService.updateNoTelpKostPemilikSemua(
+                                  penghubung2.accesstoken!,
+                                  penghubung2.id_auth!,
+                                  hpToSave,
+                                );
+
+                                await penghubung3.readdatapemilik(
+                                  penghubung2.id_auth!,
+                                  penghubung2.accesstoken!,
+                                );
+                              } catch (_) {
+                                // non-fatal: profil tetap tersimpan
+                              }
+                            }
+
                             await _showSuccessDialog(
                               context,
                               title: 'Perubahan Disimpan',
