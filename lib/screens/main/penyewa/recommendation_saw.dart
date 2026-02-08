@@ -81,16 +81,49 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
 
   static const List<String> _opsiFasilitas = <String>[
     'Tempat Tidur',
-    'Kamar Mandi dalam',
+    'Kamar Mandi Dalam',
     'Meja',
     'Tempat Parkir',
     'Lemari',
     'AC',
     'TV',
     'Kipas Angin',
-    'Dapur dalam',
+    'Dapur Dalam',
     'WiFi',
   ];
+
+  static String _facilityKey(String raw) {
+    final cleaned =
+        raw.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '').trim();
+    return cleaned;
+  }
+
+  static String _canonicalFacilityLabel(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return '';
+    final key = _facilityKey(trimmed);
+
+    // Bathroom inside: WC Dalam / KM Dalam / Kamar Mandi Dalam
+    if (key == 'wcdalam' ||
+        key == 'wc' ||
+        key == 'kmdalam' ||
+        key == 'kamarmandidalam' ||
+        key == 'kamarmandiddlm' ||
+        key == 'kmmandidalam') {
+      return 'Kamar Mandi Dalam';
+    }
+
+    if (key == 'dapurdalam' || key == 'dapur') return 'Dapur Dalam';
+    if (key == 'kipasangin' || key == 'kipas') return 'Kipas Angin';
+    if (key == 'wifi' || key == 'wi-fi' || key == 'wi_fi') return 'WiFi';
+    if (key == 'tempatparkir' || key == 'parkir') return 'Tempat Parkir';
+    if (key == 'tempattidur' || key == 'kasur' || key == 'ranjang') {
+      return 'Tempat Tidur';
+    }
+
+    // Default: keep original label (but trimmed)
+    return trimmed;
+  }
 
   @override
   void dispose() {
@@ -625,7 +658,11 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
             for (final part in raw.split(',')) {
               final item = part.trim();
               if (item.isEmpty) continue;
-              fasilitasUnique.putIfAbsent(item.toLowerCase(), () => item);
+              final canonical = _canonicalFacilityLabel(item);
+              if (canonical.isEmpty) continue;
+              final key = _facilityKey(canonical);
+              if (key.isEmpty) continue;
+              fasilitasUnique.putIfAbsent(key, () => canonical);
             }
           }
           final List<String> fasilitasOptions = (fasilitasUnique.isNotEmpty)
@@ -686,13 +723,13 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
 
             if (_fasilitasWajib.isNotEmpty) {
               final raw = (kost.fasilitas ?? '').toString();
-              final Set<String> fasilitasKost = raw
+              final Set<String> fasilitasKostKeys = raw
                   .split(',')
-                  .map((e) => e.trim().toLowerCase())
+                  .map((e) => _facilityKey(_canonicalFacilityLabel(e)))
                   .where((e) => e.isNotEmpty)
                   .toSet();
               for (final f in _fasilitasWajib) {
-                if (!fasilitasKost.contains(f.toLowerCase())) {
+                if (!fasilitasKostKeys.contains(_facilityKey(f))) {
                   return false;
                 }
               }
@@ -977,7 +1014,10 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
                                 shadowColor: shadowColor,
                                 destinationLat: widget.destinationLat,
                                 destinationLng: widget.destinationLng,
-                                per: kost.per!,
+                                per: (kost.per == null ||
+                                        (kost.per ?? '').trim().isEmpty)
+                                    ? 'bulan'
+                                    : kost.per!,
                               );
                             },
                           ),
@@ -1463,9 +1503,11 @@ class _SawFilterSheetState extends State<_SawFilterSheet> {
                   spacing: s(8),
                   runSpacing: s(8),
                   children: widget.fasilitasOptions.map((f) {
-                    final bool selected = _fasilitasWajib
-                        .map((e) => e.toLowerCase())
-                        .contains(f.toLowerCase());
+                    final selectedKeys = _fasilitasWajib
+                        .map(_RecommendationSawPageState._facilityKey)
+                        .toSet();
+                    final bool selected = selectedKeys
+                        .contains(_RecommendationSawPageState._facilityKey(f));
                     return FilterChip(
                       label: Text(
                         f,
@@ -1483,8 +1525,11 @@ class _SawFilterSheetState extends State<_SawFilterSheet> {
                       ),
                       onSelected: (v) {
                         setState(() {
+                          final k = _RecommendationSawPageState._facilityKey(f);
                           final existing = _fasilitasWajib.firstWhere(
-                            (x) => x.toLowerCase() == f.toLowerCase(),
+                            (x) =>
+                                _RecommendationSawPageState._facilityKey(x) ==
+                                k,
                             orElse: () => '',
                           );
                           if (v) {
@@ -1733,7 +1778,7 @@ class _RankingCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(s(10)),
                     ),
                     child: Text(
-                      "${formatCurrency(harga)} / $per",
+                      "${formatCurrency(harga)} / ${(per.trim().isEmpty ? 'bulan' : per)}",
                       style: TextStyle(
                         color: colorWhite,
                         fontWeight: FontWeight.w700,

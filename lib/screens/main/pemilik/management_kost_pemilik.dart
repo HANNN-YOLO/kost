@@ -99,6 +99,8 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
                                 SizedBox(height: tinggiLayar * 0.02),
                             itemBuilder: (context, index) {
                               final item = penghubung.kostpemilik[index];
+                              final bool needsFix =
+                                  penghubung.kostNeedsSubkriteriaFix(item);
                               // final cek = penghubung.fasilitaspemilik
                               //     .firstWhereOrNull((element) =>
                               //         element.id_fasilitas ==
@@ -117,6 +119,7 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
                                     penghubung.kostpemilik[index].harga_kost!,
                                 lokasi:
                                     penghubung.kostpemilik[index].alamat_kost!,
+                                needsFix: needsFix,
                                 onTap: () {
                                   Navigator.of(context).pushNamed(
                                     'detail-kost',
@@ -197,7 +200,14 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
                                   //   }
                                   // }
                                 },
-                                per: penghubung.kostpemilik[index].per!,
+                                per: (penghubung.kostpemilik[index].per ==
+                                            null ||
+                                        (penghubung.kostpemilik[index].per ??
+                                                '')
+                                            .trim()
+                                            .isEmpty)
+                                    ? 'bulan'
+                                    : penghubung.kostpemilik[index].per!,
                               );
                             },
                           ),
@@ -246,6 +256,7 @@ class _OwnerKostCard extends StatelessWidget {
   final String gambar;
   final int harga;
   final String lokasi;
+  final bool needsFix;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final VoidCallback? onTap;
@@ -257,11 +268,14 @@ class _OwnerKostCard extends StatelessWidget {
     required this.gambar,
     required this.harga,
     required this.lokasi,
+    required this.needsFix,
     this.onEdit,
     this.onDelete,
     this.onTap,
     required this.per,
   });
+
+  static const String _needsFixLabel = 'Perbaiki Data';
 
   @override
   Widget build(BuildContext context) {
@@ -330,7 +344,7 @@ class _OwnerKostCard extends StatelessWidget {
                           Text(
                             // item.harga,
                             // "${int.parse(harga.toString())}",
-                            "${formatCurrency(harga)} / $per",
+                            "${formatCurrency(harga)} / ${(per.trim().isEmpty ? 'bulan' : per)}",
                             style: TextStyle(
                               color: Color(0xFF1E3A8A),
                               fontWeight: FontWeight.w800,
@@ -375,9 +389,14 @@ class _OwnerKostCard extends StatelessWidget {
                                 Expanded(
                                   child: Text(
                                     // item.lokasi,
-                                    lokasi,
+                                    needsFix ? _needsFixLabel : lokasi,
                                     style: TextStyle(
-                                      color: Colors.black54,
+                                      color: needsFix
+                                          ? Colors.red
+                                          : Colors.black54,
+                                      fontWeight: needsFix
+                                          ? FontWeight.w700
+                                          : FontWeight.w400,
                                       fontSize: 13.5,
                                     ),
                                     overflow: TextOverflow.ellipsis,

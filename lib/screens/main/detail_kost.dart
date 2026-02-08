@@ -22,6 +22,71 @@ class DetailKost extends StatelessWidget {
         argsRaw is Map<String, dynamic> ? argsRaw : <String, dynamic>{};
 
     final terima = gunakan['data_kost'];
+    final dynamic fasilitasArgRaw = gunakan['data_fasilitas'];
+    final FasilitasModel? fasilitasArg =
+        fasilitasArgRaw is FasilitasModel ? fasilitasArgRaw : null;
+
+    if (terima == null) {
+      return const Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: Text('Data kost tidak ditemukan.'),
+          ),
+        ),
+      );
+    }
+
+    final kostProvider = Provider.of<KostProvider>(context, listen: false);
+
+    FasilitasModel? fasilitasModel = fasilitasArg;
+    if (fasilitasModel == null) {
+      try {
+        final dynamic rawIdFasilitas = terima.id_fasilitas;
+        final int? idFasilitas = rawIdFasilitas is int ? rawIdFasilitas : null;
+        if (idFasilitas != null) {
+          fasilitasModel = kostProvider.fasilitaspenyewa
+                  .firstWhereOrNull((f) => f.id_fasilitas == idFasilitas) ??
+              kostProvider.faslitas
+                  .firstWhereOrNull((f) => f.id_fasilitas == idFasilitas) ??
+              kostProvider.fasilitaspemilik
+                  .firstWhereOrNull((f) => f.id_fasilitas == idFasilitas);
+        }
+      } catch (_) {
+        fasilitasModel = null;
+      }
+    }
+
+    final List<String> fasilitasTags = [];
+    try {
+      final String rawFasilitas = (terima.fasilitas ?? '').toString().trim();
+      if (rawFasilitas.isNotEmpty) {
+        fasilitasTags.addAll(
+          rawFasilitas
+              .split(',')
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty),
+        );
+      }
+    } catch (_) {
+      // ignore
+    }
+
+    if (fasilitasTags.isEmpty && fasilitasModel != null) {
+      if (fasilitasModel.tempat_tidur) fasilitasTags.add('Tempat Tidur');
+      if (fasilitasModel.kamar_mandi_dalam) {
+        fasilitasTags.add('Kamar Mandi Dalam');
+      }
+      if (fasilitasModel.meja) fasilitasTags.add('Meja');
+      if (fasilitasModel.tempat_parkir) fasilitasTags.add('Tempat Parkir');
+      if (fasilitasModel.lemari) fasilitasTags.add('Lemari');
+      if (fasilitasModel.ac) fasilitasTags.add('AC');
+      if (fasilitasModel.tv) fasilitasTags.add('TV');
+      if (fasilitasModel.kipas) fasilitasTags.add('Kipas');
+      if (fasilitasModel.dapur_dalam) fasilitasTags.add('Dapur Dalam');
+      if (fasilitasModel.wifi) fasilitasTags.add('WiFi');
+    }
+
+    final fasilitasUnique = fasilitasTags.toSet().toList();
     // final pakai = gunakan['data_fasilitas'];
     // final terima = ModalRoute.of(context)!.settings.arguments as int;
     // final pakai = Provider.of<KostProvider>(context)
@@ -81,9 +146,11 @@ class DetailKost extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _DetailHeader(
-              imageUrl: terima!.gambar_kost,
-              price: terima!.harga_kost ?? 0,
-              per: terima.per ?? "",
+              imageUrl: terima.gambar_kost,
+              price: terima.harga_kost ?? 0,
+              per: (terima.per == null || (terima.per ?? '').trim().isEmpty)
+                  ? 'bulan'
+                  : terima.per!,
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -91,7 +158,7 @@ class DetailKost extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    terima!.nama_kost ?? "-",
+                    terima.nama_kost ?? "-",
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
@@ -106,7 +173,7 @@ class DetailKost extends StatelessWidget {
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          terima!.alamat_kost ?? "-",
+                          terima.alamat_kost ?? "-",
                           style: const TextStyle(color: Colors.black54),
                         ),
                       ),
@@ -120,16 +187,16 @@ class DetailKost extends StatelessWidget {
                       _StatChip(
                         icon: Icons.sell_outlined,
                         label: 'Harga',
-                        value: formatCurrency(terima!.harga_kost ?? 0),
+                        value: formatCurrency(terima.harga_kost ?? 0),
                       ),
                       _StatChip(
                           icon: Icons.king_bed_outlined,
                           label: 'Ukuran',
-                          value: "${terima!.panjang} x ${terima!.lebar}"),
+                          value: "${terima.panjang} x ${terima.lebar}"),
                       _StatChip(
                         icon: Icons.home_work_outlined,
                         label: 'Jenis',
-                        value: terima!.jenis_kost.toString(),
+                        value: terima.jenis_kost.toString(),
                       ),
                     ],
                   ),
@@ -139,22 +206,29 @@ class DetailKost extends StatelessWidget {
                     children: [
                       _InfoTile(
                         icon: Icons.person_outline,
-                        label: 'Pemilik',
-                        value: terima!.pemilik_kost.toString(),
+                        label: 'Hubungi',
+                        value: () {
+                          final nama = (terima.pemilik_kost ?? '').toString();
+                          if (nama.trim().isNotEmpty) return nama;
+                          return '-';
+                        }(),
                       ),
                       _InfoTile(
                         icon: Icons.phone_outlined,
                         label: 'Kontak',
-                        value: terima!.notlp_kost.toString(),
+                        value: (terima.notlp_kost == null ||
+                                '${terima.notlp_kost}' == '0')
+                            ? '-'
+                            : terima.notlp_kost.toString(),
                       ),
                       _InfoTile(
                           icon: Icons.king_bed_outlined,
                           label: 'Ukuran Kamar',
-                          value: "${terima!.panjang} x ${terima!.lebar}"),
+                          value: "${terima.panjang} x ${terima.lebar}"),
                       _InfoTile(
                         icon: Icons.home_work_outlined,
                         label: 'Jenis Kost',
-                        value: terima!.jenis_kost.toString(),
+                        value: terima.jenis_kost.toString(),
                       ),
                     ],
                   ),
@@ -165,19 +239,61 @@ class DetailKost extends StatelessWidget {
                       _InfoTile(
                         icon: Icons.flash_on_outlined,
                         label: 'Jenis Listrik',
-                        value: terima!.jenis_listrik.toString(),
+                        value: terima.jenis_listrik.toString(),
                       ),
                       _InfoTile(
                         icon: Icons.water_drop_outlined,
                         label: 'Pembayaran Air',
-                        value: terima!.jenis_pembayaran_air.toString(),
+                        value: terima.jenis_pembayaran_air.toString(),
                       ),
                       _InfoTile(
                         icon: Icons.security_outlined,
                         label: 'Keamanan',
-                        value: terima!.keamanan.toString(),
+                        value: terima.keamanan.toString(),
                       ),
-                      // _FacilityList(fasilitas: terima),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Fasilitas',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      fasilitasUnique.isEmpty
+                          ? const Text(
+                              '- Tidak ada data fasilitas',
+                              style: TextStyle(color: Colors.black54),
+                            )
+                          : Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (final f in fasilitasUnique)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFE9EEF9),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      f,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF1F1F1F),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -246,6 +362,7 @@ class _DetailHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final perLabel = per.trim().isEmpty ? 'bulan' : per;
     return Stack(
       children: [
         AspectRatio(
@@ -285,7 +402,7 @@ class _DetailHeader extends StatelessWidget {
                     size: 18, color: Color(0xFF1E3A8A)),
                 const SizedBox(width: 6),
                 Text(
-                  "${formatCurrency(price)} / $per",
+                  "${formatCurrency(price)} / $perLabel",
                   style: const TextStyle(
                     color: Color(0xFF1E3A8A),
                     fontWeight: FontWeight.w800,

@@ -55,8 +55,8 @@ class _FormAddHouseState extends State<FormHouse> {
   bool _isSubmitting = false;
   List<listinputan> _inilist = [];
 
-  // Key untuk WebView container
-  final GlobalKey _webViewKey = GlobalKey();
+  // Key khusus untuk menjaga instance WebView tidak bentrok saat navigasi
+  final Key _mapViewKey = UniqueKey();
 
   // Opsi lokasi untuk titik koordinat (mirip halaman rekomendasi penyewa)
   String _selectedLocationOption = 'Lokasi Tujuan';
@@ -86,6 +86,38 @@ class _FormAddHouseState extends State<FormHouse> {
   ];
 
   IconData? ikonTerpilih;
+
+  void _coerceDeletedSubkriteriaSelections(
+    KostProvider penghubung,
+  ) {
+    final optKeamanan = penghubung.keamananOptionsDynamic;
+    if (optKeamanan.isNotEmpty && penghubung.jeniskeamanans != 'Pilih') {
+      if (!optKeamanan.contains(penghubung.jeniskeamanans)) {
+        penghubung.jeniskeamanans = 'Pilih';
+      }
+    }
+
+    final optBatas = penghubung.batasJamMalamOptionsDynamic;
+    if (optBatas.isNotEmpty && penghubung.batasjammalams != 'Pilih') {
+      if (!optBatas.contains(penghubung.batasjammalams)) {
+        penghubung.batasjammalams = 'Pilih';
+      }
+    }
+
+    final optAir = penghubung.jenisAirOptionsDynamic;
+    if (optAir.isNotEmpty && penghubung.jenispembayaranairs != 'Pilih') {
+      if (!optAir.contains(penghubung.jenispembayaranairs)) {
+        penghubung.jenispembayaranairs = 'Pilih';
+      }
+    }
+
+    final optListrik = penghubung.jenisListrikOptionsDynamic;
+    if (optListrik.isNotEmpty && penghubung.jenislistriks != 'Pilih') {
+      if (!optListrik.contains(penghubung.jenislistriks)) {
+        penghubung.jenislistriks = 'Pilih';
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -139,8 +171,11 @@ class _FormAddHouseState extends State<FormHouse> {
         },
       );
 
-    // load map html
-    _loadMapHtmlFromAssets();
+    // Load map html setelah frame pertama agar WebViewWidget sudah ter-mount
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _loadMapHtmlFromAssets();
+    });
 
     // Listener untuk koordinat controller
     _koordinatController.addListener(_onKoordinatChanged);
@@ -173,8 +208,8 @@ class _FormAddHouseState extends State<FormHouse> {
     // Cancel timer sebelumnya jika ada
     _debounceTimer?.cancel();
 
-    // Debounce: tunggu 800ms setelah user berhenti mengetik
-    _debounceTimer = Timer(const Duration(milliseconds: 800), () {
+    // Debounce: tunggu sebentar setelah user berhenti mengetik
+    _debounceTimer = Timer(const Duration(milliseconds: 250), () {
       _parseAndUpdateMap(text);
     });
   }
@@ -207,9 +242,9 @@ class _FormAddHouseState extends State<FormHouse> {
     if (!_mapLoaded || !mounted) return;
 
     try {
-      // Gunakan ikon "lokasi saya" (biru) agar konsisten
+      // Gunakan marker kost (biru) agar responsif dan konsisten
       await _mapController.runJavaScript(
-        "clearMyLocation(); clearDestination(); setMyLocation($lat, $lng);",
+        "clearMyLocation(); clearDestination(); setMarker($lat, $lng);",
       );
     } catch (e) {
       // Error handling
@@ -318,7 +353,12 @@ class _FormAddHouseState extends State<FormHouse> {
         final pakai = Provider.of<KostProvider>(
           context,
           listen: false,
-        ).kost.firstWhere((element) => element.id_kost == terima);
+        ).kost.firstWhereOrNull((element) => element.id_kost == terima);
+
+        if (pakai == null) {
+          keadaan = false;
+          return;
+        }
 
         _namakost.text = pakai.nama_kost ?? "";
         _notlpn.text = pakai.notlp_kost.toString() ?? "";
@@ -337,18 +377,35 @@ class _FormAddHouseState extends State<FormHouse> {
         penghubung.namanya = pakai.pemilik_kost ?? "Pilih";
         penghubung.jeniskosts = pakai.jenis_kost ?? "Pilih";
         penghubung.jeniskeamanans = pakai.keamanan ?? "Pilih";
-        penghubung.batasjammalams = pakai.batas_jam_malam ?? "PIlih";
+        penghubung.batasjammalams = pakai.batas_jam_malam ?? "Pilih";
         penghubung.jenispembayaranairs = pakai.jenis_pembayaran_air ?? "Pilih";
         penghubung.jenislistriks = pakai.jenis_listrik ?? "Pilih";
-        penghubung.pernama = pakai.per ?? "";
+        penghubung.pernama =
+            (pakai.per == null || (pakai.per ?? '').trim().isEmpty)
+                ? 'bulan'
+                : pakai.per!;
 
-        // _inilist.clear();
-        // final List<String> pisah = pakai.fasilitas.split(", ");
-        // for (var item in pisah) {
-        //   var jenis = listinputan();
-        //   jenis.namaFasilitasController.text = item;
-        //   _inilist.add(jenis);
-        // }
+        // Jika subkriteria terkait sudah dihapus, paksa kembali ke default.
+        _coerceDeletedSubkriteriaSelections(penghubung);
+
+        // Isi fasilitas (jika tersedia) untuk mode edit
+        final rawFasilitas = (pakai.fasilitas ?? '').trim();
+        if (rawFasilitas.isNotEmpty) {
+          _inilist.clear();
+          final List<String> pisah = rawFasilitas
+              .split(',')
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .toList();
+          for (final item in pisah) {
+            final jenis = listinputan();
+            jenis.namaFasilitasController.text = item;
+            _inilist.add(jenis);
+          }
+          if (_inilist.isEmpty) {
+            _inilist.add(listinputan());
+          }
+        }
 
         // if (pakai != null) {
         //   final cekker = Provider.of<KostProvider>(
@@ -423,26 +480,54 @@ class _FormAddHouseState extends State<FormHouse> {
     _notlpn.text = "${last?.kontak ?? ''}";
 
     final int? terima = ModalRoute.of(context)?.settings.arguments as int?;
-    KostModel? pakai;
+    final KostModel? pakai = (terima == null)
+        ? null
+        : Provider.of<KostProvider>(
+            context,
+            listen: false,
+          ).kost.firstWhereOrNull((element) => element.id_kost == terima);
 
-    if (allstatus) {
-      if (terima != null) {
-        pakai = Provider.of<KostProvider>(
-          context,
-          listen: false,
-        ).kost.firstWhereOrNull((element) => element.id_kost == terima);
-
-        if (pakai != null) {
-          _inilist.clear();
-          final List<String> pisah = pakai.fasilitas!.split(", ");
-          for (var item in pisah) {
-            var jenis = listinputan();
-            jenis.namaFasilitasController.text = item;
-            _inilist.add(jenis);
-          }
-        }
-        allstatus = false;
-      }
+    if (terima != null && pakai == null) {
+      return Scaffold(
+        backgroundColor: warnaLatar,
+        appBar: PreferredSize(
+          preferredSize: Size.fromHeight(tinggiLayar * 0.08),
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: lebarLayar * 0.06),
+            color: warnaLatar,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: const Icon(Icons.arrow_back, color: Colors.black),
+                ),
+                Text(
+                  'Form Update Kost',
+                  style: TextStyle(
+                    fontSize: lebarLayar * 0.045,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(width: 24),
+              ],
+            ),
+          ),
+        ),
+        body: const SafeArea(
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'Data kost yang ingin diedit tidak ditemukan.\nCoba refresh daftar kost terlebih dahulu.',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
+      );
     }
 
     return penghubung3 == null
@@ -1572,7 +1657,8 @@ class _FormAddHouseState extends State<FormHouse> {
                                       //   penghubung.pernama,
                                       // );
 
-                                      await penghubung.konversicreatedata(
+                                      await penghubung.konversicreatedataAdmin(
+                                        int.parse(cek.id_auth.toString()),
                                         int.parse(_notlpn.text),
                                         _namakost.text,
                                         _alamat.text,
@@ -2010,7 +2096,6 @@ class _FormAddHouseState extends State<FormHouse> {
           child: SizedBox(
             height: tinggi * 0.3,
             child: Container(
-              key: _webViewKey,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(8),
@@ -2028,6 +2113,7 @@ class _FormAddHouseState extends State<FormHouse> {
                   children: [
                     RepaintBoundary(
                       child: WebViewWidget(
+                        key: _mapViewKey,
                         controller: _mapController,
                         gestureRecognizers: {
                           Factory<VerticalDragGestureRecognizer>(

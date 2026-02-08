@@ -205,20 +205,33 @@ class _ManagementBoardingHouseState extends State<ManagementBoardingHouse> {
                         separatorBuilder: (context, index) =>
                             SizedBox(height: tinggiLayar * 0.02),
                         itemBuilder: (context, index) {
+                          final item = penghubung.kost[index];
+                          final bool needsFix =
+                              penghubung.kostNeedsSubkriteriaFix(item);
                           return KostCard(
-                            gambar: "${penghubung.kost[index].gambar_kost}",
-                            harga: penghubung.kost[index].harga_kost!,
-                            nama: "${penghubung.kost[index].nama_kost}",
-                            lokasi: "${penghubung.kost[index].alamat_kost}",
+                            gambar: "${item.gambar_kost ?? ''}",
+                            harga: item.harga_kost ?? 0,
+                            nama: "${item.nama_kost ?? ''}",
+                            lokasi: "${item.alamat_kost ?? ''}",
                             tampilkanEdit: true,
                             tampilkanHapus: true,
+                            needsFix: needsFix,
                             //
                             fungsihapus: () {
-                              penghubung.deletedata(
-                                int.parse(
-                                    penghubung.kost[index].id_kost.toString()),
-                                penghubung.kost[index].gambar_kost!,
-                              );
+                              final idKost = item.id_kost;
+                              final gambar = item.gambar_kost;
+                              if (idKost == null ||
+                                  gambar == null ||
+                                  gambar.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'Data kost belum lengkap untuk dihapus.'),
+                                  ),
+                                );
+                                return;
+                              }
+                              penghubung.deletedata(idKost, gambar);
                             },
                             //
                             fungsitap: () {
@@ -253,12 +266,22 @@ class _ManagementBoardingHouseState extends State<ManagementBoardingHouse> {
                             },
                             //
                             fungsiupdated: () {
+                              final idKost = item.id_kost;
+                              if (idKost == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'ID kost tidak tersedia untuk edit.'),
+                                  ),
+                                );
+                                return;
+                              }
                               Navigator.of(context).pushNamed(
                                 "/form-house-admin",
-                                arguments: penghubung.kost[index].id_kost,
+                                arguments: idKost,
                               );
                             },
-                            per: "${penghubung.kost[index].per}",
+                            per: "${item.per ?? ''}",
                           );
                           // SizedBox(height: tinggiLayar * 0.02);
                         },
@@ -284,6 +307,9 @@ class KostCard extends StatelessWidget {
   final VoidCallback? fungsitap;
   final VoidCallback? fungsiupdated;
   final String per;
+  final bool needsFix;
+
+  static const String _needsFixLabel = 'Perbaiki Data';
 
   KostCard({
     super.key,
@@ -297,6 +323,7 @@ class KostCard extends StatelessWidget {
     this.fungsitap,
     this.fungsiupdated,
     required this.per,
+    this.needsFix = false,
   });
 
   void _tampilkanKonfirmasiHapus(BuildContext context) {
@@ -415,121 +442,129 @@ class KostCard extends StatelessWidget {
 
     return InkWell(
       onTap: fungsitap,
-      child: Container(
-        padding: EdgeInsets.all(lebarLayar * 0.03),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 3,
-              offset: Offset(0, 2),
+      child: Stack(
+        children: [
+          Container(
+            padding: EdgeInsets.all(lebarLayar * 0.03),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 3,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 🏠 Gambar Kost
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                gambar,
-                width: lebarLayar * 0.22,
-                height: tinggiGambar,
-                fit: BoxFit.cover,
-              ),
-            ),
-            SizedBox(width: lebarLayar * 0.04),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 🏠 Gambar Kost
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    gambar,
+                    width: lebarLayar * 0.22,
+                    height: tinggiGambar,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                SizedBox(width: lebarLayar * 0.04),
 
-            // 🔤 Detail Kost
-            Expanded(
-              child: SizedBox(
-                height: tinggiGambar,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
+                // 🔤 Detail Kost
+                Expanded(
+                  child: SizedBox(
+                    height: tinggiGambar,
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              "${formatCurrency(harga)} / $per",
-                              style: TextStyle(
-                                color: Color(0xFF007BFF),
-                                fontSize: lebarLayar * 0.0370,
-                                fontWeight: FontWeight.w900,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
                             Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                IconButton(
-                                  onPressed: fungsiupdated,
-                                  icon: Icon(
-                                    Icons.edit,
-                                    color: Colors.green,
-                                    size: lebarLayar * 0.060,
+                                Text(
+                                  "${formatCurrency(harga)} / ${(per.trim().isEmpty ? 'bulan' : per)}",
+                                  style: TextStyle(
+                                    color: Color(0xFF007BFF),
+                                    fontSize: lebarLayar * 0.0370,
+                                    fontWeight: FontWeight.w900,
                                   ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                Padding(
-                                  padding:
-                                      EdgeInsets.only(left: lebarLayar * 0.015),
-                                  child: GestureDetector(
-                                    onTap: () =>
-                                        _tampilkanKonfirmasiHapus(context),
-                                    child: Icon(
-                                      Icons.delete,
-                                      color: Colors.red,
-                                      size: lebarLayar * 0.060,
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      onPressed: fungsiupdated,
+                                      icon: Icon(
+                                        Icons.edit,
+                                        color: Colors.green,
+                                        size: lebarLayar * 0.060,
+                                      ),
                                     ),
-                                  ),
+                                    Padding(
+                                      padding: EdgeInsets.only(
+                                          left: lebarLayar * 0.015),
+                                      child: GestureDetector(
+                                        onTap: () =>
+                                            _tampilkanKonfirmasiHapus(context),
+                                        child: Icon(
+                                          Icons.delete,
+                                          color: Colors.red,
+                                          size: lebarLayar * 0.060,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
+                            SizedBox(height: tinggiLayar * 0.005),
+                            Text(
+                              nama,
+                              style: TextStyle(
+                                fontSize: lebarLayar * 0.041,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ],
                         ),
-                        SizedBox(height: tinggiLayar * 0.005),
-                        Text(
-                          nama,
-                          style: TextStyle(
-                            fontSize: lebarLayar * 0.041,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.location_on_outlined,
-                          size: lebarLayar * 0.04,
-                          color: Colors.grey,
-                        ),
-                        SizedBox(width: lebarLayar * 0.01),
-                        Expanded(
-                          child: Text(
-                            lokasi,
-                            style: TextStyle(
-                              fontSize: lebarLayar * 0.032,
-                              color: Colors.grey[700],
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.location_on_outlined,
+                              size: lebarLayar * 0.04,
+                              color: Colors.grey,
                             ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                            SizedBox(width: lebarLayar * 0.01),
+                            Expanded(
+                              child: Text(
+                                needsFix ? _needsFixLabel : lokasi,
+                                style: TextStyle(
+                                  fontSize: lebarLayar * 0.032,
+                                  color:
+                                      needsFix ? Colors.red : Colors.grey[700],
+                                  fontWeight: needsFix
+                                      ? FontWeight.w700
+                                      : FontWeight.w400,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

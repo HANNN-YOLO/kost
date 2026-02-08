@@ -245,6 +245,11 @@ class _KostHomePageState extends State<KostHomePage> {
                         (element) => element.id_fasilitas == tesst.id_fasilitas,
                       );
 
+                      final perLabel =
+                          ((tesst.per ?? '').toString().trim().isEmpty)
+                              ? 'bulan'
+                              : tesst.per.toString();
+
                       // Build facility tags from database flags
                       final List<String> fasilitasTags = [];
                       if (yes != null) {
@@ -262,30 +267,19 @@ class _KostHomePageState extends State<KostHomePage> {
                         radius: cardRadius,
                         titleFontSize: titleFont,
                         priceFontSize: priceFont,
-                        price: tesst.harga_kost!,
-                        per: " / ${tesst.per}",
+                        price: tesst.harga_kost ?? 0,
+                        per: " / $perLabel",
                         title: tesst.nama_kost ?? '-',
                         location: tesst.alamat_kost ?? '-',
                         genderLabel: tesst.jenis_kost ?? '-',
                         gambar: tesst.gambar_kost ?? '',
                         fasilitas: fasilitasTags,
                         fungsitap: () {
-                          if (yes == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Data fasilitas kost tidak tersedia.',
-                                ),
-                              ),
-                            );
-                            return;
-                          }
-
                           Navigator.of(context).pushNamed(
                             'detail-kost',
                             arguments: {
                               'data_kost': tesst,
-                              'data_fasilitas': yes,
+                              if (yes != null) 'data_fasilitas': yes,
                             },
                           );
                         },

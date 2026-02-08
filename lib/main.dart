@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:kost_saw/models/fasilitas_model.dart';
+import 'package:kost_saw/models/auth_model.dart';
 import 'package:kost_saw/providers/tujuan_providers.dart';
 import 'package:kost_saw/screens/main/pemilik/form_house_pemilik.dart';
 import 'package:provider/provider.dart';
@@ -144,12 +145,21 @@ class App extends StatelessWidget {
             Widget? menuju;
 
             if (login) {
-              value.readrole();
+              AuthModel? cek;
+              try {
+                cek = value.mydata.firstWhere(
+                  (element) => element.Email == value.email,
+                );
+              } catch (_) {
+                cek = null;
+              }
 
-              final cek = value.mydata
-                  .firstWhere((element) => element.Email == value.email);
-
-              if (cek.role == "Admin") {
+              if (cek == null) {
+                // Data role belum siap / gagal dimuat -> jangan crash
+                menuju = const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              } else if (cek.role == "Admin") {
                 menuju = MainNavigationAdmin();
               } else if (cek.role == "Penyewa") {
                 menuju = MainNavigation();

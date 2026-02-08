@@ -212,8 +212,33 @@ class AuthServices {
         hasilnya.add(item);
       });
     } else {
-      print("error ${simpan.body}");
-      throw "error ${simpan.body}";
+      final status = simpan.statusCode;
+      final raw = simpan.body.toString();
+
+      // Beberapa error umum dari Supabase / jaringan
+      if (status == 401 || status == 403) {
+        throw "Sesi login sudah habis atau tidak memiliki akses. Silakan login ulang.";
+      }
+      if (status >= 500) {
+        throw "Server sedang bermasalah (kode: $status). Coba lagi sebentar.";
+      }
+
+      // Fallback: tampilkan pesan singkat
+      String message = raw;
+      try {
+        final decoded = json.decode(raw);
+        if (decoded is Map) {
+          message = (decoded['message']?.toString() ??
+                  decoded['msg']?.toString() ??
+                  decoded['error']?.toString() ??
+                  raw)
+              .trim();
+        }
+      } catch (_) {
+        // ignore
+      }
+
+      throw "Gagal memuat data akun (kode: $status). ${message.isNotEmpty ? message : ''}";
     }
     return hasilnya;
   }

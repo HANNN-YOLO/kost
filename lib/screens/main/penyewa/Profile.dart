@@ -760,7 +760,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           try {
                             await penghubung.logout();
                             penghubung2.reset();
-                            penghubung3.resetpilihan();
+                            penghubung3.resetSession();
                           } catch (e) {
                             // ignore: use_build_context_synchronously
                             showDialog(

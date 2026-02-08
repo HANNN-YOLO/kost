@@ -801,7 +801,82 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                   ),
                                                   if (_isRangeKriteria(
                                                       penghubung.nama)) ...[
-                                                    const SizedBox(height: 20),
+                                                    const SizedBox(height: 12),
+
+                                                    // Preview range dipindahkan tepat di bawah input Bobot
+                                                    Container(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                              12),
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(
+                                                            0xFFF0F9FF),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(8),
+                                                        border: Border.all(
+                                                          color: const Color(
+                                                              0xFF0284C7),
+                                                          width: 1,
+                                                        ),
+                                                      ),
+                                                      child: AnimatedBuilder(
+                                                        animation:
+                                                            Listenable.merge([
+                                                          _minController,
+                                                          _maxController,
+                                                        ]),
+                                                        builder: (context, _) {
+                                                          final minVal =
+                                                              _tryParseNumFlexible(
+                                                            _minController.text
+                                                                .trim(),
+                                                          );
+                                                          final maxVal =
+                                                              _tryParseNumFlexible(
+                                                            _maxController.text
+                                                                .trim(),
+                                                          );
+                                                          final unitSuffix = (penghubung
+                                                                      .nama
+                                                                      ?.toLowerCase()
+                                                                      .contains(
+                                                                          'jarak') ??
+                                                                  false)
+                                                              ? ' km'
+                                                              : null;
+                                                          final text =
+                                                              _buildRentangInfoText(
+                                                            minVal: minVal,
+                                                            maxVal: maxVal,
+                                                            noLowerBound:
+                                                                _noLowerBound,
+                                                            noUpperBound:
+                                                                _noUpperBound,
+                                                            minInclusive:
+                                                                !_strictMin,
+                                                            maxInclusive:
+                                                                !_strictMax,
+                                                            unitSuffix:
+                                                                unitSuffix,
+                                                          );
+                                                          return Text(
+                                                            text,
+                                                            style:
+                                                                const TextStyle(
+                                                              fontSize: 12,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                              color: Color(
+                                                                  0xFF0284C7),
+                                                            ),
+                                                          );
+                                                        },
+                                                      ),
+                                                    ),
+
+                                                    const SizedBox(height: 12),
                                                     Container(
                                                       padding:
                                                           const EdgeInsets.all(
@@ -832,16 +907,6 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                       .w700,
                                                               color: const Color(
                                                                   0xFF1E3A8A),
-                                                            ),
-                                                          ),
-                                                          const SizedBox(
-                                                              height: 4),
-                                                          Text(
-                                                            "Atur batas minimum dan maksimum untuk nilai subkriteria ini",
-                                                            style: TextStyle(
-                                                              fontSize: 11,
-                                                              color: Colors
-                                                                  .grey[600],
                                                             ),
                                                           ),
                                                           const SizedBox(
@@ -986,12 +1051,6 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                             style:
                                                                                 TextStyle(fontSize: 12),
                                                                           ),
-                                                                          subtitle:
-                                                                              Text(
-                                                                            'Hanya gunakan nilai Max (≤ Max)',
-                                                                            style:
-                                                                                TextStyle(fontSize: 10, color: Colors.grey[600]),
-                                                                          ),
                                                                         ),
                                                                         const SizedBox(
                                                                             height:
@@ -1041,19 +1100,6 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                         const SizedBox(
                                                                             height:
                                                                                 4),
-                                                                        Align(
-                                                                          alignment:
-                                                                              Alignment.centerLeft,
-                                                                          child:
-                                                                              Text(
-                                                                            'Pilih ">" untuk batas lebih ketat, atau "≥" untuk inklusif.',
-                                                                            style:
-                                                                                TextStyle(
-                                                                              fontSize: 10,
-                                                                              color: Colors.grey[600],
-                                                                            ),
-                                                                          ),
-                                                                        ),
                                                                       ],
                                                                     );
                                                                   },
@@ -1205,12 +1251,6 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                             style:
                                                                                 TextStyle(fontSize: 12),
                                                                           ),
-                                                                          subtitle:
-                                                                              Text(
-                                                                            'Hanya gunakan nilai Min (≥ Min)',
-                                                                            style:
-                                                                                TextStyle(fontSize: 10, color: Colors.grey[600]),
-                                                                          ),
                                                                         ),
                                                                         const SizedBox(
                                                                             height:
@@ -1260,151 +1300,11 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                         const SizedBox(
                                                                             height:
                                                                                 4),
-                                                                        Align(
-                                                                          alignment:
-                                                                              Alignment.centerLeft,
-                                                                          child:
-                                                                              Text(
-                                                                            'Pilih "<" untuk batas lebih ketat, atau "≤" untuk inklusif.',
-                                                                            style:
-                                                                                TextStyle(
-                                                                              fontSize: 10,
-                                                                              color: Colors.grey[600],
-                                                                            ),
-                                                                          ),
-                                                                        ),
                                                                       ],
                                                                     );
                                                                   },
                                                                 ),
                                                               ],
-                                                            ),
-                                                          ),
-
-                                                          const SizedBox(
-                                                              height: 12),
-
-                                                          // Preview section
-                                                          Container(
-                                                            padding:
-                                                                const EdgeInsets
-                                                                    .all(12),
-                                                            decoration:
-                                                                BoxDecoration(
-                                                              color: const Color(
-                                                                  0xFFF0F9FF),
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .circular(
-                                                                          8),
-                                                              border:
-                                                                  Border.all(
-                                                                color: const Color(
-                                                                    0xFF0284C7),
-                                                                width: 1,
-                                                              ),
-                                                            ),
-                                                            child: Column(
-                                                              crossAxisAlignment:
-                                                                  CrossAxisAlignment
-                                                                      .start,
-                                                              children: [
-                                                                Row(
-                                                                  children: [
-                                                                    Icon(
-                                                                        Icons
-                                                                            .preview,
-                                                                        size:
-                                                                            16,
-                                                                        color: const Color(
-                                                                            0xFF0284C7)),
-                                                                    const SizedBox(
-                                                                        width:
-                                                                            6),
-                                                                    Text(
-                                                                      "Preview Range",
-                                                                      style:
-                                                                          TextStyle(
-                                                                        fontSize:
-                                                                            12,
-                                                                        fontWeight:
-                                                                            FontWeight.w600,
-                                                                        color: const Color(
-                                                                            0xFF0284C7),
-                                                                      ),
-                                                                    ),
-                                                                  ],
-                                                                ),
-                                                                const SizedBox(
-                                                                    height: 6),
-                                                                AnimatedBuilder(
-                                                                  animation:
-                                                                      Listenable
-                                                                          .merge([
-                                                                    _minController,
-                                                                    _maxController,
-                                                                  ]),
-                                                                  builder:
-                                                                      (context,
-                                                                          _) {
-                                                                    final minVal =
-                                                                        _tryParseNumFlexible(_minController
-                                                                            .text
-                                                                            .trim());
-                                                                    final maxVal =
-                                                                        _tryParseNumFlexible(_maxController
-                                                                            .text
-                                                                            .trim());
-                                                                    final unitSuffix = (penghubung.nama?.toLowerCase().contains('jarak') ??
-                                                                            false)
-                                                                        ? ' km'
-                                                                        : null;
-                                                                    final text =
-                                                                        _buildRentangInfoText(
-                                                                      minVal:
-                                                                          minVal,
-                                                                      maxVal:
-                                                                          maxVal,
-                                                                      noLowerBound:
-                                                                          _noLowerBound,
-                                                                      noUpperBound:
-                                                                          _noUpperBound,
-                                                                      minInclusive:
-                                                                          !_strictMin,
-                                                                      maxInclusive:
-                                                                          !_strictMax,
-                                                                      unitSuffix:
-                                                                          unitSuffix,
-                                                                    );
-                                                                    return Text(
-                                                                      text,
-                                                                      style:
-                                                                          TextStyle(
-                                                                        fontSize:
-                                                                            12,
-                                                                        fontWeight:
-                                                                            FontWeight.w600,
-                                                                        color: const Color(
-                                                                            0xFF0284C7),
-                                                                      ),
-                                                                    );
-                                                                  },
-                                                                ),
-                                                              ],
-                                                            ),
-                                                          ),
-
-                                                          const SizedBox(
-                                                              height: 8),
-                                                          Text(
-                                                            "💡 Tips: Pilih 'tanpa batas' untuk menggunakan hanya satu sisi. Pilih operator '<' atau '>' untuk batasan yang lebih ketat.",
-                                                            style: TextStyle(
-                                                              fontSize: 10,
-                                                              color: Colors
-                                                                  .grey[600],
-                                                              fontStyle:
-                                                                  FontStyle
-                                                                      .italic,
                                                             ),
                                                           ),
                                                         ],
@@ -1487,14 +1387,12 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                       .text
                                                       .trim();
 
-                                                  final bothFilled =
-                                                      minText.isNotEmpty &&
-                                                          maxText.isNotEmpty;
-                                                  final allowSingleSide =
-                                                      !bothFilled;
+                                                  final minFilled =
+                                                      minText.isNotEmpty;
+                                                  final maxFilled =
+                                                      maxText.isNotEmpty;
 
-                                                  if (allowSingleSide &&
-                                                      _noLowerBound &&
+                                                  if (_noLowerBound &&
                                                       _noUpperBound) {
                                                     ScaffoldMessenger.of(
                                                             context)
@@ -1507,65 +1405,20 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                     return;
                                                   }
 
-                                                  if (allowSingleSide &&
-                                                      _noLowerBound) {
-                                                    if (maxText.isEmpty) {
-                                                      ScaffoldMessenger.of(
-                                                              context)
-                                                          .showSnackBar(
-                                                        const SnackBar(
-                                                          content: Text(
-                                                              'Isi nilai Max untuk menggunakan tanpa batas bawah.'),
-                                                        ),
-                                                      );
-                                                      return;
-                                                    }
-                                                    final maxVal =
-                                                        _tryParseNumFlexible(
-                                                            maxText);
-                                                    if (maxVal == null) {
-                                                      ScaffoldMessenger.of(
-                                                              context)
-                                                          .showSnackBar(
-                                                        const SnackBar(
-                                                          content: Text(
-                                                              'Max harus berupa angka.'),
-                                                        ),
-                                                      );
-                                                      return;
-                                                    }
-                                                    nilaiMin = null;
-                                                    nilaiMax = maxVal;
-                                                  } else if (allowSingleSide &&
-                                                      _noUpperBound) {
-                                                    if (minText.isEmpty) {
-                                                      ScaffoldMessenger.of(
-                                                              context)
-                                                          .showSnackBar(
-                                                        const SnackBar(
-                                                          content: Text(
-                                                              'Isi nilai Min untuk menggunakan tanpa batas atas.'),
-                                                        ),
-                                                      );
-                                                      return;
-                                                    }
-                                                    final minVal =
-                                                        _tryParseNumFlexible(
-                                                            minText);
-                                                    if (minVal == null) {
-                                                      ScaffoldMessenger.of(
-                                                              context)
-                                                          .showSnackBar(
-                                                        const SnackBar(
-                                                          content: Text(
-                                                              'Min harus berupa angka.'),
-                                                        ),
-                                                      );
-                                                      return;
-                                                    }
-                                                    nilaiMin = minVal;
-                                                    nilaiMax = null;
-                                                  } else if (bothFilled) {
+                                                  if (!minFilled &&
+                                                      !maxFilled) {
+                                                    ScaffoldMessenger.of(
+                                                            context)
+                                                        .showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text(
+                                                            'Untuk kriteria range, isi Min & Max atau pilih salah satu mode tanpa batas.'),
+                                                      ),
+                                                    );
+                                                    return;
+                                                  }
+
+                                                  if (minFilled && maxFilled) {
                                                     final minVal =
                                                         _tryParseNumFlexible(
                                                             minText);
@@ -1596,6 +1449,64 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                       return;
                                                     }
                                                     nilaiMin = minVal;
+                                                    nilaiMax = maxVal;
+                                                  } else if (minFilled &&
+                                                      !maxFilled) {
+                                                    if (!_noUpperBound) {
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text(
+                                                              'Isi nilai Max atau centang "Tanpa batas maksimum".'),
+                                                        ),
+                                                      );
+                                                      return;
+                                                    }
+                                                    final minVal =
+                                                        _tryParseNumFlexible(
+                                                            minText);
+                                                    if (minVal == null) {
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text(
+                                                              'Min harus berupa angka.'),
+                                                        ),
+                                                      );
+                                                      return;
+                                                    }
+                                                    nilaiMin = minVal;
+                                                    nilaiMax = null;
+                                                  } else if (!minFilled &&
+                                                      maxFilled) {
+                                                    if (!_noLowerBound) {
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text(
+                                                              'Isi nilai Min atau centang "Tanpa batas minimum".'),
+                                                        ),
+                                                      );
+                                                      return;
+                                                    }
+                                                    final maxVal =
+                                                        _tryParseNumFlexible(
+                                                            maxText);
+                                                    if (maxVal == null) {
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text(
+                                                              'Max harus berupa angka.'),
+                                                        ),
+                                                      );
+                                                      return;
+                                                    }
+                                                    nilaiMin = null;
                                                     nilaiMax = maxVal;
                                                   }
 
@@ -2216,7 +2127,54 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                               ),
                                                                             ),
                                                                             if (_isRangeKriteria(penghubung.nama)) ...[
-                                                                              const SizedBox(height: 20),
+                                                                              const SizedBox(height: 12),
+
+                                                                              // Preview range dipindahkan tepat di bawah input Bobot
+                                                                              Container(
+                                                                                padding: const EdgeInsets.all(12),
+                                                                                decoration: BoxDecoration(
+                                                                                  color: const Color(0xFFF0F9FF),
+                                                                                  borderRadius: BorderRadius.circular(8),
+                                                                                  border: Border.all(
+                                                                                    color: const Color(0xFF0284C7),
+                                                                                    width: 1,
+                                                                                  ),
+                                                                                ),
+                                                                                child: AnimatedBuilder(
+                                                                                  animation: Listenable.merge([
+                                                                                    _minController,
+                                                                                    _maxController,
+                                                                                  ]),
+                                                                                  builder: (context, _) {
+                                                                                    final minVal = _tryParseNumFlexible(
+                                                                                      _minController.text.trim(),
+                                                                                    );
+                                                                                    final maxVal = _tryParseNumFlexible(
+                                                                                      _maxController.text.trim(),
+                                                                                    );
+                                                                                    final unitSuffix = (penghubung.nama?.toLowerCase().contains('jarak') ?? false) ? ' km' : null;
+                                                                                    final text = _buildRentangInfoText(
+                                                                                      minVal: minVal,
+                                                                                      maxVal: maxVal,
+                                                                                      noLowerBound: _noLowerBound,
+                                                                                      noUpperBound: _noUpperBound,
+                                                                                      minInclusive: !_strictMin,
+                                                                                      maxInclusive: !_strictMax,
+                                                                                      unitSuffix: unitSuffix,
+                                                                                    );
+                                                                                    return Text(
+                                                                                      text,
+                                                                                      style: const TextStyle(
+                                                                                        fontSize: 12,
+                                                                                        fontWeight: FontWeight.w600,
+                                                                                        color: Color(0xFF0284C7),
+                                                                                      ),
+                                                                                    );
+                                                                                  },
+                                                                                ),
+                                                                              ),
+
+                                                                              const SizedBox(height: 12),
                                                                               Container(
                                                                                 padding: const EdgeInsets.all(16),
                                                                                 decoration: BoxDecoration(
@@ -2236,14 +2194,6 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                         fontSize: 14,
                                                                                         fontWeight: FontWeight.w700,
                                                                                         color: const Color(0xFF1E3A8A),
-                                                                                      ),
-                                                                                    ),
-                                                                                    const SizedBox(height: 4),
-                                                                                    Text(
-                                                                                      "Atur batas minimum dan maksimum untuk nilai subkriteria ini",
-                                                                                      style: TextStyle(
-                                                                                        fontSize: 11,
-                                                                                        color: Colors.grey[600],
                                                                                       ),
                                                                                     ),
                                                                                     const SizedBox(height: 16),
@@ -2325,10 +2275,6 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                                       '🚫 Tanpa batas minimum',
                                                                                                       style: TextStyle(fontSize: 12),
                                                                                                     ),
-                                                                                                    subtitle: Text(
-                                                                                                      'Hanya gunakan nilai Max (≤ Max)',
-                                                                                                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                                                                                                    ),
                                                                                                   ),
                                                                                                   const SizedBox(height: 6),
                                                                                                   Row(
@@ -2374,16 +2320,6 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                                     ],
                                                                                                   ),
                                                                                                   const SizedBox(height: 4),
-                                                                                                  Align(
-                                                                                                    alignment: Alignment.centerLeft,
-                                                                                                    child: Text(
-                                                                                                      'Pilih ">" untuk batas lebih ketat, atau "≥" untuk inklusif.',
-                                                                                                      style: TextStyle(
-                                                                                                        fontSize: 10,
-                                                                                                        color: Colors.grey[600],
-                                                                                                      ),
-                                                                                                    ),
-                                                                                                  ),
                                                                                                 ],
                                                                                               );
                                                                                             },
@@ -2471,10 +2407,6 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                                       '🚫 Tanpa batas maksimum',
                                                                                                       style: TextStyle(fontSize: 12),
                                                                                                     ),
-                                                                                                    subtitle: Text(
-                                                                                                      'Hanya gunakan nilai Min (≥ Min)',
-                                                                                                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                                                                                                    ),
                                                                                                   ),
                                                                                                   const SizedBox(height: 6),
                                                                                                   Row(
@@ -2520,94 +2452,11 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                                     ],
                                                                                                   ),
                                                                                                   const SizedBox(height: 4),
-                                                                                                  Align(
-                                                                                                    alignment: Alignment.centerLeft,
-                                                                                                    child: Text(
-                                                                                                      'Pilih "<" untuk batas lebih ketat, atau "≤" untuk inklusif.',
-                                                                                                      style: TextStyle(
-                                                                                                        fontSize: 10,
-                                                                                                        color: Colors.grey[600],
-                                                                                                      ),
-                                                                                                    ),
-                                                                                                  ),
                                                                                                 ],
                                                                                               );
                                                                                             },
                                                                                           ),
                                                                                         ],
-                                                                                      ),
-                                                                                    ),
-
-                                                                                    const SizedBox(height: 12),
-
-                                                                                    // Preview section
-                                                                                    Container(
-                                                                                      padding: const EdgeInsets.all(12),
-                                                                                      decoration: BoxDecoration(
-                                                                                        color: const Color(0xFFF0F9FF),
-                                                                                        borderRadius: BorderRadius.circular(8),
-                                                                                        border: Border.all(
-                                                                                          color: const Color(0xFF0284C7),
-                                                                                          width: 1,
-                                                                                        ),
-                                                                                      ),
-                                                                                      child: Column(
-                                                                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                                                                        children: [
-                                                                                          Row(
-                                                                                            children: [
-                                                                                              Icon(Icons.preview, size: 16, color: const Color(0xFF0284C7)),
-                                                                                              const SizedBox(width: 6),
-                                                                                              Text(
-                                                                                                "Preview Range",
-                                                                                                style: TextStyle(
-                                                                                                  fontSize: 12,
-                                                                                                  fontWeight: FontWeight.w600,
-                                                                                                  color: const Color(0xFF0284C7),
-                                                                                                ),
-                                                                                              ),
-                                                                                            ],
-                                                                                          ),
-                                                                                          const SizedBox(height: 6),
-                                                                                          AnimatedBuilder(
-                                                                                            animation: Listenable.merge([
-                                                                                              _minController,
-                                                                                              _maxController,
-                                                                                            ]),
-                                                                                            builder: (context, _) {
-                                                                                              final minVal = _tryParseNumFlexible(_minController.text.trim());
-                                                                                              final maxVal = _tryParseNumFlexible(_maxController.text.trim());
-                                                                                              final unitSuffix = (penghubung.nama?.toLowerCase().contains('jarak') ?? false) ? ' km' : null;
-                                                                                              final text = _buildRentangInfoText(
-                                                                                                minVal: minVal,
-                                                                                                maxVal: maxVal,
-                                                                                                noLowerBound: _noLowerBound,
-                                                                                                noUpperBound: _noUpperBound,
-                                                                                                minInclusive: !_strictMin,
-                                                                                                maxInclusive: !_strictMax,
-                                                                                                unitSuffix: unitSuffix,
-                                                                                              );
-                                                                                              return Text(
-                                                                                                text,
-                                                                                                style: TextStyle(
-                                                                                                  fontSize: 12,
-                                                                                                  fontWeight: FontWeight.w600,
-                                                                                                  color: const Color(0xFF0284C7),
-                                                                                                ),
-                                                                                              );
-                                                                                            },
-                                                                                          ),
-                                                                                        ],
-                                                                                      ),
-                                                                                    ),
-
-                                                                                    const SizedBox(height: 8),
-                                                                                    Text(
-                                                                                      "💡 Tips: Pilih 'tanpa batas' untuk menggunakan hanya satu sisi. Pilih operator '<' atau '>' untuk batasan yang lebih ketat.",
-                                                                                      style: TextStyle(
-                                                                                        fontSize: 10,
-                                                                                        color: Colors.grey[600],
-                                                                                        fontStyle: FontStyle.italic,
                                                                                       ),
                                                                                     ),
                                                                                   ],
@@ -2739,13 +2588,12 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                             num?
                                                                                 nilaiMax;
 
-                                                                            final bothFilled =
-                                                                                minText.isNotEmpty && maxText.isNotEmpty;
-                                                                            final allowSingleSide =
-                                                                                !bothFilled;
+                                                                            final minFilled =
+                                                                                minText.isNotEmpty;
+                                                                            final maxFilled =
+                                                                                maxText.isNotEmpty;
 
-                                                                            if (allowSingleSide &&
-                                                                                _noLowerBound &&
+                                                                            if (_noLowerBound &&
                                                                                 _noUpperBound) {
                                                                               ScaffoldMessenger.of(context).showSnackBar(
                                                                                 const SnackBar(
@@ -2755,49 +2603,18 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                               return;
                                                                             }
 
-                                                                            if (allowSingleSide &&
-                                                                                _noLowerBound) {
-                                                                              if (maxText.isEmpty) {
-                                                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                                                  const SnackBar(
-                                                                                    content: Text('Isi nilai Max untuk menggunakan tanpa batas bawah.'),
-                                                                                  ),
-                                                                                );
-                                                                                return;
-                                                                              }
-                                                                              final maxVal = _tryParseNumFlexible(maxText);
-                                                                              if (maxVal == null) {
-                                                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                                                  const SnackBar(
-                                                                                    content: Text('Max harus berupa angka.'),
-                                                                                  ),
-                                                                                );
-                                                                                return;
-                                                                              }
-                                                                              nilaiMin = null;
-                                                                              nilaiMax = maxVal;
-                                                                            } else if (allowSingleSide &&
-                                                                                _noUpperBound) {
-                                                                              if (minText.isEmpty) {
-                                                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                                                  const SnackBar(
-                                                                                    content: Text('Isi nilai Min untuk menggunakan tanpa batas atas.'),
-                                                                                  ),
-                                                                                );
-                                                                                return;
-                                                                              }
-                                                                              final minVal = _tryParseNumFlexible(minText);
-                                                                              if (minVal == null) {
-                                                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                                                  const SnackBar(
-                                                                                    content: Text('Min harus berupa angka.'),
-                                                                                  ),
-                                                                                );
-                                                                                return;
-                                                                              }
-                                                                              nilaiMin = minVal;
-                                                                              nilaiMax = null;
-                                                                            } else if (bothFilled) {
+                                                                            if (!minFilled &&
+                                                                                !maxFilled) {
+                                                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                                                const SnackBar(
+                                                                                  content: Text('Untuk kriteria range, isi Min & Max atau pilih salah satu mode tanpa batas.'),
+                                                                                ),
+                                                                              );
+                                                                              return;
+                                                                            }
+
+                                                                            if (minFilled &&
+                                                                                maxFilled) {
                                                                               final minVal = _tryParseNumFlexible(minText);
                                                                               final maxVal = _tryParseNumFlexible(maxText);
                                                                               if (minVal == null || maxVal == null) {
@@ -2817,6 +2634,48 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                                 return;
                                                                               }
                                                                               nilaiMin = minVal;
+                                                                              nilaiMax = maxVal;
+                                                                            } else if (minFilled &&
+                                                                                !maxFilled) {
+                                                                              if (!_noUpperBound) {
+                                                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                                                  const SnackBar(
+                                                                                    content: Text('Isi nilai Max atau centang "Tanpa batas maksimum".'),
+                                                                                  ),
+                                                                                );
+                                                                                return;
+                                                                              }
+                                                                              final minVal = _tryParseNumFlexible(minText);
+                                                                              if (minVal == null) {
+                                                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                                                  const SnackBar(
+                                                                                    content: Text('Min harus berupa angka.'),
+                                                                                  ),
+                                                                                );
+                                                                                return;
+                                                                              }
+                                                                              nilaiMin = minVal;
+                                                                              nilaiMax = null;
+                                                                            } else if (!minFilled &&
+                                                                                maxFilled) {
+                                                                              if (!_noLowerBound) {
+                                                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                                                  const SnackBar(
+                                                                                    content: Text('Isi nilai Min atau centang "Tanpa batas minimum".'),
+                                                                                  ),
+                                                                                );
+                                                                                return;
+                                                                              }
+                                                                              final maxVal = _tryParseNumFlexible(maxText);
+                                                                              if (maxVal == null) {
+                                                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                                                  const SnackBar(
+                                                                                    content: Text('Max harus berupa angka.'),
+                                                                                  ),
+                                                                                );
+                                                                                return;
+                                                                              }
+                                                                              nilaiMin = null;
                                                                               nilaiMax = maxVal;
                                                                             }
 

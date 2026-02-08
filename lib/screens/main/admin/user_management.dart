@@ -452,7 +452,12 @@ class UserCard extends StatelessWidget {
                               child: child,
                             );
                           },
-                          settings: RouteSettings(arguments: id),
+                          settings: RouteSettings(
+                            arguments: {
+                              'id': id,
+                              'readOnly': true,
+                            },
+                          ),
                         ),
                       );
                     },

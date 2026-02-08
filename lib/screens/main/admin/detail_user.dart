@@ -18,7 +18,27 @@ class DetailUser extends StatelessWidget {
     const warnaTeksHitam = Colors.black87;
     const warnaAbu = Color(0xFF6B7280);
 
-    final terima = ModalRoute.of(context)!.settings.arguments as int;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    int? terima;
+    bool readOnly = false;
+
+    if (args is int) {
+      terima = args;
+    } else if (args is Map) {
+      final rawId = args['id'] ?? args['id_auth'] ?? args['idAuth'];
+      if (rawId is int) terima = rawId;
+      readOnly = (args['readOnly'] == true);
+    }
+
+    if (terima == null) {
+      return const Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: Text('ID pengguna tidak ditemukan.'),
+          ),
+        ),
+      );
+    }
     final profilProvider = Provider.of<ProfilProvider>(context, listen: false);
 
     dynamic pakai;
@@ -154,25 +174,12 @@ class DetailUser extends StatelessWidget {
                           infoBar("Nama", displayNama),
                           infoBar("Email", displayEmail),
                           infoBar(
-                            "Jenis Kelamin",
-                            pakai?.jkl != null && "${pakai.jkl}".isNotEmpty
-                                ? "${pakai.jkl}"
-                                : "-",
-                          ),
-                          infoBar(
                             "No. handphone",
                             pakai == null
                                 ? "Belum mengisi profil"
                                 : (pakai.kontak == 0
                                     ? "Tidak di publish"
                                     : "${pakai.kontak}"),
-                          ),
-                          infoBar(
-                            "Tanggal Lahir",
-                            pakai?.tgllahir != null
-                                ? DateFormat('dd-MM-yyyy')
-                                    .format(pakai.tgllahir as DateTime)
-                                : "-",
                           ),
                         ],
                       ),
@@ -184,45 +191,50 @@ class DetailUser extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.only(
-              left: lebarLayar * 0.05, right: lebarLayar * 0.05, bottom: 12),
-          child: SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: hasProfil
-                  ? () {
-                      _showEditBottomSheet(context, pakai);
-                    }
-                  : () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Pengguna belum mengisi profil, tidak ada data untuk diedit.',
-                          ),
-                        ),
-                      );
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: warnaUtama,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+      bottomNavigationBar: readOnly
+          ? null
+          : SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: lebarLayar * 0.05,
+                  right: lebarLayar * 0.05,
+                  bottom: 12,
                 ),
-              ),
-              icon: const Icon(Icons.edit_outlined, color: Colors.white),
-              label: const Text(
-                'Edit Informasi Pengguna',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: hasProfil
+                        ? () {
+                            _showEditBottomSheet(context, pakai);
+                          }
+                        : () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Pengguna belum mengisi profil, tidak ada data untuk diedit.',
+                                ),
+                              ),
+                            );
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: warnaUtama,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.edit_outlined, color: Colors.white),
+                    label: const Text(
+                      'Edit Informasi Pengguna',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -259,16 +271,6 @@ class DetailUser extends StatelessWidget {
     final TextEditingController noHpController = TextEditingController(
       text: pakai.kontak?.toString() ?? '',
     );
-    final TextEditingController tglController = TextEditingController(
-      text: pakai.tgllahir != null
-          ? DateFormat('dd-MM-yyyy')
-              .format(DateTime.parse(pakai.tgllahir.toString()))
-          : '',
-    );
-
-    String selectedJkl = (pakai.jkl ?? '').toString().isNotEmpty
-        ? pakai.jkl.toString()
-        : 'Laki-Laki';
 
     showModalBottomSheet(
       context: context,
@@ -314,88 +316,13 @@ class DetailUser extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Perbarui data profil seperti tanggal lahir, nomor handphone, dan jenis kelamin.',
+                    'Perbarui nomor handphone pengguna.',
                     style: TextStyle(
                       fontSize: 12,
                       color: Color(0xFF6B7280),
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  // Tanggal lahir
-                  TextField(
-                    controller: tglController,
-                    readOnly: true,
-                    onTap: () async {
-                      final now = DateTime.now();
-                      final initialDate = pakai.tgllahir ?? now;
-                      final picked = await showDatePicker(
-                        context: ctx,
-                        firstDate: DateTime(1945),
-                        lastDate: DateTime(9999),
-                        initialDate: initialDate,
-                      );
-                      if (picked != null) {
-                        tglController.text =
-                            DateFormat('dd-MM-yyyy').format(picked);
-                      }
-                    },
-                    decoration: InputDecoration(
-                      labelText: 'Tanggal Lahir',
-                      prefixIcon: const Icon(Icons.calendar_today_outlined),
-                      filled: true,
-                      fillColor: const Color(0xFFF9FAFB),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide:
-                            BorderSide(color: Colors.grey.shade300, width: 1),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: Color(0xFF1C3B98),
-                          width: 1.2,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Jenis kelamin
-                  InputDecorator(
-                    decoration: InputDecoration(
-                      labelText: 'Jenis Kelamin',
-                      filled: true,
-                      fillColor: const Color(0xFFF9FAFB),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide:
-                            BorderSide(color: Colors.grey.shade300, width: 1),
-                      ),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: selectedJkl,
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'Laki-Laki',
-                            child: Text('Laki-Laki'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Perempuan',
-                            child: Text('Perempuan'),
-                          ),
-                        ],
-                        onChanged: (val) {
-                          if (val == null) return;
-                          setState(() {
-                            selectedJkl = val;
-                          });
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
 
                   // No HP
                   TextField(
@@ -443,12 +370,12 @@ class DetailUser extends StatelessWidget {
                           onPressed: isSaving
                               ? null
                               : () async {
-                                  if (tglController.text.isEmpty ||
-                                      noHpController.text.isEmpty) {
+                                  if (noHpController.text.isEmpty) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
                                         content: Text(
-                                            'Tanggal lahir dan nomor handphone tidak boleh kosong.'),
+                                          'Nomor handphone tidak boleh kosong.',
+                                        ),
                                       ),
                                     );
                                     return;
@@ -466,20 +393,6 @@ class DetailUser extends StatelessWidget {
                                     return;
                                   }
 
-                                  DateTime tgl;
-                                  try {
-                                    tgl = DateFormat('dd-MM-yyyy')
-                                        .parse(tglController.text);
-                                  } catch (e) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                            'Format tanggal lahir tidak valid.'),
-                                      ),
-                                    );
-                                    return;
-                                  }
-
                                   setState(() {
                                     isSaving = true;
                                   });
@@ -487,9 +400,7 @@ class DetailUser extends StatelessWidget {
                                   try {
                                     await profilProvider.adminUpdateUserProfil(
                                       idProfil: pakai.id_profil!,
-                                      jkl: selectedJkl,
                                       kontak: hp,
-                                      tgllahir: tgl,
                                     );
 
                                     if (context.mounted) {

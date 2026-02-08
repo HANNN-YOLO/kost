@@ -137,6 +137,9 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> readrole() async {
     try {
+      if (_accesstoken == null || _accesstoken!.isEmpty) {
+        throw "Sesi login tidak valid. Silakan login ulang.";
+      }
       final data = await _ref.readdata(_accesstoken!);
       _mydata = data;
       if (_mydata.isEmpty) {
@@ -145,14 +148,16 @@ class AuthProvider with ChangeNotifier {
 
       id_auth = mydata.first.id_auth;
       final roleUser = data.first.role;
-      if (roleUser == "Admin" ||
-          roleUser == "Penyewa" ||
-          roleUser == "Pemilik") {
+      if (roleUser == "Admin") {
+        // Admin butuh daftar semua user
         final isinya = await _ref.alluser();
         hasilnya = isinya;
+      } else {
+        // Penyewa/Pemilik cukup data dirinya saja (hindari call admin key)
+        hasilnya = data;
       }
     } catch (e) {
-      throw e;
+      rethrow;
     }
     notifyListeners();
   }
@@ -246,7 +251,13 @@ class AuthProvider with ChangeNotifier {
     _expiresIn = waktunya;
     // hasilnya = ambil['list_auth'];
 
-    await readrole();
+    try {
+      await readrole();
+    } catch (_) {
+      // Jangan crash saat startup (mis. server 500). Balik ke login.
+      await logout();
+      return false;
+    }
     notifyListeners();
     return true;
   }

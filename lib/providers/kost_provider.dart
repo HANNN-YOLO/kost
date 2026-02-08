@@ -180,10 +180,58 @@ class KostProvider with ChangeNotifier {
     return dinamis.isNotEmpty ? dinamis : _jenisbatasjammalam;
   }
 
-  String batasjammalams = "PIlih";
+  String batasjammalams = "Pilih";
 
   void pilihbatasjammalam(String value) {
     batasjammalams = value;
+  }
+
+  /// Opsi subkriteria dinamis (tanpa fallback) untuk validasi data tersimpan.
+  /// Jika list kosong, artinya data kriteria/subkriteria belum tersedia atau
+  /// tidak ada subkriteria untuk kriteria tersebut.
+  List<String> get keamananOptionsDynamic =>
+      _getSubkriteriaOptions((nama) => nama.contains('keamanan'));
+
+  List<String> get batasJamMalamOptionsDynamic => _getSubkriteriaOptions(
+        (nama) => nama.contains('batas') || nama.contains('jam malam'),
+      );
+
+  List<String> get jenisAirOptionsDynamic => _getSubkriteriaOptions(
+        (nama) => nama.contains('air') || nama.contains('pembayaran'),
+      );
+
+  List<String> get jenisListrikOptionsDynamic =>
+      _getSubkriteriaOptions((nama) => nama.contains('listrik'));
+
+  /// True jika ada nilai dropdown pada data kost yang sudah tidak valid
+  /// karena subkriteria terkait sudah dihapus.
+  bool kostNeedsSubkriteriaFix(KostModel kost) {
+    final keamanan = (kost.keamanan ?? '').trim();
+    final batas = (kost.batas_jam_malam ?? '').trim();
+    final air = (kost.jenis_pembayaran_air ?? '').trim();
+    final listrik = (kost.jenis_listrik ?? '').trim();
+
+    final optKeamanan = keamananOptionsDynamic;
+    if (optKeamanan.isNotEmpty && keamanan.isNotEmpty) {
+      if (!optKeamanan.contains(keamanan)) return true;
+    }
+
+    final optBatas = batasJamMalamOptionsDynamic;
+    if (optBatas.isNotEmpty && batas.isNotEmpty) {
+      if (!optBatas.contains(batas)) return true;
+    }
+
+    final optAir = jenisAirOptionsDynamic;
+    if (optAir.isNotEmpty && air.isNotEmpty) {
+      if (!optAir.contains(air)) return true;
+    }
+
+    final optListrik = jenisListrikOptionsDynamic;
+    if (optListrik.isNotEmpty && listrik.isNotEmpty) {
+      if (!optListrik.contains(listrik)) return true;
+    }
+
+    return false;
   }
 
   // jenis pembayaran air
@@ -226,18 +274,30 @@ class KostProvider with ChangeNotifier {
   }
 
   void resetpilihan() {
-    this._foto = null;
-    this.namanya = "Pilih";
-    this.jeniskosts = "Pilih";
-    this.jeniskeamanans = "Pilih";
-    this.batasjammalams = "Pilih";
-    this.jenispembayaranairs = "Pilih";
-    this.jenislistriks = "Pilih";
+    // Reset state yang terkait FORM saja.
+    // Jangan hapus token/_listauth di sini, karena dipakai untuk dropdown pemilik
+    // dan state login akan hilang ketika user hanya keluar-masuk halaman form.
+    _foto = null;
+    namanya = "Pilih";
+    jeniskosts = "Pilih";
+    jeniskeamanans = "Pilih";
+    batasjammalams = "Pilih";
+    jenispembayaranairs = "Pilih";
+    jenislistriks = "Pilih";
+    pernama = "Pilih";
+    notifyListeners();
+  }
+
+  /// Reset TOTAL state provider (dipakai saat logout).
+  void resetSession() {
+    resetpilihan();
     _token = null;
     _email = null;
     _expires_in = null;
     _listauth = [];
     id_authnya = null;
+    _dataku = [];
+
     _hasLoadedPemilikKost = false;
     _loadedPemilikAuthId = null;
     notifyListeners();
@@ -296,6 +356,52 @@ class KostProvider with ChangeNotifier {
     String fasilitas = inimilistnya.join(", ");
     await createdata(
       id_authnya!,
+      notlp_kost,
+      nama_kost,
+      alamat_kost,
+      pemilik_kost,
+      harga_kost,
+      titik_koordinat,
+      jenis_kost,
+      keamanan,
+      batas_jam_malam,
+      jenis_pembayaran_air,
+      jenis_listrik,
+      panjang,
+      lebar,
+      gambar,
+      per,
+      fasilitas,
+    );
+  }
+
+  /// Khusus admin: buat kost untuk pemilik yang dipilih (override id_auth).
+  Future<void> konversicreatedataAdmin(
+    int idAuthPemilik,
+    int notlp_kost,
+    String nama_kost,
+    String alamat_kost,
+    String pemilik_kost,
+    int harga_kost,
+    String titik_koordinat,
+    String jenis_kost,
+    String keamanan,
+    String batas_jam_malam,
+    String jenis_pembayaran_air,
+    String jenis_listrik,
+    num panjang,
+    num lebar,
+    XFile gambar,
+    String per,
+    List<dynamic> manalistnya,
+  ) async {
+    final inimilistnya = manalistnya
+        .map((element) => element.namaFasilitasController.text)
+        .toList();
+    final fasilitas = inimilistnya.join(", ");
+
+    await createdata(
+      idAuthPemilik,
       notlp_kost,
       nama_kost,
       alamat_kost,

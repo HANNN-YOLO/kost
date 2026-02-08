@@ -17,7 +17,7 @@ class MainNavigationAdmin extends StatefulWidget {
 
 class _MainNavigationAdminState extends State<MainNavigationAdmin> {
   int _selectedIndex = 2;
-  final List<int> _history = [1]; // menyimpan urutan tab terakhir
+  final List<int> _history = [2]; // menyimpan urutan tab terakhir
 
   // Fungsi untuk menampilkan halaman sesuai index
   Widget _getPage(int index) {
@@ -64,7 +64,7 @@ class _MainNavigationAdminState extends State<MainNavigationAdmin> {
               );
 
               await auth.logout();
-              kost.resetpilihan();
+              kost.resetSession();
 
               if (!mounted) return;
               rootNavigator.pop();
@@ -98,12 +98,21 @@ class _MainNavigationAdminState extends State<MainNavigationAdmin> {
     return PopScope(
       canPop: _history.length <= 1,
       onPopInvoked: (didPop) {
-        if (_history.length > 1) {
-          _history.removeLast();
+        // Jika route sudah benar-benar di-pop, jangan ubah state.
+        if (didPop) return;
+        if (_history.length <= 1) return;
+
+        _history.removeLast();
+        final nextIndex = _history.last;
+
+        // Tunda setState agar tidak memicu rebuild saat framework sedang "locked"
+        // (kasus: back navigation di tengah transisi / pop).
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
           setState(() {
-            _selectedIndex = _history.last;
+            _selectedIndex = nextIndex;
           });
-        }
+        });
       },
       child: Scaffold(
         backgroundColor: Color(0xFFF8F7F7),
