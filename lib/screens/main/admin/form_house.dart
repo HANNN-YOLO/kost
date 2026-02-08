@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
-import 'package:kost_saw/models/fasilitas_model.dart';
 import 'package:kost_saw/models/kost_model.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter/services.dart'
@@ -15,14 +14,22 @@ import '../../custom/custom_UploadFotov2.dart';
 import '../../custom/showdialog_eror.dart';
 import '../../custom/custom_editfotov2.dart';
 import '../../custom/textfield_with_dropdown.dart';
+import '../../custom/textfield_1baris_full.dart';
 import 'package:provider/provider.dart';
 import '../../../utils/thousands_separator_input_formatter.dart';
 import '../../../providers/kost_provider.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:collection/collection.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../providers/profil_provider.dart';
 import '../../../providers/auth_provider.dart';
+
+class listinputan {
+  final TextEditingController namaFasilitasController = TextEditingController();
+
+  void dispose() {
+    namaFasilitasController.dispose();
+  }
+}
 
 class FormHouse extends StatefulWidget {
   static const arah = "/form-house-admin";
@@ -33,13 +40,12 @@ class FormHouse extends StatefulWidget {
 }
 
 class _FormAddHouseState extends State<FormHouse> {
-  final TextEditingController? _namapemilik = TextEditingController();
+  // final TextEditingController? _namapemilik = TextEditingController();
   final TextEditingController _namakost = TextEditingController();
   final TextEditingController _notlpn = TextEditingController();
   final TextEditingController _alamat = TextEditingController();
   final TextEditingController _harga = TextEditingController();
-  final TextEditingController _namaFasilitasController =
-      TextEditingController();
+
   final TextEditingController _koordinatController = TextEditingController();
   final TextEditingController _panjang = TextEditingController();
   final TextEditingController _lebar = TextEditingController();
@@ -47,6 +53,7 @@ class _FormAddHouseState extends State<FormHouse> {
   int index = 0;
   bool keadaan = true;
   bool _isSubmitting = false;
+  List<listinputan> _inilist = [];
 
   // Opsi lokasi untuk titik koordinat (mirip halaman rekomendasi penyewa)
   String _selectedLocationOption = 'Lokasi Tujuan';
@@ -80,7 +87,7 @@ class _FormAddHouseState extends State<FormHouse> {
   @override
   void initState() {
     super.initState();
-
+    _inilist.add(listinputan());
     // Default teks untuk mode "Tujuan" saat pertama kali membuka form
     _koordinatController.text = 'Klik 2x pada peta';
 
@@ -89,18 +96,20 @@ class _FormAddHouseState extends State<FormHouse> {
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0x00000000))
       ..enableZoom(true) // Aktifkan zoom
-      ..setNavigationDelegate(NavigationDelegate(
-        onPageFinished: (url) {
-          if (mounted) {
-            setState(() => _mapLoaded = true);
-            // Sinkronkan mode peta dengan opsi lokasi yang terpilih
-            _syncMapModeWithLocationOption();
-          }
-        },
-        onWebResourceError: (err) {
-          // Error handling tanpa debug print yang berat
-        },
-      ))
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (url) {
+            if (mounted) {
+              setState(() => _mapLoaded = true);
+              // Sinkronkan mode peta dengan opsi lokasi yang terpilih
+              _syncMapModeWithLocationOption();
+            }
+          },
+          onWebResourceError: (err) {
+            // Error handling tanpa debug print yang berat
+          },
+        ),
+      )
       ..addJavaScriptChannel(
         'ToFlutter',
         onMessageReceived: (JavaScriptMessage message) async {
@@ -209,13 +218,16 @@ class _FormAddHouseState extends State<FormHouse> {
     try {
       if (_selectedLocationOption == _optLokasiTujuan) {
         await _mapController.runJavaScript(
-            "clearMyLocation(); clearDestination(); setMode('destination');");
+          "clearMyLocation(); clearDestination(); setMode('destination');",
+        );
       } else if (_selectedLocationOption == _optManualKoordinat) {
         await _mapController.runJavaScript(
-            "clearMyLocation(); clearDestination(); setMode('readonly');");
+          "clearMyLocation(); clearDestination(); setMode('readonly');",
+        );
       } else if (_selectedLocationOption == _optLokasiSekarang) {
         await _mapController.runJavaScript(
-            "clearMyLocation(); clearDestination(); setMode('normal');");
+          "clearMyLocation(); clearDestination(); setMode('normal');",
+        );
       }
     } catch (e) {
       // Error handling ringan
@@ -247,9 +259,9 @@ class _FormAddHouseState extends State<FormHouse> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Izin lokasi ditolak.')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Izin lokasi ditolak.')));
           return;
         }
       }
@@ -271,9 +283,9 @@ class _FormAddHouseState extends State<FormHouse> {
       _koordinatController.text = '$lat, $lng';
       await _updateMapLocation(lat, lng);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal mengambil lokasi: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal mengambil lokasi: $e')));
     }
   }
 
@@ -286,9 +298,10 @@ class _FormAddHouseState extends State<FormHouse> {
       final penghubung = Provider.of<KostProvider>(context, listen: false);
 
       if (terima != null) {
-        final pakai = Provider.of<KostProvider>(context, listen: false)
-            .kost
-            .firstWhere((element) => element.id_kost == terima);
+        final pakai = Provider.of<KostProvider>(
+          context,
+          listen: false,
+        ).kost.firstWhere((element) => element.id_kost == terima);
 
         _namakost.text = pakai.nama_kost ?? "";
         _notlpn.text = pakai.notlp_kost.toString() ?? "";
@@ -312,25 +325,35 @@ class _FormAddHouseState extends State<FormHouse> {
         penghubung.jenislistriks = pakai.jenis_listrik ?? "Pilih";
         penghubung.pernama = pakai.per ?? "";
 
-        if (pakai != null) {
-          final cekker = Provider.of<KostProvider>(context, listen: false)
-              .faslitas
-              .firstWhereOrNull(
-                  (element) => element.id_fasilitas == pakai.id_fasilitas);
+        // _inilist.clear();
+        // final List<String> pisah = pakai.fasilitas.split(", ");
+        // for (var item in pisah) {
+        //   var jenis = listinputan();
+        //   jenis.namaFasilitasController.text = item;
+        //   _inilist.add(jenis);
+        // }
 
-          if (cekker != null) {
-            penghubung.inputan.tempat_tidur = cekker.tempat_tidur;
-            penghubung.inputan.kamar_mandi_dalam = cekker.kamar_mandi_dalam;
-            penghubung.inputan.meja = cekker.meja;
-            penghubung.inputan.tempat_parkir = cekker.tempat_parkir;
-            penghubung.inputan.lemari = cekker.lemari;
-            penghubung.inputan.ac = cekker.ac;
-            penghubung.inputan.tv = cekker.tv;
-            penghubung.inputan.kipas = cekker.kipas;
-            penghubung.inputan.dapur_dalam = cekker.dapur_dalam;
-            penghubung.inputan.wifi = cekker.wifi;
-          }
-        }
+        // if (pakai != null) {
+        //   final cekker = Provider.of<KostProvider>(
+        //     context,
+        //     listen: false,
+        //   ).faslitas.firstWhereOrNull(
+        //         (element) => element.id_fasilitas == pakai.id_fasilitas,
+        //       );
+
+        //   if (cekker != null) {
+        //     penghubung.inputan.tempat_tidur = cekker.tempat_tidur;
+        //     penghubung.inputan.kamar_mandi_dalam = cekker.kamar_mandi_dalam;
+        //     penghubung.inputan.meja = cekker.meja;
+        //     penghubung.inputan.tempat_parkir = cekker.tempat_parkir;
+        //     penghubung.inputan.lemari = cekker.lemari;
+        //     penghubung.inputan.ac = cekker.ac;
+        //     penghubung.inputan.tv = cekker.tv;
+        //     penghubung.inputan.kipas = cekker.kipas;
+        //     penghubung.inputan.dapur_dalam = cekker.dapur_dalam;
+        //     penghubung.inputan.wifi = cekker.wifi;
+        //   }
+        // }
       }
     }
     keadaan = false;
@@ -357,7 +380,7 @@ class _FormAddHouseState extends State<FormHouse> {
     _lebar.removeListener(_onFormFieldChanged);
     _koordinatController.removeListener(_onFormFieldChanged);
     _koordinatController.dispose();
-    _namaFasilitasController.dispose();
+    // _namaFasilitasController.dispose();
     super.dispose();
   }
 
@@ -372,35 +395,45 @@ class _FormAddHouseState extends State<FormHouse> {
     final penghubung2 = Provider.of<AuthProvider>(context, listen: false);
     final penghubung3 = Provider.of<ProfilProvider>(context, listen: false);
 
-    // Jika profil sudah ada, isi otomatis nomor telepon sekali saja
-    // if (penghubung3.alluser.isNotEmpty &&
-    //     _notlpn.text.isEmpty &&
-    //     penghubung.naman.isNotEmpty &&
-    //     penghubung2.hasilnya.isNotEmpty) {
+    final cekked = penghubung2.hasilnya.firstWhereOrNull(
+      (element) => element.username == penghubung.namanya,
+    );
 
-    // }
-
-    final cekked = penghubung2.hasilnya
-        .firstWhereOrNull((element) => element.username == penghubung.namanya);
-
-    final last = penghubung3.alluser
-        .firstWhereOrNull((element) => element.id_auth == cekked?.id_auth);
+    final last = penghubung3.alluser.firstWhereOrNull(
+      (element) => element.id_auth == cekked?.id_auth,
+    );
 
     _notlpn.text = "${last?.kontak ?? ''}";
 
     final int? terima = ModalRoute.of(context)?.settings.arguments as int?;
     KostModel? pakai;
+    pakai = Provider.of<KostProvider>(
+      context,
+      listen: false,
+    ).kost.firstWhere((element) => element.id_kost == terima);
 
-    if (terima != null) {
-      pakai = Provider.of<KostProvider>(context, listen: false)
-          .kost
-          .firstWhere((element) => element.id_kost == terima);
+    if (allstatus) {
+      final int? terima = ModalRoute.of(context)?.settings.arguments as int?;
+      KostModel? pakai;
+      if (terima != null) {
+        pakai = Provider.of<KostProvider>(
+          context,
+          listen: false,
+        ).kost.firstWhere((element) => element.id_kost == terima);
+
+        _inilist.clear();
+        final List<String> pisah = pakai.fasilitas!.split(", ");
+        for (var item in pisah) {
+          var jenis = listinputan();
+          jenis.namaFasilitasController.text = item;
+          _inilist.add(jenis);
+        }
+        allstatus = false;
+      }
     }
 
     return penghubung3 == null
-        ? Center(
-            child: CircularProgressIndicator(),
-          )
+        ? Center(child: CircularProgressIndicator())
         : Scaffold(
             backgroundColor: warnaLatar,
             appBar: PreferredSize(
@@ -487,30 +520,60 @@ class _FormAddHouseState extends State<FormHouse> {
                     Consumer<KostProvider>(
                       builder: (context, value, child) {
                         return terima != null
-                            ? _inputField('Nama Kost', tinggiLayar, lebarLayar,
-                                _namakost, false)
-                            : _inputField('Nama Kost', tinggiLayar, lebarLayar,
-                                _namakost, false);
+                            ? _inputField(
+                                'Nama Kost',
+                                tinggiLayar,
+                                lebarLayar,
+                                _namakost,
+                                false,
+                              )
+                            : _inputField(
+                                'Nama Kost',
+                                tinggiLayar,
+                                lebarLayar,
+                                _namakost,
+                                false,
+                              );
                       },
                     ),
 
                     Consumer<KostProvider>(
                       builder: (context, value, child) {
                         return terima != null
-                            ? _inputField('Nomor Telepon', tinggiLayar,
-                                lebarLayar, _notlpn, false)
-                            : _inputField('Nomor Telepon', tinggiLayar,
-                                lebarLayar, _notlpn, false);
+                            ? _inputField(
+                                'Nomor Telepon',
+                                tinggiLayar,
+                                lebarLayar,
+                                _notlpn,
+                                false,
+                              )
+                            : _inputField(
+                                'Nomor Telepon',
+                                tinggiLayar,
+                                lebarLayar,
+                                _notlpn,
+                                false,
+                              );
                       },
                     ),
 
                     Consumer<KostProvider>(
                       builder: (context, value, child) {
                         return terima != null
-                            ? _inputField('Alamat', tinggiLayar, lebarLayar,
-                                _alamat, false)
-                            : _inputField('Alamat', tinggiLayar, lebarLayar,
-                                _alamat, false);
+                            ? _inputField(
+                                'Alamat',
+                                tinggiLayar,
+                                lebarLayar,
+                                _alamat,
+                                false,
+                              )
+                            : _inputField(
+                                'Alamat',
+                                tinggiLayar,
+                                lebarLayar,
+                                _alamat,
+                                false,
+                              );
                       },
                     ),
 
@@ -642,14 +705,14 @@ class _FormAddHouseState extends State<FormHouse> {
                                               fontSize: lebarLayar * 0.035,
                                             ),
                                           ),
-                                          SizedBox(
-                                            width: lebarLayar * 0.01,
-                                          ),
+                                          SizedBox(width: lebarLayar * 0.01),
                                           Expanded(
                                             child: Container(
                                               decoration: BoxDecoration(
                                                 borderRadius:
-                                                    BorderRadius.circular(8),
+                                                    BorderRadius.circular(
+                                                  8,
+                                                ),
                                                 color: Colors.white,
                                                 border: Border.all(
                                                   color: Colors.grey.shade300,
@@ -699,7 +762,9 @@ class _FormAddHouseState extends State<FormHouse> {
                                                   width: 1,
                                                 ),
                                                 borderRadius:
-                                                    BorderRadius.circular(8),
+                                                    BorderRadius.circular(
+                                                  8,
+                                                ),
                                               ),
                                               child: TextField(
                                                 controller: _lebar,
@@ -740,14 +805,14 @@ class _FormAddHouseState extends State<FormHouse> {
                                               fontSize: lebarLayar * 0.035,
                                             ),
                                           ),
-                                          SizedBox(
-                                            width: lebarLayar * 0.01,
-                                          ),
+                                          SizedBox(width: lebarLayar * 0.01),
                                           Expanded(
                                             child: Container(
                                               decoration: BoxDecoration(
                                                 borderRadius:
-                                                    BorderRadius.circular(8),
+                                                    BorderRadius.circular(
+                                                  8,
+                                                ),
                                                 color: Colors.white,
                                                 border: Border.all(
                                                   color: Colors.grey.shade300,
@@ -797,7 +862,9 @@ class _FormAddHouseState extends State<FormHouse> {
                                                   width: 1,
                                                 ),
                                                 borderRadius:
-                                                    BorderRadius.circular(8),
+                                                    BorderRadius.circular(
+                                                  8,
+                                                ),
                                               ),
                                               child: TextField(
                                                 controller: _lebar,
@@ -928,14 +995,8 @@ class _FormAddHouseState extends State<FormHouse> {
                     Consumer<KostProvider>(
                       builder: (context, value, child) {
                         return terima != null
-                            ? _inputFieldKoordinat(
-                                tinggiLayar,
-                                lebarLayar,
-                              )
-                            : _inputFieldKoordinat(
-                                tinggiLayar,
-                                lebarLayar,
-                              );
+                            ? _inputFieldKoordinat(tinggiLayar, lebarLayar)
+                            : _inputFieldKoordinat(tinggiLayar, lebarLayar);
                       },
                     ),
 
@@ -959,7 +1020,7 @@ class _FormAddHouseState extends State<FormHouse> {
                                   penghubung.uploadfoto();
                                 },
                                 path: penghubung.foto?.path,
-                                pathlama: pakai?.gambar_kost,
+                                pathlama: pakai!.gambar_kost ?? "",
                                 tinggi: tinggiLayar * 0.4,
                                 panjang: lebarLayar * 2,
                               )
@@ -975,195 +1036,261 @@ class _FormAddHouseState extends State<FormHouse> {
                     ),
 
                     SizedBox(height: tinggiLayar * 0.015),
-                    ChangeNotifierProvider.value(
-                      value: penghubung.inputan,
-                      child: Consumer<KostProvider>(
-                        builder: (context, value, child) {
-                          return terima != null
-                              ? Consumer<FasilitasModel>(
-                                  builder: (context, value, child) {
-                                    return Wrap(
-                                      spacing: lebarLayar * 0.02,
-                                      runSpacing: tinggiLayar * 0.015,
-                                      children: [
-                                        _buildCustomItem(
-                                          "Tempat Tidur",
-                                          Icons.bed,
-                                          value.tempat_tidur,
-                                          () => value.booltempattidur(),
-                                          lebarLayar,
-                                          tinggiLayar,
-                                        ),
-                                        _buildCustomItem(
-                                          "Kamar Mandi Dalam",
-                                          Icons.bathtub_outlined,
-                                          value.kamar_mandi_dalam,
-                                          () => value.boolkamarmandidalam(),
-                                          lebarLayar,
-                                          tinggiLayar,
-                                        ),
-                                        _buildCustomItem(
-                                          "Meja",
-                                          Icons.desk,
-                                          value.meja,
-                                          () => value.boolmeja(),
-                                          lebarLayar,
-                                          tinggiLayar,
-                                        ),
-                                        _buildCustomItem(
-                                          "Tempat Parkir",
-                                          Icons.local_parking,
-                                          value.tempat_parkir,
-                                          () => value.booltempatparkir(),
-                                          lebarLayar,
-                                          tinggiLayar,
-                                        ),
-                                        _buildCustomItem(
-                                          "Lemari",
-                                          PhosphorIconsBold.gridFour,
-                                          value.lemari,
-                                          () => value.boollemari(),
-                                          lebarLayar,
-                                          tinggiLayar,
-                                        ),
-                                        _buildCustomItem(
-                                          "AC",
-                                          Icons.ac_unit,
-                                          value.ac,
-                                          () => value.boolac(),
-                                          lebarLayar,
-                                          tinggiLayar,
-                                        ),
-                                        _buildCustomItem(
-                                          "TV",
-                                          Icons.tv,
-                                          value.tv,
-                                          () => value.booltv(),
-                                          lebarLayar,
-                                          tinggiLayar,
-                                        ),
-                                        _buildCustomItem(
-                                          "Kipas Angin",
-                                          Icons.wind_power,
-                                          value.kipas,
-                                          () => value.boolkipas(),
-                                          lebarLayar,
-                                          tinggiLayar,
-                                        ),
-                                        _buildCustomItem(
-                                          "Dapur Dalam",
-                                          Icons.kitchen,
-                                          value.dapur_dalam,
-                                          () => value
-                                              .booldapurdalam(), // Perbaikan typo pemanggilan fungsi
-                                          lebarLayar,
-                                          tinggiLayar,
-                                        ),
-                                        _buildCustomItem(
-                                          "WiFi",
-                                          Icons.wifi,
-                                          value.wifi,
-                                          () => value.boolwifi(),
-                                          lebarLayar,
-                                          tinggiLayar,
-                                        ),
-                                      ],
+                    // ChangeNotifierProvider.value(
+                    //   value: penghubung.inputan,
+                    //   child: Consumer<KostProvider>(
+                    //     builder: (context, value, child) {
+                    //       return terima != null
+                    //           ? Consumer<FasilitasModel>(
+                    //               builder: (context, value, child) {
+                    //                 return Wrap(
+                    //                   spacing: lebarLayar * 0.02,
+                    //                   runSpacing: tinggiLayar * 0.015,
+                    //                   children: [
+                    //                     _buildCustomItem(
+                    //                       "Tempat Tidur",
+                    //                       Icons.bed,
+                    //                       value.tempat_tidur,
+                    //                       () => value.booltempattidur(),
+                    //                       lebarLayar,
+                    //                       tinggiLayar,
+                    //                     ),
+                    //                     _buildCustomItem(
+                    //                       "Kamar Mandi Dalam",
+                    //                       Icons.bathtub_outlined,
+                    //                       value.kamar_mandi_dalam,
+                    //                       () => value.boolkamarmandidalam(),
+                    //                       lebarLayar,
+                    //                       tinggiLayar,
+                    //                     ),
+                    //                     _buildCustomItem(
+                    //                       "Meja",
+                    //                       Icons.desk,
+                    //                       value.meja,
+                    //                       () => value.boolmeja(),
+                    //                       lebarLayar,
+                    //                       tinggiLayar,
+                    //                     ),
+                    //                     _buildCustomItem(
+                    //                       "Tempat Parkir",
+                    //                       Icons.local_parking,
+                    //                       value.tempat_parkir,
+                    //                       () => value.booltempatparkir(),
+                    //                       lebarLayar,
+                    //                       tinggiLayar,
+                    //                     ),
+                    //                     _buildCustomItem(
+                    //                       "Lemari",
+                    //                       PhosphorIconsBold.gridFour,
+                    //                       value.lemari,
+                    //                       () => value.boollemari(),
+                    //                       lebarLayar,
+                    //                       tinggiLayar,
+                    //                     ),
+                    //                     _buildCustomItem(
+                    //                       "AC",
+                    //                       Icons.ac_unit,
+                    //                       value.ac,
+                    //                       () => value.boolac(),
+                    //                       lebarLayar,
+                    //                       tinggiLayar,
+                    //                     ),
+                    //                     _buildCustomItem(
+                    //                       "TV",
+                    //                       Icons.tv,
+                    //                       value.tv,
+                    //                       () => value.booltv(),
+                    //                       lebarLayar,
+                    //                       tinggiLayar,
+                    //                     ),
+                    //                     _buildCustomItem(
+                    //                       "Kipas Angin",
+                    //                       Icons.wind_power,
+                    //                       value.kipas,
+                    //                       () => value.boolkipas(),
+                    //                       lebarLayar,
+                    //                       tinggiLayar,
+                    //                     ),
+                    //                     _buildCustomItem(
+                    //                       "Dapur Dalam",
+                    //                       Icons.kitchen,
+                    //                       value.dapur_dalam,
+                    //                       () => value
+                    //                           .booldapurdalam(), // Perbaikan typo pemanggilan fungsi
+                    //                       lebarLayar,
+                    //                       tinggiLayar,
+                    //                     ),
+                    //                     _buildCustomItem(
+                    //                       "WiFi",
+                    //                       Icons.wifi,
+                    //                       value.wifi,
+                    //                       () => value.boolwifi(),
+                    //                       lebarLayar,
+                    //                       tinggiLayar,
+                    //                     ),
+                    //                   ],
+                    //                 );
+                    //               },
+                    //             )
+                    //           : Consumer<FasilitasModel>(
+                    //               builder: (context, value, child) {
+                    //                 return Wrap(
+                    //                   spacing: lebarLayar * 0.02,
+                    //                   runSpacing: tinggiLayar * 0.015,
+                    //                   children: [
+                    //                     _buildCustomItem(
+                    //                       "Tempat Tidur",
+                    //                       Icons.bed,
+                    //                       value.tempat_tidur,
+                    //                       () => value.booltempattidur(),
+                    //                       lebarLayar,
+                    //                       tinggiLayar,
+                    //                     ),
+                    //                     _buildCustomItem(
+                    //                       "Kamar Mandi Dalam",
+                    //                       Icons.bathtub_outlined,
+                    //                       value.kamar_mandi_dalam,
+                    //                       () => value.boolkamarmandidalam(),
+                    //                       lebarLayar,
+                    //                       tinggiLayar,
+                    //                     ),
+                    //                     _buildCustomItem(
+                    //                       "Meja",
+                    //                       Icons.desk,
+                    //                       value.meja,
+                    //                       () => value.boolmeja(),
+                    //                       lebarLayar,
+                    //                       tinggiLayar,
+                    //                     ),
+                    //                     _buildCustomItem(
+                    //                       "Tempat Parkir",
+                    //                       Icons.local_parking,
+                    //                       value.tempat_parkir,
+                    //                       () => value.booltempatparkir(),
+                    //                       lebarLayar,
+                    //                       tinggiLayar,
+                    //                     ),
+                    //                     _buildCustomItem(
+                    //                       "Lemari",
+                    //                       PhosphorIconsBold.gridFour,
+                    //                       value.lemari,
+                    //                       () => value.boollemari(),
+                    //                       lebarLayar,
+                    //                       tinggiLayar,
+                    //                     ),
+                    //                     _buildCustomItem(
+                    //                       "AC",
+                    //                       Icons.ac_unit,
+                    //                       value.ac,
+                    //                       () => value.boolac(),
+                    //                       lebarLayar,
+                    //                       tinggiLayar,
+                    //                     ),
+                    //                     _buildCustomItem(
+                    //                       "TV",
+                    //                       Icons.tv,
+                    //                       value.tv,
+                    //                       () => value.booltv(),
+                    //                       lebarLayar,
+                    //                       tinggiLayar,
+                    //                     ),
+                    //                     _buildCustomItem(
+                    //                       "Kipas Angin",
+                    //                       Icons.wind_power,
+                    //                       value.kipas,
+                    //                       () => value.boolkipas(),
+                    //                       lebarLayar,
+                    //                       tinggiLayar,
+                    //                     ),
+                    //                     _buildCustomItem(
+                    //                       "Dapur Dalam",
+                    //                       Icons.kitchen,
+                    //                       value.dapur_dalam,
+                    //                       () => value
+                    //                           .booldapurdalam(), // Perbaikan typo pemanggilan fungsi
+                    //                       lebarLayar,
+                    //                       tinggiLayar,
+                    //                     ),
+                    //                     _buildCustomItem(
+                    //                       "WiFi",
+                    //                       Icons.wifi,
+                    //                       value.wifi,
+                    //                       () => value.boolwifi(),
+                    //                       lebarLayar,
+                    //                       tinggiLayar,
+                    //                     ),
+                    //                   ],
+                    //                 );
+                    //               },
+                    //             );
+                    //     },
+                    //   ),
+                    // ),
+                    Label1barisFull(
+                      label: "Fasilitas",
+                      lebar: lebarLayar,
+                      jarak: 1,
+                    ),
+                    Consumer<KostProvider>(
+                      builder: (context, value, child) {
+                        return terima != null
+                            ? Container(
+                                height: tinggiLayar * 5,
+                                width: double.infinity,
+                                child: ListView.separated(
+                                  itemCount: _inilist.length,
+                                  separatorBuilder: (context, index) {
+                                    return SizedBox(height: tinggiLayar * 0.01);
+                                  },
+                                  itemBuilder: (context, index) {
+                                    return Textfield1barisFull(
+                                      jenis: TextInputType.text,
+                                      bk: TextCapitalization.words,
+                                      ketikan: _inilist[index]
+                                          .namaFasilitasController,
+                                      tulis: false,
+                                      label: "Nama Fasilitas",
+                                      fungsienter: () {
+                                        setState(
+                                          () {
+                                            _inilist.add(listinputan());
+                                          },
+                                        );
+                                      },
                                     );
                                   },
-                                )
-                              : Consumer<FasilitasModel>(
-                                  builder: (context, value, child) {
-                                    return Wrap(
-                                      spacing: lebarLayar * 0.02,
-                                      runSpacing: tinggiLayar * 0.015,
-                                      children: [
-                                        _buildCustomItem(
-                                          "Tempat Tidur",
-                                          Icons.bed,
-                                          value.tempat_tidur,
-                                          () => value.booltempattidur(),
-                                          lebarLayar,
-                                          tinggiLayar,
-                                        ),
-                                        _buildCustomItem(
-                                          "Kamar Mandi Dalam",
-                                          Icons.bathtub_outlined,
-                                          value.kamar_mandi_dalam,
-                                          () => value.boolkamarmandidalam(),
-                                          lebarLayar,
-                                          tinggiLayar,
-                                        ),
-                                        _buildCustomItem(
-                                          "Meja",
-                                          Icons.desk,
-                                          value.meja,
-                                          () => value.boolmeja(),
-                                          lebarLayar,
-                                          tinggiLayar,
-                                        ),
-                                        _buildCustomItem(
-                                          "Tempat Parkir",
-                                          Icons.local_parking,
-                                          value.tempat_parkir,
-                                          () => value.booltempatparkir(),
-                                          lebarLayar,
-                                          tinggiLayar,
-                                        ),
-                                        _buildCustomItem(
-                                          "Lemari",
-                                          PhosphorIconsBold.gridFour,
-                                          value.lemari,
-                                          () => value.boollemari(),
-                                          lebarLayar,
-                                          tinggiLayar,
-                                        ),
-                                        _buildCustomItem(
-                                          "AC",
-                                          Icons.ac_unit,
-                                          value.ac,
-                                          () => value.boolac(),
-                                          lebarLayar,
-                                          tinggiLayar,
-                                        ),
-                                        _buildCustomItem(
-                                          "TV",
-                                          Icons.tv,
-                                          value.tv,
-                                          () => value.booltv(),
-                                          lebarLayar,
-                                          tinggiLayar,
-                                        ),
-                                        _buildCustomItem(
-                                          "Kipas Angin",
-                                          Icons.wind_power,
-                                          value.kipas,
-                                          () => value.boolkipas(),
-                                          lebarLayar,
-                                          tinggiLayar,
-                                        ),
-                                        _buildCustomItem(
-                                          "Dapur Dalam",
-                                          Icons.kitchen,
-                                          value.dapur_dalam,
-                                          () => value
-                                              .booldapurdalam(), // Perbaikan typo pemanggilan fungsi
-                                          lebarLayar,
-                                          tinggiLayar,
-                                        ),
-                                        _buildCustomItem(
-                                          "WiFi",
-                                          Icons.wifi,
-                                          value.wifi,
-                                          () => value.boolwifi(),
-                                          lebarLayar,
-                                          tinggiLayar,
-                                        ),
-                                      ],
+                                ),
+                              )
+                            : Container(
+                                height: tinggiLayar * 5,
+                                width: double.infinity,
+                                child: ListView.separated(
+                                  itemCount: _inilist.length,
+                                  separatorBuilder: (context, index) {
+                                    return SizedBox(height: tinggiLayar * 0.01);
+                                  },
+                                  itemBuilder: (context, index) {
+                                    return Textfield1barisFull(
+                                      jenis: TextInputType.text,
+                                      bk: TextCapitalization.words,
+                                      ketikan: _inilist[index]
+                                          .namaFasilitasController,
+                                      tulis: false,
+                                      label: "Nama Fasilitas",
+                                      // icon_kanan: Icon(Icons.delete),
+                                      // fungsi: () {
+                                      //   _inilist.removeAt(index);
+                                      // },
+                                      fungsienter: () {
+                                        setState(() {
+                                          _inilist.add(listinputan());
+                                        });
+                                      },
                                     );
                                   },
-                                );
-                        },
-                      ),
+                                ),
+                              );
+                      },
                     ),
 
                     SizedBox(height: tinggiLayar * 0.05),
@@ -1175,8 +1302,10 @@ class _FormAddHouseState extends State<FormHouse> {
             bottomNavigationBar: Consumer<KostProvider>(
               builder: (context, value, child) {
                 final bool isEdit = terima != null;
-                final bool isReady =
-                    _isFormReadyAdmin(penghubung, isEdit: isEdit);
+                final bool isReady = _isFormReadyAdmin(
+                  penghubung,
+                  isEdit: isEdit,
+                );
                 final bool canSubmit = isReady && !_isSubmitting;
 
                 return terima != null
@@ -1213,51 +1342,79 @@ class _FormAddHouseState extends State<FormHouse> {
                                           context: context,
                                           builder: (context) {
                                             return ShowdialogEror(
-                                                label: errorMessage);
+                                              label: errorMessage,
+                                            );
                                           },
                                         );
                                         return;
                                       }
 
-                                      await penghubung.updatedata(
-                                          penghubung.foto,
-                                          pakai!.gambar_kost!,
-                                          pakai.id_fasilitas!,
-                                          penghubung.inputan.tempat_tidur,
-                                          penghubung.inputan.kamar_mandi_dalam,
-                                          penghubung.inputan.meja,
-                                          penghubung.inputan.tempat_parkir,
-                                          penghubung.inputan.lemari,
-                                          penghubung.inputan.ac,
-                                          penghubung.inputan.tv,
-                                          penghubung.inputan.kipas,
-                                          penghubung.inputan.dapur_dalam,
-                                          penghubung.inputan.wifi,
-                                          pakai.id_kost!,
-                                          pakai.id_auth!,
-                                          _namakost.text,
-                                          penghubung.namanya,
-                                          _alamat.text,
-                                          int.parse(_notlpn.text),
-                                          ThousandsSeparatorInputFormatter
-                                                  .tryParseInt(_harga.text) ??
-                                              0,
-                                          penghubung.batasjammalams,
-                                          penghubung.jenislistriks,
-                                          penghubung.jenispembayaranairs,
-                                          penghubung.jeniskeamanans,
-                                          penghubung.jeniskosts,
-                                          int.parse(_panjang.text),
-                                          int.parse(_lebar.text),
-                                          _koordinatController.text,
-                                          penghubung.pernama);
+                                      // await penghubung.updatedata(
+                                      //   penghubung.foto,
+                                      //   pakai!.gambar_kost!,
+                                      //   pakai.id_fasilitas!,
+                                      //   penghubung.inputan.tempat_tidur,
+                                      //   penghubung.inputan.kamar_mandi_dalam,
+                                      //   penghubung.inputan.meja,
+                                      //   penghubung.inputan.tempat_parkir,
+                                      //   penghubung.inputan.lemari,
+                                      //   penghubung.inputan.ac,
+                                      //   penghubung.inputan.tv,
+                                      //   penghubung.inputan.kipas,
+                                      //   penghubung.inputan.dapur_dalam,
+                                      //   penghubung.inputan.wifi,
+                                      //   pakai.id_kost!,
+                                      //   pakai.id_auth!,
+                                      //   _namakost.text,
+                                      //   penghubung.namanya,
+                                      //   _alamat.text,
+                                      //   int.parse(_notlpn.text),
+                                      //   ThousandsSeparatorInputFormatter
+                                      //           .tryParseInt(
+                                      //         _harga.text,
+                                      //       ) ??
+                                      //       0,
+                                      //   penghubung.batasjammalams,
+                                      //   penghubung.jenislistriks,
+                                      //   penghubung.jenispembayaranairs,
+                                      //   penghubung.jeniskeamanans,
+                                      //   penghubung.jeniskosts,
+                                      //   int.parse(_panjang.text),
+                                      //   int.parse(_lebar.text),
+                                      //   _koordinatController.text,
+                                      //   penghubung.pernama,
+                                      // );
+                                      await penghubung.konversiupdatedata(
+                                        penghubung.foto,
+                                        pakai.gambar_kost!,
+                                        pakai.id_kost!,
+                                        pakai.id_auth!,
+                                        _namakost.text,
+                                        penghubung.namanya,
+                                        _alamat.text,
+                                        int.parse(_notlpn.text),
+                                        ThousandsSeparatorInputFormatter
+                                                .tryParseInt(_harga.text) ??
+                                            0,
+                                        penghubung.batasjammalams,
+                                        penghubung.jenislistriks,
+                                        penghubung.jenispembayaranairs,
+                                        penghubung.jeniskeamanans,
+                                        penghubung.jeniskosts,
+                                        num.parse(_panjang.text),
+                                        num.parse(_lebar.text),
+                                        _koordinatController.text,
+                                        penghubung.pernama,
+                                        _inilist,
+                                      );
                                       Navigator.of(context).pop();
                                     } catch (e) {
                                       showDialog(
                                         context: context,
                                         builder: (context) {
                                           return ShowdialogEror(
-                                              label: "${e.toString()}");
+                                            label: "${e.toString()}",
+                                          );
                                         },
                                       );
                                     } finally {
@@ -1279,7 +1436,8 @@ class _FormAddHouseState extends State<FormHouse> {
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
                                           valueColor: AlwaysStoppedAnimation(
-                                              Colors.white),
+                                            Colors.white,
+                                          ),
                                         ),
                                       ),
                                       SizedBox(width: 8),
@@ -1336,7 +1494,8 @@ class _FormAddHouseState extends State<FormHouse> {
                                           context: context,
                                           builder: (context) {
                                             return ShowdialogEror(
-                                                label: errorMessage);
+                                              label: errorMessage,
+                                            );
                                           },
                                         );
                                         return;
@@ -1344,28 +1503,54 @@ class _FormAddHouseState extends State<FormHouse> {
 
                                       final inilist = penghubung.listauth;
 
-                                      var cek = inilist.firstWhere((element) =>
-                                          element.username ==
-                                          penghubung.namanya);
+                                      var cek = inilist.firstWhere(
+                                        (element) =>
+                                            element.username ==
+                                            penghubung.namanya,
+                                      );
 
-                                      await penghubung.createdata(
-                                        int.parse(cek.id_auth.toString()),
-                                        penghubung.inputan.tempat_tidur,
-                                        penghubung.inputan.kamar_mandi_dalam,
-                                        penghubung.inputan.meja,
-                                        penghubung.inputan.tempat_parkir,
-                                        penghubung.inputan.lemari,
-                                        penghubung.inputan.ac,
-                                        penghubung.inputan.tv,
-                                        penghubung.inputan.kipas,
-                                        penghubung.inputan.dapur_dalam,
-                                        penghubung.inputan.wifi,
+                                      // await penghubung.createdata(
+                                      //   int.parse(cek.id_auth.toString()),
+                                      //   penghubung.inputan.tempat_tidur,
+                                      //   penghubung.inputan.kamar_mandi_dalam,
+                                      //   penghubung.inputan.meja,
+                                      //   penghubung.inputan.tempat_parkir,
+                                      //   penghubung.inputan.lemari,
+                                      //   penghubung.inputan.ac,
+                                      //   penghubung.inputan.tv,
+                                      //   penghubung.inputan.kipas,
+                                      //   penghubung.inputan.dapur_dalam,
+                                      //   penghubung.inputan.wifi,
+                                      //   int.parse(_notlpn.text),
+                                      //   _namakost.text,
+                                      //   _alamat.text,
+                                      //   penghubung.namanya,
+                                      //   ThousandsSeparatorInputFormatter
+                                      //           .tryParseInt(
+                                      //         _harga.text,
+                                      //       ) ??
+                                      //       0,
+                                      //   _koordinatController.text,
+                                      //   penghubung.jeniskosts,
+                                      //   penghubung.jeniskeamanans,
+                                      //   penghubung.batasjammalams,
+                                      //   penghubung.jenispembayaranairs,
+                                      //   penghubung.jenislistriks,
+                                      //   int.parse(_panjang.text),
+                                      //   int.parse(_lebar.text),
+                                      //   penghubung.foto!,
+                                      //   penghubung.pernama,
+                                      // );
+
+                                      await penghubung.konversicreatedata(
                                         int.parse(_notlpn.text),
                                         _namakost.text,
                                         _alamat.text,
                                         penghubung.namanya,
                                         ThousandsSeparatorInputFormatter
-                                                .tryParseInt(_harga.text) ??
+                                                .tryParseInt(
+                                              _harga.text,
+                                            ) ??
                                             0,
                                         _koordinatController.text,
                                         penghubung.jeniskosts,
@@ -1373,10 +1558,11 @@ class _FormAddHouseState extends State<FormHouse> {
                                         penghubung.batasjammalams,
                                         penghubung.jenispembayaranairs,
                                         penghubung.jenislistriks,
-                                        int.parse(_panjang.text),
-                                        int.parse(_lebar.text),
+                                        num.parse(_panjang.text),
+                                        num.parse(_lebar.text),
                                         penghubung.foto!,
                                         penghubung.pernama,
+                                        _inilist,
                                       );
 
                                       setState(() {
@@ -1390,7 +1576,8 @@ class _FormAddHouseState extends State<FormHouse> {
                                         context: context,
                                         builder: (context) {
                                           return ShowdialogEror(
-                                              label: "${e.toString()}");
+                                            label: "${e.toString()}",
+                                          );
                                         },
                                       );
                                     } finally {
@@ -1412,7 +1599,8 @@ class _FormAddHouseState extends State<FormHouse> {
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
                                           valueColor: AlwaysStoppedAnimation(
-                                              Colors.white),
+                                            Colors.white,
+                                          ),
                                         ),
                                       ),
                                       SizedBox(width: 8),
@@ -1486,46 +1674,50 @@ class _FormAddHouseState extends State<FormHouse> {
       return false;
     }
 
-    final fasilitas = penghubung.inputan;
-    final bool hasFacility = fasilitas.tempat_tidur ||
-        fasilitas.kamar_mandi_dalam ||
-        fasilitas.meja ||
-        fasilitas.tempat_parkir ||
-        fasilitas.lemari ||
-        fasilitas.ac ||
-        fasilitas.tv ||
-        fasilitas.kipas ||
-        fasilitas.dapur_dalam ||
-        fasilitas.wifi;
+    // final fasilitas = penghubung.inputan;
+    // final bool hasFacility = fasilitas.tempat_tidur ||
+    //     fasilitas.kamar_mandi_dalam ||
+    //     fasilitas.meja ||
+    //     fasilitas.tempat_parkir ||
+    //     fasilitas.lemari ||
+    //     fasilitas.ac ||
+    //     fasilitas.tv ||
+    //     fasilitas.kipas ||
+    //     fasilitas.dapur_dalam ||
+    //     fasilitas.wifi;
 
-    if (!hasFacility) {
-      return false;
-    }
+    // if (!hasFacility) {
+    //   return false;
+    // }
 
     return true;
   }
 
   // 🔹 Input TextField umum
-  Widget _inputField(String label, double tinggi, double lebar,
-      TextEditingController isi, bool keadaan) {
+  Widget _inputField(
+    String label,
+    double tinggi,
+    double lebar,
+    TextEditingController isi,
+    bool keadaan,
+  ) {
     final bool isNumericField = label == 'Nomor Telepon' || label == 'Harga';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: TextStyle(
-              fontWeight: FontWeight.w500,
-              fontSize: lebar * 0.035,
-            )),
+        Text(
+          label,
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: lebar * 0.035,
+          ),
+        ),
         SizedBox(height: tinggi * 0.005),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: Colors.grey.shade300,
-              width: 1,
-            ),
+            border: Border.all(color: Colors.grey.shade300, width: 1),
           ),
           child: TextField(
             controller: isi,
@@ -1591,21 +1783,21 @@ class _FormAddHouseState extends State<FormHouse> {
       return "Foto kost wajib di-upload.";
     }
 
-    final fasilitas = penghubung.inputan;
-    final bool hasFacility = fasilitas.tempat_tidur ||
-        fasilitas.kamar_mandi_dalam ||
-        fasilitas.meja ||
-        fasilitas.tempat_parkir ||
-        fasilitas.lemari ||
-        fasilitas.ac ||
-        fasilitas.tv ||
-        fasilitas.kipas ||
-        fasilitas.dapur_dalam ||
-        fasilitas.wifi;
+    // final fasilitas = penghubung.inputan;
+    // final bool hasFacility = fasilitas.tempat_tidur ||
+    //     fasilitas.kamar_mandi_dalam ||
+    //     fasilitas.meja ||
+    //     fasilitas.tempat_parkir ||
+    //     fasilitas.lemari ||
+    //     fasilitas.ac ||
+    //     fasilitas.tv ||
+    //     fasilitas.kipas ||
+    //     fasilitas.dapur_dalam ||
+    //     fasilitas.wifi;
 
-    if (!hasFacility) {
-      return "Harap pilih minimal satu fasilitas kost.";
-    }
+    // if (!hasFacility) {
+    //   return "Harap pilih minimal satu fasilitas kost.";
+    // }
 
     if (int.tryParse(noTelp) == null) {
       return "Nomor telepon hanya boleh berisi angka.";
@@ -1676,15 +1868,18 @@ class _FormAddHouseState extends State<FormHouse> {
         // Set perilaku setiap opsi dan sinkronkan dengan peta
         if (value == _optManualKoordinat) {
           await _mapController.runJavaScript(
-              "clearMyLocation(); clearDestination(); setMode('readonly');");
+            "clearMyLocation(); clearDestination(); setMode('readonly');",
+          );
           _koordinatController.text = '';
         } else if (value == _optLokasiTujuan) {
           await _mapController.runJavaScript(
-              "clearMyLocation(); clearDestination(); setMode('destination');");
+            "clearMyLocation(); clearDestination(); setMode('destination');",
+          );
           _koordinatController.text = 'Klik 2x pada peta';
         } else if (value == _optLokasiSekarang) {
           await _mapController.runJavaScript(
-              "clearMyLocation(); clearDestination(); setMode('normal');");
+            "clearMyLocation(); clearDestination(); setMode('normal');",
+          );
           await _useCurrentLocation();
         }
       },
@@ -1697,11 +1892,7 @@ class _FormAddHouseState extends State<FormHouse> {
               color: isActive ? const Color(0xFFE0E7FF) : Colors.grey.shade100,
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              icon,
-              size: lebar * 0.06,
-              color: color,
-            ),
+            child: Icon(icon, size: lebar * 0.06, color: color),
           ),
           SizedBox(height: lebar * 0.01),
           Text(
@@ -1760,10 +1951,7 @@ class _FormAddHouseState extends State<FormHouse> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: Colors.grey.shade300,
-              width: 1,
-            ),
+            border: Border.all(color: Colors.grey.shade300, width: 1),
           ),
           child: TextField(
             controller: _koordinatController,
@@ -1783,10 +1971,7 @@ class _FormAddHouseState extends State<FormHouse> {
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
             ),
-            style: TextStyle(
-              fontSize: lebar * 0.032,
-              color: Colors.black,
-            ),
+            style: TextStyle(fontSize: lebar * 0.032, color: Colors.black),
           ),
         ),
         SizedBox(height: tinggi * 0.015),
@@ -1864,10 +2049,7 @@ class _FormAddHouseState extends State<FormHouse> {
           height: 120,
           decoration: BoxDecoration(
             color: Colors.white,
-            border: Border.all(
-              color: Colors.grey.shade300,
-              width: 1.5,
-            ),
+            border: Border.all(color: Colors.grey.shade300, width: 1.5),
             borderRadius: BorderRadius.circular(10),
           ),
           child: file == null
@@ -1887,8 +2069,11 @@ class _FormAddHouseState extends State<FormHouse> {
                 )
               : ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.file(file,
-                      fit: BoxFit.cover, width: double.infinity),
+                  child: Image.file(
+                    file,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                  ),
                 ),
         ),
       ),
@@ -1912,25 +2097,20 @@ class _FormAddHouseState extends State<FormHouse> {
       ),
       decoration: BoxDecoration(
         color: test ? Colors.blue.shade100 : Colors.white,
-        border: Border.all(
-          color: test ? Colors.blue : Colors.grey.shade700,
-        ),
+        border: Border.all(color: test ? Colors.blue : Colors.grey.shade700),
         borderRadius: BorderRadius.circular(8),
       ),
       child: CheckboxListTile(
         title: Row(
           children: [
-            Icon(
-              icon,
-              size: lebar * 0.045,
-              color: Colors.grey.shade700,
-            ),
+            Icon(icon, size: lebar * 0.045, color: Colors.grey.shade700),
             Text(
               label,
               style: TextStyle(
-                  fontSize: lebar * 0.032,
-                  color: Colors.black.withOpacity(0.8)),
-            )
+                fontSize: lebar * 0.032,
+                color: Colors.black.withOpacity(0.8),
+              ),
+            ),
           ],
         ),
         // secondary: Icon(icon),
@@ -1939,8 +2119,9 @@ class _FormAddHouseState extends State<FormHouse> {
           onTekan(); // Memanggil fungsi bool...() dari model
         },
         controlAffinity: ListTileControlAffinity.leading,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 0), // Sesuaikan padding
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 0,
+        ), // Sesuaikan padding
         dense: true, // Agar tidak terlalu renggang
       ),
     );

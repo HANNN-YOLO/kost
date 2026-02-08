@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:collection/collection.dart';
-import 'package:kost_saw/providers/profil_provider.dart';
+// import 'package:kost_saw/providers/profil_provider.dart';
 import '../../../providers/kost_provider.dart';
 import 'package:provider/provider.dart';
 import '../shared/formatCurrency.dart';
-import '../../custom/showdialog_eror.dart';
+// import '../../custom/showdialog_eror.dart';
 
 class ManagementKostPemilik extends StatefulWidget {
   static const arah = "/management-board-pemilik";
@@ -26,7 +26,7 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
     final tinggiLayar = MediaQuery.of(context).size.height;
     final lebarLayar = MediaQuery.of(context).size.width;
     final penghubung = Provider.of<KostProvider>(context);
-    final penghubung2 = Provider.of<ProfilProvider>(context, listen: false);
+    // final penghubung2 = Provider.of<ProfilProvider>(context, listen: false);
 
     return Scaffold(
       backgroundColor: warnaLatar,
@@ -101,15 +101,15 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
                                 SizedBox(height: tinggiLayar * 0.02),
                             itemBuilder: (context, index) {
                               final item = penghubung.kostpemilik[index];
-                              final cek = penghubung.fasilitaspemilik
-                                  .firstWhereOrNull((element) =>
-                                      element.id_fasilitas ==
-                                      item.id_fasilitas);
+                              // final cek = penghubung.fasilitaspemilik
+                              //     .firstWhereOrNull((element) =>
+                              //         element.id_fasilitas ==
+                              //         item.id_fasilitas);
 
-                              if (cek == null) {
-                                // Jika data fasilitas tidak ditemukan, jangan tampilkan kartu
-                                return const SizedBox.shrink();
-                              }
+                              // if (cek == null) {
+                              //   // Jika data fasilitas tidak ditemukan, jangan tampilkan kartu
+                              //   return const SizedBox.shrink();
+                              // }
 
                               return _OwnerKostCard(
                                 nama: penghubung.kostpemilik[index].nama_kost!,
@@ -124,15 +124,16 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
                                     'detail-kost',
                                     arguments: {
                                       'data_kost': item,
-                                      'data_fasilitas': cek,
+                                      // 'data_fasilitas': cek,
                                     },
                                   );
                                 },
                                 onEdit: () {
                                   Navigator.of(context).pushNamed(
-                                    "/form-house-pemilik",
+                                    '/form-house-pemilik',
                                     arguments:
                                         penghubung.kostpemilik[index].id_kost,
+                                    // item.id_kost,
                                   );
                                 },
                                 onDelete: () async {
@@ -153,8 +154,16 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
                                             child: const Text('Batal'),
                                           ),
                                           TextButton(
-                                            onPressed: () =>
-                                                Navigator.of(context).pop(true),
+                                            onPressed: () async {
+                                              await penghubung
+                                                  .deletedatapemilik(
+                                                penghubung.kostpemilik[index]
+                                                    .id_kost!,
+                                                penghubung.kostpemilik[index]
+                                                    .gambar_kost!,
+                                              );
+                                              Navigator.of(context).pop(true);
+                                            },
                                             child: const Text('Hapus'),
                                           ),
                                         ],
@@ -162,31 +171,33 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
                                     },
                                   );
 
-                                  if (konfirmasi != true) return;
+                                  // valiidas nya agak keluar jalur ki kah jalan ki delete nya eh malah pop gagal padahal database terhapus loh
+                                  // if (konfirmasi != true) return;
 
-                                  setState(() {
-                                    _isDeleting = true;
-                                  });
+                                  // setState(() {
+                                  //   _isDeleting = true;
+                                  // });
 
-                                  try {
-                                    await penghubung.deletedatapemilik(
-                                      item.id_fasilitas!,
-                                    );
-                                  } catch (e) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Gagal menghapus kost: $e',
-                                        ),
-                                      ),
-                                    );
-                                  } finally {
-                                    if (mounted) {
-                                      setState(() {
-                                        _isDeleting = false;
-                                      });
-                                    }
-                                  }
+                                  // try {
+                                  //   await penghubung.deletedatapemilik(
+                                  //     item.id_fasilitas!,
+                                  //     item.gambar_kost!,
+                                  //   );
+                                  // } catch (e) {
+                                  //   ScaffoldMessenger.of(context).showSnackBar(
+                                  //     SnackBar(
+                                  //       content: Text(
+                                  //         'Gagal menghapus kost: $e',
+                                  //       ),
+                                  //     ),
+                                  //   );
+                                  // } finally {
+                                  //   if (mounted) {
+                                  //     setState(() {
+                                  //       _isDeleting = false;
+                                  //     });
+                                  //   }
+                                  // }
                                 },
                                 per: penghubung.kostpemilik[index].per!,
                               );

@@ -195,12 +195,15 @@ class ManagementBoardingHouse extends StatelessWidget {
                             lokasi: "${penghubung.kost[index].alamat_kost}",
                             tampilkanEdit: true,
                             tampilkanHapus: true,
+                            //
                             fungsihapus: () {
                               penghubung.deletedata(
                                 int.parse(
                                     penghubung.kost[index].id_kost.toString()),
+                                penghubung.kost[index].gambar_kost!,
                               );
                             },
+                            //
                             fungsitap: () {
                               final test = penghubung.kost[index];
 
@@ -211,23 +214,27 @@ class ManagementBoardingHouse extends StatelessWidget {
                                       element.id_fasilitas ==
                                       test.id_fasilitas);
 
-                              if (cek == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Data fasilitas kost tidak tersedia.',
-                                    ),
-                                  ),
-                                );
-                                return;
-                              }
+                              // if (cek == null) {
+                              //   ScaffoldMessenger.of(context).showSnackBar(
+                              //     const SnackBar(
+                              //       content: Text(
+                              //         'Data fasilitas kost tidak tersedia.',
+                              //       ),
+                              //     ),
+                              //   );
+                              //   return;
+                              // }
 
                               Navigator.of(context)
                                   .pushNamed("detail-kost", arguments: {
                                 'data_kost': penghubung.kost[index],
-                                'data_fasilitas': cek,
+                                // 'data_fasilitas': cek,
                               });
+
+                              //   Navigator.of(context).pushNamed("detail-kost",
+                              //       arguments: test.id_kost);
                             },
+                            //
                             fungsiupdated: () {
                               Navigator.of(context).pushNamed(
                                 "/form-house-admin",

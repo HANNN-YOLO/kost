@@ -50,9 +50,9 @@ class KostProvider with ChangeNotifier {
         readdatapenyewa(_token!);
       } else if (cek.role == "Pemilik") {
         // Hindari reload berulang jika isi() terpanggil berkali-kali (ProxyProvider)
-        final bool shouldForce =
-            !_hasLoadedPemilikKost || _loadedPemilikAuthId != id_auth;
-        readdatapemilik(id_auth, _token!, force: shouldForce);
+        // final bool shouldForce =
+        //     !_hasLoadedPemilikKost || _loadedPemilikAuthId != id_auth;
+        readdatapemilik(id_auth, _token!);
       } else {
         print("gagal verifikasi role login");
         throw "Gagal verifikasi role login";
@@ -271,6 +271,197 @@ class KostProvider with ChangeNotifier {
     return hasil;
   }
 
+  // state konversi
+  Future<void> konversicreatedata(
+      int notlp_kost,
+      String nama_kost,
+      String alamat_kost,
+      String pemilik_kost,
+      int harga_kost,
+      String titik_koordinat,
+      String jenis_kost,
+      String keamanan,
+      String batas_jam_malam,
+      String jenis_pembayaran_air,
+      String jenis_listrik,
+      num panjang,
+      num lebar,
+      XFile gambar,
+      String per,
+      List<dynamic> manalistnya) async {
+    List<dynamic> inimilistnya = manalistnya
+        .map((element) => element.namaFasilitasController.text)
+        .toList();
+
+    String fasilitas = inimilistnya.join(", ");
+    await createdata(
+      id_authnya!,
+      notlp_kost,
+      nama_kost,
+      alamat_kost,
+      pemilik_kost,
+      harga_kost,
+      titik_koordinat,
+      jenis_kost,
+      keamanan,
+      batas_jam_malam,
+      jenis_pembayaran_air,
+      jenis_listrik,
+      panjang,
+      lebar,
+      gambar,
+      per,
+      fasilitas,
+    );
+  }
+
+  Future<void> konversiupdatedata(
+    XFile? foto,
+    String fotolama,
+    int id_kost,
+    int id_auth,
+    String nama_kost,
+    String pemilik_kost,
+    String alamat_kost,
+    int notlp_kost,
+    int harga_kost,
+    String batas_jam_malam,
+    String jenis_listrik,
+    String jenis_pembayaran_air,
+    String keamanan,
+    String jenis_kost,
+    num panjang,
+    num lebar,
+    String koordinnat,
+    String per,
+    List<dynamic> seelist,
+  ) async {
+    List<dynamic> konvert =
+        seelist.map((element) => element.namaFasilitasController.text).toList();
+
+    String fasilitas = konvert.join(", ");
+
+    await updatedata(
+      foto,
+      fotolama,
+      id_kost,
+      id_auth,
+      nama_kost,
+      pemilik_kost,
+      alamat_kost,
+      notlp_kost,
+      harga_kost,
+      batas_jam_malam,
+      jenis_listrik,
+      jenis_pembayaran_air,
+      keamanan,
+      jenis_kost,
+      panjang,
+      lebar,
+      koordinnat,
+      per,
+      fasilitas,
+    );
+  }
+
+  Future<void> konversicreateddatapemilik(
+    String token,
+    XFile foto,
+    int id_auth,
+    String koordinat,
+    String nama_pemilik,
+    String nama_kost,
+    String alamat,
+    int telpon,
+    int harga,
+    String jenis_kost,
+    String keamanan,
+    num panjang,
+    num lebar,
+    String batas_jam_malam,
+    String jenis_pembayaran_air,
+    String jenis_listrik,
+    String per,
+    List<dynamic> manalistnya,
+  ) async {
+    List<dynamic> mapping =
+        manalistnya.map((element) => element.fasilitas.text).toList();
+
+    String fasilitas = mapping.join(", ");
+
+    await createdatapemilik(
+      token,
+      foto,
+      id_auth,
+      koordinat,
+      nama_pemilik,
+      nama_kost,
+      alamat,
+      telpon,
+      harga,
+      jenis_kost,
+      keamanan,
+      panjang,
+      lebar,
+      batas_jam_malam,
+      jenis_pembayaran_air,
+      jenis_listrik,
+      per,
+      fasilitas,
+    );
+  }
+
+  Future<void> konversiupdateddatapemilik(
+      String token,
+      int id_auth,
+      int id_kost,
+      String fotolama,
+      XFile? foto,
+      String nama_pemilik,
+      String nama_kost,
+      int telpon,
+      String alamat_kost,
+      int harga_kost,
+      String jenis_kost,
+      String keamanan,
+      num panjang,
+      num lebar,
+      String batas_jam_malam,
+      String jenis_pembayaran_air,
+      String jenis_listrik,
+      String koordinat,
+      String per,
+      List<dynamic> wherelist) async {
+    List<dynamic> pemisah =
+        wherelist.map((element) => element.fasilitas.text).toList();
+
+    String fasilitas = pemisah.join(", ");
+
+    await updateddatapemilik(
+      token,
+      id_auth,
+      // id_fasilitas,
+      id_kost,
+      fotolama,
+      foto,
+      nama_pemilik,
+      nama_kost,
+      telpon,
+      alamat_kost,
+      harga_kost,
+      jenis_kost,
+      keamanan,
+      panjang,
+      lebar,
+      batas_jam_malam,
+      jenis_pembayaran_air,
+      jenis_listrik,
+      koordinat,
+      per,
+      fasilitas,
+    );
+  }
+
   // state service
 
   // Admin
@@ -318,60 +509,61 @@ class KostProvider with ChangeNotifier {
   FasilitasModel inputan = FasilitasModel();
 
   Future<void> createdata(
-      int id_auth,
-      bool tempat_tidur,
-      bool kamar_mandi_dalam,
-      bool meja,
-      bool tempat_parkir,
-      bool lemari,
-      bool ac,
-      bool tv,
-      bool kipas,
-      bool dapur_dalam,
-      bool wifi,
-      int notlp_kost,
-      String nama_kost,
-      String alamat_kost,
-      String pemilik_kost,
-      int harga_kost,
-      String titik_koordinat,
-      String jenis_kost,
-      String keamanan,
-      String batas_jam_malam,
-      String jenis_pembayaran_air,
-      String jenis_listrik,
-      int panjang,
-      int lebar,
-      XFile gambar,
-      String per) async {
+    int id_auth,
+    // bool tempat_tidur,
+    // bool kamar_mandi_dalam,
+    // bool meja,
+    // bool tempat_parkir,
+    // bool lemari,
+    // bool ac,
+    // bool tv,
+    // bool kipas,
+    // bool dapur_dalam,
+    // bool wifi,
+    int notlp_kost,
+    String nama_kost,
+    String alamat_kost,
+    String pemilik_kost,
+    int harga_kost,
+    String titik_koordinat,
+    String jenis_kost,
+    String keamanan,
+    String batas_jam_malam,
+    String jenis_pembayaran_air,
+    String jenis_listrik,
+    num panjang,
+    num lebar,
+    XFile gambar,
+    String per,
+    String fasilitas,
+  ) async {
     try {
       final upload = await _kekost.uploadgambar(gambar);
       if (upload != null) {
-        final all_fasilitas = await _kefasilitas.createdata(
-          id_auth = id_auth,
-          tempat_tidur,
-          kamar_mandi_dalam,
-          meja,
-          tempat_parkir,
-          lemari,
-          ac,
-          tv,
-          kipas,
-          dapur_dalam,
-          wifi,
-        );
+        // final all_fasilitas = await _kefasilitas.createdata(
+        //   id_auth = id_auth,
+        //   tempat_tidur,
+        //   kamar_mandi_dalam,
+        //   meja,
+        //   tempat_parkir,
+        //   lemari,
+        //   ac,
+        //   tv,
+        //   kipas,
+        //   dapur_dalam,
+        //   wifi,
+        // );
 
         List<String> pembeda = titik_koordinat.split(',');
         double latitude = double.parse(pembeda[0].trim());
         double longitudo = double.parse(pembeda[1].trim());
 
-        if (all_fasilitas['id_fasilitas'] != null &&
-            upload != null &&
-            latitude != null &&
-            longitudo != null) {
+        if (
+            // all_fasilitas['id_fasilitas'] != null &&
+            upload != null && latitude != null && longitudo != null) {
           await _kekost.createdata(
             id_auth,
-            all_fasilitas['id_fasilitas'],
+            // all_fasilitas['id_fasilitas'],
             notlp_kost,
             nama_kost,
             alamat_kost,
@@ -388,6 +580,7 @@ class KostProvider with ChangeNotifier {
             longitudo,
             upload,
             per,
+            fasilitas,
           );
         }
       }
@@ -415,11 +608,13 @@ class KostProvider with ChangeNotifier {
     }
   }
 
-  Future<void> deletedata(int id_kost) async {
+  Future<void> deletedata(int id_kost, String gambar) async {
     try {
-      final cek = _kost.firstWhere((element) => element.id_kost == id_kost);
-      await _kekost.deletegambar(cek.gambar_kost!);
-      await _kefasilitas.deletedata(cek.id_fasilitas!);
+      // final cek = _kost.firstWhere((element) => element.id_kost == id_kost);
+      // await _kekost.deletegambar(cek.gambar_kost!);
+      // await _kefasilitas.deletedata(cek.id_fasilitas!);
+      await _kekost.deletedata(id_kost);
+      await _kekost.deletegambar(gambar);
       print("done data kehapus");
       await _kekost.deletedata(id_kost);
     } catch (e) {
@@ -430,54 +625,56 @@ class KostProvider with ChangeNotifier {
   }
 
   Future<void> updatedata(
-      XFile? foto,
-      String fotolama,
-      int id_fasilitas,
-      bool tempat_tidur,
-      bool kamar_mandi_dalam,
-      bool meja,
-      bool tempat_parkir,
-      bool lemari,
-      bool ac,
-      bool tv,
-      bool kipas,
-      bool dapur_dalam,
-      bool wifi,
-      int id_kost,
-      int id_auth,
-      String nama_kost,
-      String pemilik_kost,
-      String alamat_kost,
-      int notlp_kost,
-      int harga_kost,
-      String batas_jam_malam,
-      String jenis_listrik,
-      String jenis_pembayaran_air,
-      String keamanan,
-      String jenis_kost,
-      int panjang,
-      int lebar,
-      String koordinnat,
-      String per) async {
+    XFile? foto,
+    String fotolama,
+    // int id_fasilitas,
+    // bool tempat_tidur,
+    // bool kamar_mandi_dalam,
+    // bool meja,
+    // bool tempat_parkir,
+    // bool lemari,
+    // bool ac,
+    // bool tv,
+    // bool kipas,
+    // bool dapur_dalam,
+    // bool wifi,
+    int id_kost,
+    int id_auth,
+    String nama_kost,
+    String pemilik_kost,
+    String alamat_kost,
+    int notlp_kost,
+    int harga_kost,
+    String batas_jam_malam,
+    String jenis_listrik,
+    String jenis_pembayaran_air,
+    String keamanan,
+    String jenis_kost,
+    num panjang,
+    num lebar,
+    String koordinnat,
+    String per,
+    String fasilitas,
+  ) async {
     try {
       DateTime edit = DateTime.now();
 
       if (fotolama != null && foto == null) {
-        await _kefasilitas.updateddata(
-          id_fasilitas,
-          id_auth,
-          tempat_tidur,
-          kamar_mandi_dalam,
-          meja,
-          tempat_parkir,
-          lemari,
-          ac,
-          tv,
-          kipas,
-          dapur_dalam,
-          wifi,
-          edit,
-        );
+        // await _kefasilitas.updateddata(
+        //   id_fasilitas,
+        //   id_auth,
+        //   tempat_tidur,
+        //   kamar_mandi_dalam,
+        //   meja,
+        //   tempat_parkir,
+        //   lemari,
+        //   ac,
+        //   tv,
+        //   kipas,
+        //   dapur_dalam,
+        //   wifi,
+        //   edit,
+        // );
 
         List<String> bedakan = koordinnat.split(',');
         double latitude = double.parse(bedakan[0].trim());
@@ -486,7 +683,7 @@ class KostProvider with ChangeNotifier {
         if (fotolama != null && latitude != null && longitudo != null) {
           await _kekost.updatedata(
             id_kost,
-            id_fasilitas,
+            // id_fasilitas,
             id_auth,
             nama_kost,
             pemilik_kost,
@@ -505,27 +702,28 @@ class KostProvider with ChangeNotifier {
             longitudo,
             edit,
             per,
+            fasilitas,
           );
         }
       } else {
         await _kekost.deletegambar(fotolama);
         final upload = await _kekost.uploadgambar(foto!);
         if (upload != null) {
-          await _kefasilitas.updateddata(
-            id_fasilitas,
-            id_auth,
-            tempat_tidur,
-            kamar_mandi_dalam,
-            meja,
-            tempat_parkir,
-            lemari,
-            ac,
-            tv,
-            kipas,
-            dapur_dalam,
-            wifi,
-            edit,
-          );
+          // await _kefasilitas.updateddata(
+          //   id_fasilitas,
+          //   id_auth,
+          //   tempat_tidur,
+          //   kamar_mandi_dalam,
+          //   meja,
+          //   tempat_parkir,
+          //   lemari,
+          //   ac,
+          //   tv,
+          //   kipas,
+          //   dapur_dalam,
+          //   wifi,
+          //   edit,
+          // );
 
           List<String> bedakan = koordinnat.split(',');
           double latitude = double.parse(bedakan[0].trim());
@@ -534,7 +732,7 @@ class KostProvider with ChangeNotifier {
           if (upload != null && latitude != null && longitudo != null) {
             await _kekost.updatedata(
               id_kost,
-              id_fasilitas,
+              // id_fasilitas,
               id_auth,
               nama_kost,
               pemilik_kost,
@@ -553,6 +751,7 @@ class KostProvider with ChangeNotifier {
               longitudo,
               edit,
               per,
+              fasilitas,
             );
           }
         }
@@ -581,87 +780,100 @@ class KostProvider with ChangeNotifier {
     }
   }
 
-  Future<void> readdatapemilik(int id_auth, String token,
-      {bool force = false}) async {
-    // Cegah request ganda saat masih loading
-    if (_isLoadingPemilikKost) {
-      return;
-    }
+  // tidak kena refresh pada saat buat data di pemilik lansung
+  // Future<void> readdatapemilik(int id_auth, String token,
+  //     {bool force = false}) async {
+  //   // Cegah request ganda saat masih loading
+  //   if (_isLoadingPemilikKost) {
+  //     return;
+  //   }
 
-    // Jika sudah pernah load dan tidak dipaksa, jangan fetch lagi
-    if (_hasLoadedPemilikKost && !force && _loadedPemilikAuthId == id_auth) {
-      return;
-    }
+  //   // Jika sudah pernah load dan tidak dipaksa, jangan fetch lagi
+  //   if (_hasLoadedPemilikKost && !force && _loadedPemilikAuthId == id_auth) {
+  //     return;
+  //   }
 
-    _isLoadingPemilikKost = true;
-    _loadedPemilikAuthId = id_auth;
-    notifyListeners();
+  //   _isLoadingPemilikKost = true;
+  //   _loadedPemilikAuthId = id_auth;
+  //   notifyListeners();
 
+  //   try {
+  //     final hasilkost = await _kekost.readdatapemilik(id_auth, token);
+  //     final hasilifasilitas =
+  //         await _kefasilitas.readdatapemilik(id_auth, token);
+
+  //     _kostpemilik = hasilkost;
+  //     _fasilitaspemilik = hasilifasilitas;
+  //   } catch (e) {
+  //     throw e;
+  //   } finally {
+  //     _isLoadingPemilikKost = false;
+  //     _hasLoadedPemilikKost = true;
+  //     notifyListeners();
+  //   }
+  // }
+
+  Future<void> readdatapemilik(int id_auth, String token) async {
     try {
-      final hasilkost = await _kekost.readdatapemilik(id_auth, token);
-      final hasilifasilitas =
-          await _kefasilitas.readdatapemilik(id_auth, token);
-
-      _kostpemilik = hasilkost;
-      _fasilitaspemilik = hasilifasilitas;
+      final hasilnya = await _kekost.readdatapemilik(id_auth, token);
+      _kostpemilik = hasilnya;
     } catch (e) {
       throw e;
-    } finally {
-      _isLoadingPemilikKost = false;
-      _hasLoadedPemilikKost = true;
-      notifyListeners();
     }
+    notifyListeners();
   }
 
   Future<void> createdatapemilik(
-      String token,
-      XFile foto,
-      int id_auth,
-      bool tempat_tidur,
-      bool kamar_mandi_dalam,
-      bool meja,
-      bool tempat_parkir,
-      bool lemari,
-      bool ac,
-      bool tv,
-      bool kipas,
-      bool dapur_dalam,
-      bool wifi,
-      String koordinat,
-      String nama_pemilik,
-      String nama_kost,
-      String alamat,
-      int telpon,
-      int harga,
-      String jenis_kost,
-      String keamanan,
-      int panjang,
-      int lebar,
-      String batas_jam_malam,
-      String jenis_pembayaran_air,
-      String jenis_listrik,
-      String per) async {
+    String token,
+    XFile foto,
+    int id_auth,
+    // bool tempat_tidur,
+    // bool kamar_mandi_dalam,
+    // bool meja,
+    // bool tempat_parkir,
+    // bool lemari,
+    // bool ac,
+    // bool tv,
+    // bool kipas,
+    // bool dapur_dalam,
+    // bool wifi,
+    String koordinat,
+    String nama_pemilik,
+    String nama_kost,
+    String alamat,
+    int telpon,
+    int harga,
+    String jenis_kost,
+    String keamanan,
+    num panjang,
+    num lebar,
+    String batas_jam_malam,
+    String jenis_pembayaran_air,
+    String jenis_listrik,
+    String per,
+    String fasilitas,
+  ) async {
     try {
       final ambil = await _kekost.uploadgambar(foto);
-      final namanya = await _kefasilitas.createdatapemilik(
-        token,
-        id_auth,
-        tempat_tidur,
-        kamar_mandi_dalam,
-        meja,
-        tempat_parkir,
-        lemari,
-        ac,
-        tv,
-        kipas,
-        dapur_dalam,
-        wifi,
-      );
+      // final namanya = await _kefasilitas.createdatapemilik(
+      //   token,
+      //   id_auth,
+      //   tempat_tidur,
+      //   kamar_mandi_dalam,
+      //   meja,
+      //   tempat_parkir,
+      //   lemari,
+      //   ac,
+      //   tv,
+      //   kipas,
+      //   dapur_dalam,
+      //   wifi,
+      // );
 
-      final idFasilitas = namanya['id_fasilitas'];
-      if (idFasilitas == null) {
-        throw 'Gagal membuat fasilitas (id_fasilitas kosong).';
-      }
+      // final idFasilitas = namanya['id_fasilitas'];
+      // if (idFasilitas == null) {
+      //   throw 'Gagal membuat fasilitas (id_fasilitas kosong).';
+      // }
 
       final parts = koordinat.split(',');
       if (parts.length != 2) {
@@ -676,7 +888,7 @@ class KostProvider with ChangeNotifier {
       await _kekost.createddatapemilik(
         token,
         id_auth,
-        idFasilitas,
+        // idFasilitas,
         nama_pemilik,
         nama_kost,
         alamat,
@@ -693,9 +905,10 @@ class KostProvider with ChangeNotifier {
         garis_bujur,
         ambil,
         per,
+        fasilitas,
       );
 
-      await readdatapemilik(id_auth, token, force: true);
+      await readdatapemilik(id_auth, token);
     } catch (e) {
       rethrow;
     } finally {
@@ -706,19 +919,19 @@ class KostProvider with ChangeNotifier {
   Future<void> updateddatapemilik(
     String token,
     int id_auth,
-    int id_fasilitas,
+    // int id_fasilitas,
     int id_kost,
     String fotolama,
     XFile? foto,
-    bool tempat_tidur,
-    bool kamar_mandi_dalam,
-    bool meja,
-    bool tempat_parkir,
-    bool lemari,
-    bool ac,
-    bool tv,
-    bool dapur_dalam,
-    bool wifi,
+    // bool tempat_tidur,
+    // bool kamar_mandi_dalam,
+    // bool meja,
+    // bool tempat_parkir,
+    // bool lemari,
+    // bool ac,
+    // bool tv,
+    // bool dapur_dalam,
+    // bool wifi,
     String nama_pemilik,
     String nama_kost,
     int telpon,
@@ -726,33 +939,34 @@ class KostProvider with ChangeNotifier {
     int harga_kost,
     String jenis_kost,
     String keamanan,
-    int panjang,
-    int lebar,
+    num panjang,
+    num lebar,
     String batas_jam_malam,
     String jenis_pembayaran_air,
     String jenis_listrik,
     String koordinat,
     String per,
+    String fasilitas,
   ) async {
     try {
       final hari_ini = DateTime.now();
 
       if (fotolama != null && foto == null) {
-        await _kefasilitas.updateddatapemilik(
-          token,
-          id_authnya!,
-          id_fasilitas,
-          tempat_tidur,
-          kamar_mandi_dalam,
-          meja,
-          tempat_parkir,
-          lemari,
-          ac,
-          tv,
-          dapur_dalam,
-          wifi,
-          hari_ini,
-        );
+        // await _kefasilitas.updateddatapemilik(
+        //   token,
+        //   id_authnya!,
+        //   id_fasilitas,
+        //   tempat_tidur,
+        //   kamar_mandi_dalam,
+        //   meja,
+        //   tempat_parkir,
+        //   lemari,
+        //   ac,
+        //   tv,
+        //   dapur_dalam,
+        //   wifi,
+        //   hari_ini,
+        // );
 
         List<String> cek = koordinat.split(',');
         double garis_lintang = double.parse(cek[0].trim());
@@ -760,10 +974,60 @@ class KostProvider with ChangeNotifier {
 
         if (garis_lintang != null && garis_bujur != null) {
           await _kekost.updateddatapemmilik(
+            token,
+            id_kost,
+            id_auth,
+            // id_fasilitas,
+            nama_pemilik,
+            nama_kost,
+            telpon,
+            alamat_kost,
+            harga_kost,
+            jenis_kost,
+            keamanan,
+            panjang,
+            lebar,
+            batas_jam_malam,
+            jenis_pembayaran_air,
+            jenis_listrik,
+            garis_lintang,
+            garis_bujur,
+            fotolama,
+            hari_ini,
+            per, fasilitas,
+          );
+        }
+      } else {
+        await _kekost.deletegambar(fotolama);
+        final namanya = await _kekost.uploadgambar(foto!);
+
+        if (namanya != null) {
+          // await _kefasilitas.updateddatapemilik(
+          //   token,
+          //   id_authnya!,
+          //   id_fasilitas,
+          //   tempat_tidur,
+          //   kamar_mandi_dalam,
+          //   meja,
+          //   tempat_parkir,
+          //   lemari,
+          //   ac,
+          //   tv,
+          //   dapur_dalam,
+          //   wifi,
+          //   hari_ini,
+          // );
+
+          List<String> path = koordinat.split(',');
+          double garis_lintang = double.parse(path[0].trim());
+          double garis_bujur = double.parse(path[1].trim());
+
+          if (namanya != null && garis_lintang != null && garis_bujur != null) {
+            await _kekost.updateddatapemmilik(
               token,
               id_kost,
               id_auth,
-              id_fasilitas,
+              // id_fasilitas,
               nama_pemilik,
               nama_kost,
               telpon,
@@ -778,75 +1042,32 @@ class KostProvider with ChangeNotifier {
               jenis_listrik,
               garis_lintang,
               garis_bujur,
-              fotolama,
+              namanya,
               hari_ini,
-              per);
-        }
-      } else {
-        await _kekost.deletegambar(fotolama);
-        final namanya = await _kekost.uploadgambar(foto!);
-
-        if (namanya != null) {
-          await _kefasilitas.updateddatapemilik(
-            token,
-            id_authnya!,
-            id_fasilitas,
-            tempat_tidur,
-            kamar_mandi_dalam,
-            meja,
-            tempat_parkir,
-            lemari,
-            ac,
-            tv,
-            dapur_dalam,
-            wifi,
-            hari_ini,
-          );
-
-          List<String> path = koordinat.split(',');
-          double garis_lintang = double.parse(path[0].trim());
-          double garis_bujur = double.parse(path[1].trim());
-
-          if (namanya != null && garis_lintang != null && garis_bujur != null) {
-            await _kekost.updateddatapemmilik(
-                token,
-                id_kost,
-                id_auth,
-                id_fasilitas,
-                nama_pemilik,
-                nama_kost,
-                telpon,
-                alamat_kost,
-                harga_kost,
-                jenis_kost,
-                keamanan,
-                panjang,
-                lebar,
-                batas_jam_malam,
-                jenis_pembayaran_air,
-                jenis_listrik,
-                garis_lintang,
-                garis_bujur,
-                namanya,
-                hari_ini,
-                per);
+              per, fasilitas,
+            );
           }
         }
       }
     } catch (e) {
       throw e;
     }
-    await readdatapemilik(id_authnya!, token!, force: true);
+    await readdatapemilik(
+      id_authnya!,
+      token,
+    );
     notifyListeners();
   }
 
-  Future<void> deletedatapemilik(int id_fasilitas) async {
+  Future<void> deletedatapemilik(int id_kost, String gambar) async {
     try {
-      await _kefasilitas.deletedatapemilik(token!, id_fasilitas);
+      // await _kefasilitas.deletedatapemilik(token!, id_fasilitas);
+      await _kekost.deletedata(id_kost);
+      await _kekost.deletegambar(gambar);
     } catch (e) {
       throw e;
     }
-    await readdatapemilik(id_authnya!, token!, force: true);
+    await readdatapemilik(id_authnya!, token!);
     notifyListeners();
   }
 

@@ -10,6 +10,7 @@ class Textfield1barisFull extends StatelessWidget {
   final Icon? icon_kiri;
   final Icon? icon_kanan;
   final bool kelihatan;
+  final VoidCallback? fungsienter;
 
   Textfield1barisFull({
     required this.jenis,
@@ -21,12 +22,17 @@ class Textfield1barisFull extends StatelessWidget {
     this.icon_kiri,
     this.icon_kanan,
     this.kelihatan = false,
+    this.fungsienter,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10),
+      // padding: EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300, width: 1)),
       width: double.infinity,
       child: TextField(
         keyboardType: jenis,
@@ -35,6 +41,13 @@ class Textfield1barisFull extends StatelessWidget {
         onTap: fungsi,
         readOnly: tulis,
         obscureText: kelihatan,
+        onSubmitted: (value) {
+          if (value != null && fungsienter != null) {
+            print("value $value");
+            fungsienter?.call();
+          }
+        },
+        textInputAction: TextInputAction.done,
         decoration: InputDecoration(
           hintText: label,
           hintStyle: TextStyle(color: Colors.grey),

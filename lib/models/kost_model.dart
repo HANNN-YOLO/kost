@@ -1,5 +1,5 @@
 class KostModel {
-  int? id_kost, id_fasilitas, notlp_kost, harga_kost, panjang, lebar, id_auth;
+  int? id_kost, id_fasilitas, notlp_kost, harga_kost, id_auth;
   String? nama_kost,
       alamat_kost,
       pemilik_kost,
@@ -9,8 +9,10 @@ class KostModel {
       jenis_pembayaran_air,
       jenis_listrik,
       gambar_kost,
-      per;
+      per,
+      fasilitas;
   double? garis_lintang, garis_bujur;
+  num? panjang, lebar;
   DateTime? createdAt, updatedAt;
 
   KostModel({
@@ -33,13 +35,14 @@ class KostModel {
     this.garis_lintang,
     this.garis_bujur,
     this.per,
+    this.fasilitas,
     this.createdAt,
     this.updatedAt,
   });
 
   Map<String, dynamic> toJson() {
     final data = <String, dynamic>{
-      'id_fasilitas': id_fasilitas,
+      // 'id_fasilitas': id_fasilitas,
       'id_auth': id_auth,
       'nama_kost': nama_kost,
       'pemilik_kost': pemilik_kost,
@@ -62,8 +65,16 @@ class KostModel {
       data['id_kost'] = id_kost;
     }
 
+    if (id_fasilitas != null) {
+      data['id_fasilitas'] = id_fasilitas;
+    }
+
     if (notlp_kost != null) {
       data['notlp_kost'] = notlp_kost;
+    }
+
+    if (fasilitas != null) {
+      data['fasilitas'] = fasilitas;
     }
 
     if (createdAt != null) {
@@ -97,6 +108,7 @@ class KostModel {
       garis_lintang: json['garis_lintang'],
       garis_bujur: json['garis_bujur'],
       per: json['per'],
+      fasilitas: json['fasilitas'],
       createdAt:
           json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt:

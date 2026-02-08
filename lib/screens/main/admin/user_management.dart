@@ -551,7 +551,8 @@ class UserCard extends StatelessWidget {
                         // Hapus semua kost milik pengguna ini (jika ada)
                         for (final k in kostPemilik) {
                           if (k.id_kost != null) {
-                            await kostProvider.deletedata(k.id_kost as int);
+                            await kostProvider.deletedata(
+                                k.id_kost as int, k.gambar_kost);
                           }
                         }
 

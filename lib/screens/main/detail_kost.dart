@@ -1,10 +1,13 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
 import '../custom/satu_tombol.dart';
 import '../../models/fasilitas_model.dart';
 import '../main/shared/formatCurrency.dart';
+import '../../providers/kost_provider.dart';
 
 class DetailKost extends StatelessWidget {
   static const arah = "detail-kost";
@@ -19,7 +22,11 @@ class DetailKost extends StatelessWidget {
         argsRaw is Map<String, dynamic> ? argsRaw : <String, dynamic>{};
 
     final terima = gunakan['data_kost'];
-    final pakai = gunakan['data_fasilitas'];
+    // final pakai = gunakan['data_fasilitas'];
+    // final terima = ModalRoute.of(context)!.settings.arguments as int;
+    // final pakai = Provider.of<KostProvider>(context)
+    //     .kost
+    //     .firstWhereOrNull((element) => element.id_kost == terima);
 
     // optional: koordinat tujuan & jarak dari halaman rekomendasi SAW
     final dynamic rawDestLat = gunakan['destinationLat'];
@@ -74,9 +81,9 @@ class DetailKost extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _DetailHeader(
-              imageUrl: terima.gambar_kost,
-              price: terima.harga_kost,
-              per: terima.per,
+              imageUrl: terima!.gambar_kost,
+              price: terima!.harga_kost ?? 0,
+              per: terima.per ?? "",
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -84,7 +91,7 @@ class DetailKost extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    terima.nama_kost ?? "-",
+                    terima!.nama_kost ?? "-",
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
@@ -99,7 +106,7 @@ class DetailKost extends StatelessWidget {
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          terima.alamat_kost ?? "-",
+                          terima!.alamat_kost ?? "-",
                           style: const TextStyle(color: Colors.black54),
                         ),
                       ),
@@ -113,16 +120,16 @@ class DetailKost extends StatelessWidget {
                       _StatChip(
                         icon: Icons.sell_outlined,
                         label: 'Harga',
-                        value: terima.harga_kost.toString(),
+                        value: terima!.harga_kost.toString(),
                       ),
                       _StatChip(
                           icon: Icons.king_bed_outlined,
                           label: 'Ukuran',
-                          value: "${terima.panjang} x ${terima.lebar}"),
+                          value: "${terima!.panjang} x ${terima!.lebar}"),
                       _StatChip(
                         icon: Icons.home_work_outlined,
                         label: 'Jenis',
-                        value: terima.jenis_kost.toString(),
+                        value: terima!.jenis_kost.toString(),
                       ),
                     ],
                   ),
@@ -133,21 +140,21 @@ class DetailKost extends StatelessWidget {
                       _InfoTile(
                         icon: Icons.person_outline,
                         label: 'Pemilik',
-                        value: terima.pemilik_kost.toString(),
+                        value: terima!.pemilik_kost.toString(),
                       ),
                       _InfoTile(
                         icon: Icons.phone_outlined,
                         label: 'Kontak',
-                        value: terima.notlp_kost.toString(),
+                        value: terima!.notlp_kost.toString(),
                       ),
                       _InfoTile(
                           icon: Icons.king_bed_outlined,
                           label: 'Ukuran Kamar',
-                          value: "${terima.panjang} x ${terima.lebar}"),
+                          value: "${terima!.panjang} x ${terima!.lebar}"),
                       _InfoTile(
                         icon: Icons.home_work_outlined,
                         label: 'Jenis Kost',
-                        value: terima.jenis_kost.toString(),
+                        value: terima!.jenis_kost.toString(),
                       ),
                     ],
                   ),
@@ -158,19 +165,19 @@ class DetailKost extends StatelessWidget {
                       _InfoTile(
                         icon: Icons.flash_on_outlined,
                         label: 'Jenis Listrik',
-                        value: terima.jenis_listrik.toString(),
+                        value: terima!.jenis_listrik.toString(),
                       ),
                       _InfoTile(
                         icon: Icons.water_drop_outlined,
                         label: 'Pembayaran Air',
-                        value: terima.jenis_pembayaran_air.toString(),
+                        value: terima!.jenis_pembayaran_air.toString(),
                       ),
                       _InfoTile(
                         icon: Icons.security_outlined,
                         label: 'Keamanan',
-                        value: terima.keamanan.toString(),
+                        value: terima!.keamanan.toString(),
                       ),
-                      _FacilityList(fasilitas: pakai),
+                      // _FacilityList(fasilitas: terima),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -180,21 +187,21 @@ class DetailKost extends StatelessWidget {
                       _MapWidget(
                         latitude: terima.garis_lintang ?? -5.147665,
                         longitude: terima.garis_bujur ?? 119.432731,
-                        destinationLat: destinationLat,
-                        destinationLng: destinationLng,
+                        // destinationLat: destinationLat,
+                        // destinationLng: destinationLng,
                       ),
-                      if (distanceKm != null) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          'Jarak kost ke tujuan Anda: '
-                          '${distanceKm!.toStringAsFixed(2)} km',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black54,
-                          ),
-                        ),
-                      ],
+                      // if (distanceKm != null) ...[
+                      //   const SizedBox(height: 8),
+                      //   Text(
+                      //     'Jarak kost ke tujuan Anda: '
+                      //     '${distanceKm!.toStringAsFixed(2)} km',
+                      //     style: const TextStyle(
+                      //       fontSize: 13,
+                      //       fontWeight: FontWeight.w600,
+                      //       color: Colors.black54,
+                      //     ),
+                      //   ),
+                      // ],
                     ],
                   ),
                 ],
@@ -218,7 +225,9 @@ class DetailKost extends StatelessWidget {
           ),
           child: SatuTombol(
             warna: warnaUtama,
-            fungsi: () => Navigator.of(context).pop(),
+            fungsi: () {
+              Navigator.of(context).pop();
+            },
             label: "Kembali",
           ),
         ),

@@ -560,9 +560,9 @@ class _RankingCard extends StatelessWidget {
   final double skor;
   final int harga;
   final double? distanceKm;
-  final int luasKamar;
-  final int panjang;
-  final int lebar;
+  final num luasKamar;
+  final num panjang;
+  final num lebar;
   final String? imageUrl;
   final int idKost;
   final int? idFasilitas;
