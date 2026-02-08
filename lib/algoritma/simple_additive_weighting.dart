@@ -585,8 +585,9 @@ class SimpleAdditiveWeighting {
           nilaiMentah[kriteria.kategori ?? ''] =
               '${kost.panjang ?? 0}x${kost.lebar ?? 0} m²';
         } else if (kategori.contains('fasilitas')) {
-          // Ambil daftar fasilitas yang tersedia
-          nilaiMentah[kriteria.kategori ?? ''] = _getListFasilitas(fasilitas);
+          // VERSI BARU: Ambil daftar fasilitas dari field kost.fasilitas (text)
+          nilaiMentah[kriteria.kategori ?? ''] =
+              _getListFasilitasFromKost(kost);
         } else {
           nilaiMentah[kriteria.kategori ?? ''] = nilaiAsli?.toString() ?? '-';
         }
@@ -672,57 +673,85 @@ class SimpleAdditiveWeighting {
     }
 
     // ========== C2: FASILITAS (Benefit) ==========
-    // Hitung jumlah fasilitas yang tersedia (true)
+    // VERSI BARU: Menggunakan field 'fasilitas' di tabel kost (text list)
+    // Menghitung jumlah item dalam list fasilitas
     if (kategori.contains('fasilitas')) {
-      int jumlahFasilitas = 0;
-      List<String> fasilitasTersedia = [];
+      final fasilitasText = kost.fasilitas;
 
-      if (fasilitas.tempat_tidur) {
-        jumlahFasilitas++;
-        fasilitasTersedia.add('tempat_tidur');
+      // Jika fasilitas null, tandai sebagai tidak terpublish
+      if (fasilitasText == null || fasilitasText.trim().isEmpty) {
+        print(
+            "    📌 Fasilitas: TIDAK TERPUBLISH (field fasilitas kosong/null)");
+        return 0; // Return 0 untuk menandakan tidak ada fasilitas
       }
-      if (fasilitas.kamar_mandi_dalam) {
-        jumlahFasilitas++;
-        fasilitasTersedia.add('kamar_mandi_dalam');
-      }
-      if (fasilitas.meja) {
-        jumlahFasilitas++;
-        fasilitasTersedia.add('meja');
-      }
-      if (fasilitas.tempat_parkir) {
-        jumlahFasilitas++;
-        fasilitasTersedia.add('tempat_parkir');
-      }
-      if (fasilitas.lemari) {
-        jumlahFasilitas++;
-        fasilitasTersedia.add('lemari');
-      }
-      if (fasilitas.ac) {
-        jumlahFasilitas++;
-        fasilitasTersedia.add('ac');
-      }
-      if (fasilitas.tv) {
-        jumlahFasilitas++;
-        fasilitasTersedia.add('tv');
-      }
-      if (fasilitas.kipas) {
-        jumlahFasilitas++;
-        fasilitasTersedia.add('kipas');
-      }
-      if (fasilitas.dapur_dalam) {
-        jumlahFasilitas++;
-        fasilitasTersedia.add('dapur_dalam');
-      }
-      if (fasilitas.wifi) {
-        jumlahFasilitas++;
-        fasilitasTersedia.add('wifi');
-      }
+
+      // Parse string fasilitas (comma-separated list)
+      final List<String> fasilitasList = fasilitasText
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+
+      final int jumlahFasilitas = fasilitasList.length;
 
       print(
-          "    📌 Fasilitas (id=${fasilitas.id_fasilitas}): $jumlahFasilitas dari 10");
-      print("       Detail: ${fasilitasTersedia.join(', ')}");
+          "    📌 Fasilitas (dari field kost.fasilitas): $jumlahFasilitas item");
+      print("       Detail: ${fasilitasList.join(', ')}");
       return jumlahFasilitas;
     }
+
+    // ========== VERSI LAMA (DEPRECATED): Menggunakan id_fasilitas ==========
+    // Hitung jumlah fasilitas yang tersedia (true) dari tabel fasilitas
+    // if (kategori.contains('fasilitas')) {
+    //   int jumlahFasilitas = 0;
+    //   List<String> fasilitasTersedia = [];
+    //
+    //   if (fasilitas.tempat_tidur) {
+    //     jumlahFasilitas++;
+    //     fasilitasTersedia.add('tempat_tidur');
+    //   }
+    //   if (fasilitas.kamar_mandi_dalam) {
+    //     jumlahFasilitas++;
+    //     fasilitasTersedia.add('kamar_mandi_dalam');
+    //   }
+    //   if (fasilitas.meja) {
+    //     jumlahFasilitas++;
+    //     fasilitasTersedia.add('meja');
+    //   }
+    //   if (fasilitas.tempat_parkir) {
+    //     jumlahFasilitas++;
+    //     fasilitasTersedia.add('tempat_parkir');
+    //   }
+    //   if (fasilitas.lemari) {
+    //     jumlahFasilitas++;
+    //     fasilitasTersedia.add('lemari');
+    //   }
+    //   if (fasilitas.ac) {
+    //     jumlahFasilitas++;
+    //     fasilitasTersedia.add('ac');
+    //   }
+    //   if (fasilitas.tv) {
+    //     jumlahFasilitas++;
+    //     fasilitasTersedia.add('tv');
+    //   }
+    //   if (fasilitas.kipas) {
+    //     jumlahFasilitas++;
+    //     fasilitasTersedia.add('kipas');
+    //   }
+    //   if (fasilitas.dapur_dalam) {
+    //     jumlahFasilitas++;
+    //     fasilitasTersedia.add('dapur_dalam');
+    //   }
+    //   if (fasilitas.wifi) {
+    //     jumlahFasilitas++;
+    //     fasilitasTersedia.add('wifi');
+    //   }
+    //
+    //   print(
+    //       "    📌 Fasilitas (id=${fasilitas.id_fasilitas}): $jumlahFasilitas dari 10");
+    //   print("       Detail: ${fasilitasTersedia.join(', ')}");
+    //   return jumlahFasilitas;
+    // }
 
     // ========== C3: LUAS KAMAR (Benefit) ==========
     if (kategori.contains('luas')) {
@@ -1533,21 +1562,43 @@ class SimpleAdditiveWeighting {
     return parts.join('.').split('').reversed.join();
   }
 
-  /// Helper: Get list fasilitas yang tersedia
-  static String _getListFasilitas(FasilitasModel fasilitas) {
-    List<String> list = [];
-    if (fasilitas.tempat_tidur) list.add('Tempat Tidur');
-    if (fasilitas.kamar_mandi_dalam) list.add('KM Dalam');
-    if (fasilitas.meja) list.add('Meja');
-    if (fasilitas.tempat_parkir) list.add('Parkir');
-    if (fasilitas.lemari) list.add('Lemari');
-    if (fasilitas.ac) list.add('AC');
-    if (fasilitas.tv) list.add('TV');
-    if (fasilitas.kipas) list.add('Kipas');
-    if (fasilitas.dapur_dalam) list.add('Dapur');
-    if (fasilitas.wifi) list.add('WiFi');
+  /// Helper: Get list fasilitas dari field kost.fasilitas (VERSI BARU)
+  /// Field fasilitas di tabel kost bertipe text yang menyimpan comma-separated list
+  static String _getListFasilitasFromKost(KostModel kost) {
+    final fasilitasText = kost.fasilitas;
 
-    if (list.isEmpty) return '-';
-    return list.join(', ');
+    // Jika field fasilitas null atau kosong, tandai sebagai tidak terpublish
+    if (fasilitasText == null || fasilitasText.trim().isEmpty) {
+      return 'Tidak Terpublish';
+    }
+
+    // Parse dan format list fasilitas
+    final List<String> fasilitasList = fasilitasText
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    if (fasilitasList.isEmpty) return 'Tidak Terpublish';
+    return fasilitasList.join(', ');
   }
+
+  /// Helper: Get list fasilitas yang tersedia (VERSI LAMA - DEPRECATED)
+  /// Menggunakan FasilitasModel dari tabel fasilitas via id_fasilitas
+  // static String _getListFasilitas(FasilitasModel fasilitas) {
+  //   List<String> list = [];
+  //   if (fasilitas.tempat_tidur) list.add('Tempat Tidur');
+  //   if (fasilitas.kamar_mandi_dalam) list.add('KM Dalam');
+  //   if (fasilitas.meja) list.add('Meja');
+  //   if (fasilitas.tempat_parkir) list.add('Parkir');
+  //   if (fasilitas.lemari) list.add('Lemari');
+  //   if (fasilitas.ac) list.add('AC');
+  //   if (fasilitas.tv) list.add('TV');
+  //   if (fasilitas.kipas) list.add('Kipas');
+  //   if (fasilitas.dapur_dalam) list.add('Dapur');
+  //   if (fasilitas.wifi) list.add('WiFi');
+  //
+  //   if (list.isEmpty) return '-';
+  //   return list.join(', ');
+  // }
 }
