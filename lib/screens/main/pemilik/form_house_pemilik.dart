@@ -58,6 +58,11 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
 
   List<inputanlist> _listini = [];
 
+  final TextEditingController _facilityInputController =
+      TextEditingController();
+  final FocusNode _facilityFocusNode = FocusNode();
+  int? _editingFacilityIndex;
+
   // Key untuk WebView container
   final GlobalKey _webViewKey = GlobalKey();
 
@@ -125,7 +130,6 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
   @override
   void initState() {
     super.initState();
-    _listini.add(inputanlist());
 
     // Default teks untuk mode "Tujuan" saat pertama kali membuka form
     _koordinatController.text = 'Klik 2x pada peta';
@@ -221,6 +225,71 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
   void _onFormFieldChanged() {
     // Trigger rebuild supaya status tombol (warna & enabled) ikut berubah
     if (mounted) setState(() {});
+  }
+
+  String _facilityKey(String raw) {
+    return raw.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  void _startEditFacility(int index) {
+    if (index < 0 || index >= _listini.length) return;
+    final current = _listini[index].fasilitas.text.trim();
+    if (current.isEmpty) return;
+
+    setState(() {
+      _editingFacilityIndex = index;
+      _facilityInputController.text = current;
+      _facilityInputController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _facilityInputController.text.length,
+      );
+    });
+
+    FocusScope.of(context).requestFocus(_facilityFocusNode);
+  }
+
+  void _removeFacilityAt(int index) {
+    if (index < 0 || index >= _listini.length) return;
+    final removed = _listini.removeAt(index);
+    removed.bersih();
+
+    if (_editingFacilityIndex == index) {
+      _editingFacilityIndex = null;
+      _facilityInputController.clear();
+    } else if (_editingFacilityIndex != null &&
+        _editingFacilityIndex! > index) {
+      _editingFacilityIndex = _editingFacilityIndex! - 1;
+    }
+  }
+
+  void _applyFacilityInput() {
+    final raw = _facilityInputController.text.trim();
+    if (raw.isEmpty) return;
+
+    final normalizedKey = _facilityKey(raw);
+    final existingIndex = _listini.indexWhere(
+      (e) => _facilityKey(e.fasilitas.text) == normalizedKey,
+    );
+
+    setState(() {
+      if (_editingFacilityIndex != null) {
+        final targetIndex = _editingFacilityIndex!;
+        if (existingIndex != -1 && existingIndex != targetIndex) {
+          return;
+        }
+        _listini[targetIndex].fasilitas.text = raw;
+        _editingFacilityIndex = null;
+        _facilityInputController.clear();
+      } else {
+        if (existingIndex != -1) return;
+        final item = inputanlist();
+        item.fasilitas.text = raw;
+        _listini.add(item);
+        _facilityInputController.clear();
+      }
+    });
+
+    FocusScope.of(context).requestFocus(_facilityFocusNode);
   }
 
   // Sinkronkan mode peta dengan opsi lokasi yang terpilih
@@ -472,6 +541,9 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
     }
     _listini.clear();
 
+    _facilityInputController.dispose();
+    _facilityFocusNode.dispose();
+
     super.dispose();
   }
 
@@ -517,16 +589,23 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
         _listini.clear();
 
         if (pakai != null) {
-          String manafasilitas = pakai.fasilitas ?? "";
-          List<String> inisaja = manafasilitas.split(", ");
-          for (var hanyasaja in inisaja) {
-            if (hanyasaja != null) {
-              var namanya = inputanlist();
+          final String manafasilitas = (pakai.fasilitas ?? '').trim();
+          if (manafasilitas.isNotEmpty) {
+            final List<String> inisaja = manafasilitas
+                .split(',')
+                .map((e) => e.trim())
+                .where((e) => e.isNotEmpty)
+                .toList();
+            for (final hanyasaja in inisaja) {
+              final namanya = inputanlist();
               namanya.fasilitas.text = hanyasaja;
               _listini.add(namanya);
             }
           }
         }
+
+        _editingFacilityIndex = null;
+        _facilityInputController.clear();
         allstatus = false;
       }
     }
@@ -1303,78 +1382,67 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                           lebar: lebarLayar,
                           jarak: 1,
                         ),
-                        Consumer<KostProvider>(
-                          builder: (context, value, child) {
-                            return terima != null
-                                ? ListView.separated(
-                                    shrinkWrap: true,
-                                    physics:
-                                        const NeverScrollableScrollPhysics(),
-                                    itemCount: _listini.length,
-                                    separatorBuilder: (context, index) {
-                                      return Column(
-                                        children: [
-                                          SizedBox(height: tinggiLayar * 0.02),
-                                          Divider(
-                                            color: Colors.grey.shade300,
-                                            thickness: 1,
-                                            height: 1,
-                                          ),
-                                          SizedBox(height: tinggiLayar * 0.02),
-                                        ],
-                                      );
-                                    },
-                                    itemBuilder: (context, index) {
-                                      return Textfield1barisFull(
-                                        jenis: TextInputType.text,
-                                        bk: TextCapitalization.words,
-                                        ketikan: _listini[index].fasilitas,
-                                        tulis: false,
-                                        label: "Nama Fasilitas ${index + 1}",
-                                        fungsienter: () {
-                                          setState(() {
-                                            _listini.add(inputanlist());
-                                          });
-                                        },
-                                      );
-                                    },
-                                  )
-                                : ListView.separated(
-                                    shrinkWrap: true,
-                                    physics:
-                                        const NeverScrollableScrollPhysics(),
-                                    itemCount: _listini.length,
-                                    separatorBuilder: (context, index) {
-                                      return Column(
-                                        children: [
-                                          SizedBox(height: tinggiLayar * 0.02),
-                                          Divider(
-                                            color: Colors.grey.shade300,
-                                            thickness: 1,
-                                            height: 1,
-                                          ),
-                                          SizedBox(height: tinggiLayar * 0.02),
-                                        ],
-                                      );
-                                    },
-                                    itemBuilder: (context, index) {
-                                      return Textfield1barisFull(
-                                        jenis: TextInputType.text,
-                                        bk: TextCapitalization.words,
-                                        ketikan: _listini[index].fasilitas,
-                                        tulis: false,
-                                        label: "Nama Fasilitas ${index + 1}",
-                                        fungsienter: () {
-                                          if (mounted) {
-                                            setState(() {
-                                              _listini.add(inputanlist());
-                                            });
-                                          }
-                                        },
-                                      );
-                                    },
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          padding: EdgeInsets.all(lebarLayar * 0.03),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              TextField(
+                                controller: _facilityInputController,
+                                focusNode: _facilityFocusNode,
+                                textCapitalization: TextCapitalization.words,
+                                textInputAction: TextInputAction.done,
+                                onSubmitted: (_) => _applyFacilityInput(),
+                                decoration: InputDecoration(
+                                  hintText: _editingFacilityIndex != null
+                                      ? 'Edit fasilitas (Enter untuk simpan)'
+                                      : 'Tulis nama fasilitas (Enter untuk tambah)',
+                                  isDense: true,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: tinggiLayar * 0.015),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: _listini
+                                    .asMap()
+                                    .entries
+                                    .where((e) => e.value.fasilitas.text
+                                        .trim()
+                                        .isNotEmpty)
+                                    .map((entry) {
+                                  final idx = entry.key;
+                                  final label =
+                                      entry.value.fasilitas.text.trim();
+                                  return GestureDetector(
+                                    onDoubleTap: () => _startEditFacility(idx),
+                                    child: Chip(
+                                      label: Text(label),
+                                      onDeleted: () {
+                                        if (!mounted) return;
+                                        setState(() {
+                                          _removeFacilityAt(idx);
+                                        });
+                                      },
+                                      deleteIcon:
+                                          const Icon(Icons.close, size: 18),
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      visualDensity: VisualDensity.compact,
+                                    ),
                                   );
-                          },
+                                }).toList(),
+                              ),
+                            ],
+                          ),
                         ),
 
                         SizedBox(height: tinggiLayar * 0.05),

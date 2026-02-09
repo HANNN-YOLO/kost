@@ -217,7 +217,7 @@ class _ManagementBoardingHouseState extends State<ManagementBoardingHouse> {
                             tampilkanHapus: true,
                             needsFix: needsFix,
                             //
-                            fungsihapus: () {
+                            fungsihapus: () async {
                               final idKost = item.id_kost;
                               final gambar = item.gambar_kost;
                               if (idKost == null ||
@@ -231,7 +231,7 @@ class _ManagementBoardingHouseState extends State<ManagementBoardingHouse> {
                                 );
                                 return;
                               }
-                              penghubung.deletedata(idKost, gambar);
+                              await penghubung.deletedata(idKost, gambar);
                             },
                             //
                             fungsitap: () {
@@ -303,7 +303,7 @@ class KostCard extends StatelessWidget {
   final String lokasi;
   final bool tampilkanEdit;
   final bool tampilkanHapus;
-  final VoidCallback? fungsihapus;
+  final Future<void> Function()? fungsihapus;
   final VoidCallback? fungsitap;
   final VoidCallback? fungsiupdated;
   final String per;
@@ -338,94 +338,135 @@ class KostCard extends StatelessWidget {
         return SizedBox.shrink();
       },
       transitionBuilder: (context, anim1, anim2, child) {
+        bool isDeleting = false;
         return Transform.scale(
           scale: Curves.easeOutBack.transform(anim1.value),
           child: Opacity(
             opacity: anim1.value,
-            child: AlertDialog(
-              backgroundColor: Color.fromARGB(
-                  255, 255, 255, 255), // 🌸 Warna background lembut
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              title: Row(
-                children: [
-                  Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
-                  SizedBox(width: 10),
-                  Text(
-                    "Konfirmasi Hapus",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+            child: StatefulBuilder(
+              builder: (context, setStateDialog) {
+                return AlertDialog(
+                  backgroundColor:
+                      const Color.fromARGB(255, 255, 255, 255), // lembut
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                ],
-              ),
-              content: Text(
-                "Apakah Anda yakin ingin menghapus kost ini? Tindakan ini tidak dapat dibatalkan.",
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Colors.black54,
-                  height: 1.4,
-                ),
-              ),
-              actionsPadding:
-                  EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-              actionsAlignment: MainAxisAlignment.spaceBetween,
-              actions: [
-                TextButton(
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.black87,
-                    padding: EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      side: BorderSide(color: Colors.black26),
-                    ),
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(
-                    "Batal",
-                    style: TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.redAccent,
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    elevation: 2,
-                  ),
-                  onPressed: () {
-                    try {
-                      fungsihapus?.call();
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text("Kost berhasil dihapus."),
-                          behavior: SnackBarBehavior.floating,
-                          backgroundColor: Colors.redAccent,
+                  title: Row(
+                    children: [
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.redAccent,
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
+                        "Konfirmasi Hapus",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
                         ),
-                      );
-                    } catch (e) {
-                      showDialog(
-                        context: context,
-                        builder: (context) {
-                          return ShowdialogEror(label: "${e.toString()}");
-                        },
-                      );
-                    }
-                  },
-                  child: Text(
-                    "Hapus",
+                      ),
+                    ],
+                  ),
+                  content: const Text(
+                    "Apakah Anda yakin ingin menghapus kost ini? Tindakan ini tidak dapat dibatalkan.",
                     style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      color: Colors.black54,
+                      height: 1.4,
                     ),
                   ),
-                ),
-              ],
+                  actionsPadding:
+                      const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                  actionsAlignment: MainAxisAlignment.spaceBetween,
+                  actions: [
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.black87,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: const BorderSide(color: Colors.black26),
+                        ),
+                      ),
+                      onPressed:
+                          isDeleting ? null : () => Navigator.pop(context),
+                      child: const Text(
+                        "Batal",
+                        style: TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 2,
+                      ),
+                      onPressed: isDeleting
+                          ? null
+                          : () async {
+                              if (fungsihapus == null) return;
+                              setStateDialog(() {
+                                isDeleting = true;
+                              });
+                              try {
+                                await fungsihapus!.call();
+                                if (!context.mounted) return;
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Kost berhasil dihapus."),
+                                    behavior: SnackBarBehavior.floating,
+                                    backgroundColor: Colors.redAccent,
+                                  ),
+                                );
+                              } catch (e) {
+                                if (!context.mounted) return;
+                                showDialog(
+                                  context: context,
+                                  builder: (context) {
+                                    return ShowdialogEror(
+                                      label: "${e.toString()}",
+                                    );
+                                  },
+                                );
+                              } finally {
+                                if (context.mounted) {
+                                  setStateDialog(() {
+                                    isDeleting = false;
+                                  });
+                                }
+                              }
+                            },
+                      child: isDeleting
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Text(
+                              "Hapus",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         );

@@ -86,9 +86,15 @@ class _MainNavigationAdminState extends State<MainNavigationAdmin> {
       // Jika tombol logout ditekan
       _showLogoutConfirmation();
     } else if (_selectedIndex != index) {
-      setState(() {
-        _selectedIndex = index;
-        _history.add(index);
+      // Tunda perpindahan tab ke frame berikutnya agar aman jika ada overlay
+      // (mis. dropdown_search popup / dialog) yang sedang menutup di frame ini.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (_selectedIndex == index) return;
+        setState(() {
+          _selectedIndex = index;
+          _history.add(index);
+        });
       });
     }
   }

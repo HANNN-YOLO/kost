@@ -1282,11 +1282,14 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
                                             await _applyDestinationToMap(
                                                 destLat, destLng);
 
+                                            if (!mounted) return;
+
                                             setState(() {
                                               _isLoading = true;
                                             });
 
                                             try {
+                                              if (!mounted) return;
                                               final kostProvider =
                                                   Provider.of<KostProvider>(
                                                 context,
@@ -1333,6 +1336,8 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
                                                 });
                                               }
 
+                                              if (!mounted) return;
+
                                               if (dataKost.isEmpty) {
                                                 ScaffoldMessenger.of(context)
                                                     .showSnackBar(
@@ -1358,6 +1363,8 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
                                               }
                                               kostProvider
                                                   .setJarakKostMap(jarakMap);
+
+                                              if (!mounted) return;
 
                                               await Navigator.of(context).push(
                                                 MaterialPageRoute(

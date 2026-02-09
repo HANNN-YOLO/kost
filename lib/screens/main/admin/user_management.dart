@@ -16,10 +16,7 @@ class UserManagement extends StatefulWidget {
 }
 
 class _UserManagementState extends State<UserManagement> {
-  bool _isSearching = false;
   bool hanyasekali = true;
-  final TextEditingController _searchController = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
@@ -68,65 +65,11 @@ class _UserManagementState extends State<UserManagement> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  if (!_isSearching)
-                    Text(
-                      "Daftar Pengguna",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    )
-                  else
-                    // 🔸 TextField Search
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        focusNode: _focusNode,
-                        autofocus: true, // langsung munculkan keyboard
-                        decoration: InputDecoration(
-                          hintText: "Cari pengguna...",
-                          isDense: true,
-                          contentPadding: EdgeInsets.symmetric(
-                            vertical: 8,
-                            horizontal: 12,
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(
-                              color: Colors.grey,
-                              width: 0.3,
-                            ),
-                          ),
-                        ),
-                        onChanged: (value) {
-                          // TODO: logika filter daftar pengguna nanti
-                        },
-                      ),
-                    ),
-
-                  // 🔸 Tombol kanan
-                  IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _isSearching = !_isSearching;
-                      });
-
-                      if (_isSearching) {
-                        // Saat tombol search ditekan, langsung fokus & munculkan keyboard
-                        Future.delayed(Duration(milliseconds: 100), () {
-                          FocusScope.of(context).requestFocus(_focusNode);
-                        });
-                      } else {
-                        // Tutup search
-                        _searchController.clear();
-                        FocusScope.of(context).unfocus();
-                      }
-                    },
-                    icon: Icon(
-                      _isSearching ? Icons.close : Icons.search,
-                      size: 22,
+                  Text(
+                    "Daftar Pengguna",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],

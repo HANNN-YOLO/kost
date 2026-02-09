@@ -61,6 +61,9 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
   final TextEditingController _hargaMaxC = TextEditingController();
   final TextEditingController _luasMaxC = TextEditingController();
 
+  late final KostProvider _kostProvider;
+  bool _sawAutoStarted = false;
+
   String _jenisKostFilter = 'Semua';
   String _keamananFilter = 'Semua';
   String _batasJamMalamFilter = 'Semua';
@@ -425,12 +428,19 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
   void initState() {
     super.initState();
 
+    // Ambil provider sekali saat widget masih mounted.
+    _kostProvider = context.read<KostProvider>();
+
     // Jalankan perhitungan SAW saat halaman dibuka
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<KostProvider>().hitungSAW(
-            userLat: widget.destinationLat,
-            userLng: widget.destinationLng,
-          );
+      if (!mounted) return;
+      if (_sawAutoStarted) return;
+      _sawAutoStarted = true;
+
+      _kostProvider.hitungSAW(
+        userLat: widget.destinationLat,
+        userLng: widget.destinationLng,
+      );
     });
   }
 

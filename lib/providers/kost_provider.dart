@@ -397,6 +397,8 @@ class KostProvider with ChangeNotifier {
   ) async {
     final inimilistnya = manalistnya
         .map((element) => element.namaFasilitasController.text)
+        .map((s) => s.toString().trim())
+        .where((s) => s.isNotEmpty)
         .toList();
     final fasilitas = inimilistnya.join(", ");
 
@@ -442,10 +444,13 @@ class KostProvider with ChangeNotifier {
     String per,
     List<dynamic> seelist,
   ) async {
-    List<dynamic> konvert =
-        seelist.map((element) => element.namaFasilitasController.text).toList();
+    final konvert = seelist
+        .map((element) => element.namaFasilitasController.text)
+        .map((s) => s.toString().trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
 
-    String fasilitas = konvert.join(", ");
+    final fasilitas = konvert.join(", ");
 
     await updatedata(
       foto,
@@ -490,10 +495,13 @@ class KostProvider with ChangeNotifier {
     String per,
     List<dynamic> manalistnya,
   ) async {
-    List<dynamic> mapping =
-        manalistnya.map((element) => element.fasilitas.text).toList();
+    final mapping = manalistnya
+        .map((element) => element.fasilitas.text)
+        .map((s) => s.toString().trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
 
-    String fasilitas = mapping.join(", ");
+    final fasilitas = mapping.join(", ");
 
     await createdatapemilik(
       token,
@@ -538,10 +546,13 @@ class KostProvider with ChangeNotifier {
       String koordinat,
       String per,
       List<dynamic> wherelist) async {
-    List<dynamic> pemisah =
-        wherelist.map((element) => element.fasilitas.text).toList();
+    final pemisah = wherelist
+        .map((element) => element.fasilitas.text)
+        .map((s) => s.toString().trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
 
-    String fasilitas = pemisah.join(", ");
+    final fasilitas = pemisah.join(", ");
 
     await updateddatapemilik(
       token,
@@ -579,6 +590,9 @@ class KostProvider with ChangeNotifier {
   List<FasilitasModel> _fasilitas = [];
   List<FasilitasModel> get faslitas => _fasilitas;
   final FasilitasService _kefasilitas = FasilitasService();
+
+  // Guard untuk mencegah aksi hapus kost dipanggil berkali-kali (double tap).
+  final Set<int> _deletingKostIds = <int>{};
 
   // Penyewa
   List<KostModel> _kostpenyewa = [];
@@ -715,6 +729,8 @@ class KostProvider with ChangeNotifier {
   }
 
   Future<void> deletedata(int id_kost, String gambar) async {
+    if (_deletingKostIds.contains(id_kost)) return;
+    _deletingKostIds.add(id_kost);
     try {
       // final cek = _kost.firstWhere((element) => element.id_kost == id_kost);
       // await _kekost.deletegambar(cek.gambar_kost!);
@@ -722,9 +738,10 @@ class KostProvider with ChangeNotifier {
       await _kekost.deletedata(id_kost);
       await _kekost.deletegambar(gambar);
       print("done data kehapus");
-      await _kekost.deletedata(id_kost);
     } catch (e) {
       throw e;
+    } finally {
+      _deletingKostIds.remove(id_kost);
     }
     await readdata();
     notifyListeners();
@@ -1166,12 +1183,16 @@ class KostProvider with ChangeNotifier {
   }
 
   Future<void> deletedatapemilik(int id_kost, String gambar) async {
+    if (_deletingKostIds.contains(id_kost)) return;
+    _deletingKostIds.add(id_kost);
     try {
       // await _kefasilitas.deletedatapemilik(token!, id_fasilitas);
       await _kekost.deletedata(id_kost);
       await _kekost.deletegambar(gambar);
     } catch (e) {
       throw e;
+    } finally {
+      _deletingKostIds.remove(id_kost);
     }
     await readdatapemilik(id_authnya!, token!);
     notifyListeners();

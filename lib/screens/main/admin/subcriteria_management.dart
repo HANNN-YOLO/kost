@@ -1770,17 +1770,6 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                     child: Text("Daftar Subkriteria",
                                         style: TextStyle(
                                             fontWeight: FontWeight.w600))),
-                                Expanded(
-                                  child: TextField(
-                                    decoration: InputDecoration(
-                                      hintText: "Cari...",
-                                      isDense: true,
-                                      border: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8)),
-                                    ),
-                                  ),
-                                ),
                               ],
                             ),
                             SizedBox(height: 10),

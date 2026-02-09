@@ -138,36 +138,91 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
                                   );
                                 },
                                 onDelete: () async {
-                                  if (_isDeleting) return;
-
-                                  final konfirmasi = await showDialog<bool>(
+                                  await showDialog<void>(
                                     context: context,
-                                    builder: (context) {
-                                      return AlertDialog(
-                                        title: const Text('Konfirmasi Hapus'),
-                                        content: const Text(
-                                            'Apakah Anda yakin ingin menghapus kost ini?'),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.of(context)
-                                                    .pop(false),
-                                            child: const Text('Batal'),
-                                          ),
-                                          TextButton(
-                                            onPressed: () async {
-                                              await penghubung
-                                                  .deletedatapemilik(
-                                                penghubung.kostpemilik[index]
-                                                    .id_kost!,
-                                                penghubung.kostpemilik[index]
-                                                    .gambar_kost!,
-                                              );
-                                              Navigator.of(context).pop(true);
-                                            },
-                                            child: const Text('Hapus'),
-                                          ),
-                                        ],
+                                    builder: (dialogContext) {
+                                      bool isDeleting = false;
+                                      return StatefulBuilder(
+                                        builder: (context, setStateDialog) {
+                                          return AlertDialog(
+                                            title:
+                                                const Text('Konfirmasi Hapus'),
+                                            content: const Text(
+                                              'Apakah Anda yakin ingin menghapus kost ini?',
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: isDeleting
+                                                    ? null
+                                                    : () => Navigator.of(
+                                                          dialogContext,
+                                                        ).pop(),
+                                                child: const Text('Batal'),
+                                              ),
+                                              TextButton(
+                                                onPressed: isDeleting
+                                                    ? null
+                                                    : () async {
+                                                        setStateDialog(() {
+                                                          isDeleting = true;
+                                                        });
+                                                        try {
+                                                          await penghubung
+                                                              .deletedatapemilik(
+                                                            penghubung
+                                                                .kostpemilik[
+                                                                    index]
+                                                                .id_kost!,
+                                                            penghubung
+                                                                .kostpemilik[
+                                                                    index]
+                                                                .gambar_kost!,
+                                                          );
+                                                          if (!dialogContext
+                                                              .mounted) {
+                                                            return;
+                                                          }
+                                                          Navigator.of(
+                                                            dialogContext,
+                                                          ).pop();
+                                                        } catch (e) {
+                                                          if (!dialogContext
+                                                              .mounted) {
+                                                            return;
+                                                          }
+                                                          ScaffoldMessenger.of(
+                                                                  dialogContext)
+                                                              .showSnackBar(
+                                                            SnackBar(
+                                                              content: Text(
+                                                                'Gagal menghapus kost: $e',
+                                                              ),
+                                                            ),
+                                                          );
+                                                        } finally {
+                                                          if (dialogContext
+                                                              .mounted) {
+                                                            setStateDialog(() {
+                                                              isDeleting =
+                                                                  false;
+                                                            });
+                                                          }
+                                                        }
+                                                      },
+                                                child: isDeleting
+                                                    ? const SizedBox(
+                                                        width: 16,
+                                                        height: 16,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                        ),
+                                                      )
+                                                    : const Text('Hapus'),
+                                              ),
+                                            ],
+                                          );
+                                        },
                                       );
                                     },
                                   );

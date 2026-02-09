@@ -55,6 +55,11 @@ class _FormAddHouseState extends State<FormHouse> {
   bool _isSubmitting = false;
   List<listinputan> _inilist = [];
 
+  final TextEditingController _facilityInputController =
+      TextEditingController();
+  final FocusNode _facilityFocusNode = FocusNode();
+  int? _editingFacilityIndex;
+
   // Key khusus untuk menjaga instance WebView tidak bentrok saat navigasi
   final Key _mapViewKey = UniqueKey();
 
@@ -122,7 +127,6 @@ class _FormAddHouseState extends State<FormHouse> {
   @override
   void initState() {
     super.initState();
-    _inilist.add(listinputan());
     // Default teks untuk mode "Tujuan" saat pertama kali membuka form
     _koordinatController.text = 'Klik 2x pada peta';
 
@@ -389,9 +393,9 @@ class _FormAddHouseState extends State<FormHouse> {
         _coerceDeletedSubkriteriaSelections(penghubung);
 
         // Isi fasilitas (jika tersedia) untuk mode edit
+        _inilist.clear();
         final rawFasilitas = (pakai.fasilitas ?? '').trim();
         if (rawFasilitas.isNotEmpty) {
-          _inilist.clear();
           final List<String> pisah = rawFasilitas
               .split(',')
               .map((e) => e.trim())
@@ -402,10 +406,10 @@ class _FormAddHouseState extends State<FormHouse> {
             jenis.namaFasilitasController.text = item;
             _inilist.add(jenis);
           }
-          if (_inilist.isEmpty) {
-            _inilist.add(listinputan());
-          }
         }
+
+        _editingFacilityIndex = null;
+        _facilityInputController.clear();
 
         // if (pakai != null) {
         //   final cekker = Provider.of<KostProvider>(
@@ -454,8 +458,87 @@ class _FormAddHouseState extends State<FormHouse> {
     _lebar.removeListener(_onFormFieldChanged);
     _koordinatController.removeListener(_onFormFieldChanged);
     _koordinatController.dispose();
+
+    for (final item in _inilist) {
+      item.dispose();
+    }
+    _inilist.clear();
+
+    _facilityInputController.dispose();
+    _facilityFocusNode.dispose();
     // _namaFasilitasController.dispose();
     super.dispose();
+  }
+
+  String _facilityKey(String raw) {
+    return raw.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  bool _hasAtLeastOneFacility() {
+    return _inilist.any(
+      (x) => x.namaFasilitasController.text.trim().isNotEmpty,
+    );
+  }
+
+  void _startEditFacility(int index) {
+    if (index < 0 || index >= _inilist.length) return;
+    final current = _inilist[index].namaFasilitasController.text.trim();
+    if (current.isEmpty) return;
+
+    setState(() {
+      _editingFacilityIndex = index;
+      _facilityInputController.text = current;
+      _facilityInputController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _facilityInputController.text.length,
+      );
+    });
+
+    FocusScope.of(context).requestFocus(_facilityFocusNode);
+  }
+
+  void _removeFacilityAt(int index) {
+    if (index < 0 || index >= _inilist.length) return;
+    final removed = _inilist.removeAt(index);
+    removed.dispose();
+
+    if (_editingFacilityIndex == index) {
+      _editingFacilityIndex = null;
+      _facilityInputController.clear();
+    } else if (_editingFacilityIndex != null &&
+        _editingFacilityIndex! > index) {
+      _editingFacilityIndex = _editingFacilityIndex! - 1;
+    }
+  }
+
+  void _applyFacilityInput() {
+    final raw = _facilityInputController.text.trim();
+    if (raw.isEmpty) return;
+
+    final normalizedKey = _facilityKey(raw);
+    final existingIndex = _inilist.indexWhere(
+      (e) => _facilityKey(e.namaFasilitasController.text) == normalizedKey,
+    );
+
+    setState(() {
+      if (_editingFacilityIndex != null) {
+        final targetIndex = _editingFacilityIndex!;
+        if (existingIndex != -1 && existingIndex != targetIndex) {
+          return;
+        }
+        _inilist[targetIndex].namaFasilitasController.text = raw;
+        _editingFacilityIndex = null;
+        _facilityInputController.clear();
+      } else {
+        if (existingIndex != -1) return;
+        final item = listinputan();
+        item.namaFasilitasController.text = raw;
+        _inilist.add(item);
+        _facilityInputController.clear();
+      }
+    });
+
+    FocusScope.of(context).requestFocus(_facilityFocusNode);
   }
 
   @override
@@ -1329,82 +1412,68 @@ class _FormAddHouseState extends State<FormHouse> {
                       lebar: lebarLayar,
                       jarak: 1,
                     ),
-                    Consumer<KostProvider>(
-                      builder: (context, value, child) {
-                        return terima != null
-                            ? ListView.separated(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: _inilist.length,
-                                separatorBuilder: (context, index) {
-                                  return Column(
-                                    children: [
-                                      SizedBox(height: tinggiLayar * 0.01),
-                                      Divider(
-                                        color: Colors.grey.shade300,
-                                        thickness: 1,
-                                        height: 1,
-                                      ),
-                                      SizedBox(height: tinggiLayar * 0.01),
-                                    ],
-                                  );
-                                },
-                                itemBuilder: (context, index) {
-                                  return Textfield1barisFull(
-                                    jenis: TextInputType.text,
-                                    bk: TextCapitalization.words,
-                                    ketikan:
-                                        _inilist[index].namaFasilitasController,
-                                    tulis: false,
-                                    label: "Nama Fasilitas ${index + 1}",
-                                    fungsienter: () {
-                                      if (mounted) {
-                                        setState(
-                                          () {
-                                            _inilist.add(listinputan());
-                                          },
-                                        );
-                                      }
-                                    },
-                                  );
-                                },
-                              )
-                            : ListView.separated(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: _inilist.length,
-                                separatorBuilder: (context, index) {
-                                  return Column(
-                                    children: [
-                                      SizedBox(height: tinggiLayar * 0.01),
-                                      Divider(
-                                        color: Colors.grey.shade300,
-                                        thickness: 1,
-                                        height: 1,
-                                      ),
-                                      SizedBox(height: tinggiLayar * 0.01),
-                                    ],
-                                  );
-                                },
-                                itemBuilder: (context, index) {
-                                  return Textfield1barisFull(
-                                    jenis: TextInputType.text,
-                                    bk: TextCapitalization.words,
-                                    ketikan:
-                                        _inilist[index].namaFasilitasController,
-                                    tulis: false,
-                                    label: "Nama Fasilitas ${index + 1}",
-                                    fungsienter: () {
-                                      if (mounted) {
-                                        setState(() {
-                                          _inilist.add(listinputan());
-                                        });
-                                      }
-                                    },
-                                  );
-                                },
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      padding: EdgeInsets.all(lebarLayar * 0.03),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TextField(
+                            controller: _facilityInputController,
+                            focusNode: _facilityFocusNode,
+                            textCapitalization: TextCapitalization.words,
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: (_) => _applyFacilityInput(),
+                            decoration: InputDecoration(
+                              hintText: _editingFacilityIndex != null
+                                  ? 'Edit fasilitas (Enter untuk simpan)'
+                                  : 'Tulis nama fasilitas (Enter untuk tambah)',
+                              isDense: true,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: tinggiLayar * 0.015),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _inilist
+                                .asMap()
+                                .entries
+                                .where((e) => e
+                                    .value.namaFasilitasController.text
+                                    .trim()
+                                    .isNotEmpty)
+                                .map((entry) {
+                              final idx = entry.key;
+                              final label = entry
+                                  .value.namaFasilitasController.text
+                                  .trim();
+                              return GestureDetector(
+                                onDoubleTap: () => _startEditFacility(idx),
+                                child: Chip(
+                                  label: Text(label),
+                                  onDeleted: () {
+                                    if (!mounted) return;
+                                    setState(() {
+                                      _removeFacilityAt(idx);
+                                    });
+                                  },
+                                  deleteIcon: const Icon(Icons.close, size: 18),
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                ),
                               );
-                      },
+                            }).toList(),
+                          ),
+                        ],
+                      ),
                     ),
 
                     SizedBox(height: tinggiLayar * 0.05),
@@ -1790,6 +1859,10 @@ class _FormAddHouseState extends State<FormHouse> {
       return false;
     }
 
+    if (!_hasAtLeastOneFacility()) {
+      return false;
+    }
+
     // final fasilitas = penghubung.inputan;
     // final bool hasFacility = fasilitas.tempat_tidur ||
     //     fasilitas.kamar_mandi_dalam ||
@@ -1897,6 +1970,10 @@ class _FormAddHouseState extends State<FormHouse> {
 
     if (!isEdit && penghubung.foto == null) {
       return "Foto kost wajib di-upload.";
+    }
+
+    if (!_hasAtLeastOneFacility()) {
+      return "Harap isi minimal 1 fasilitas kost.";
     }
 
     // final fasilitas = penghubung.inputan;
