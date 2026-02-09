@@ -188,24 +188,38 @@ class KostProvider with ChangeNotifier {
 
   void pilihbatasjammalam(String value) {
     batasjammalams = value;
+    notifyListeners();
+  }
+
+  // Cache untuk opsi dinamis supaya kostNeedsSubkriteriaFix lebih cepat
+  List<String> _cachedKeamananOptions = [];
+  List<String> _cachedBatasJamMalamOptions = [];
+  List<String> _cachedJenisAirOptions = [];
+  List<String> _cachedJenisListrikOptions = [];
+
+  void _refreshDynamicOptionsCache() {
+    _cachedKeamananOptions =
+        _getSubkriteriaOptions((nama) => nama.contains('keamanan'));
+    _cachedBatasJamMalamOptions = _getSubkriteriaOptions(
+      (nama) => nama.contains('batas') || nama.contains('jam malam'),
+    );
+    _cachedJenisAirOptions = _getSubkriteriaOptions(
+      (nama) => nama.contains('air') || nama.contains('pembayaran'),
+    );
+    _cachedJenisListrikOptions =
+        _getSubkriteriaOptions((nama) => nama.contains('listrik'));
   }
 
   /// Opsi subkriteria dinamis (tanpa fallback) untuk validasi data tersimpan.
   /// Jika list kosong, artinya data kriteria/subkriteria belum tersedia atau
   /// tidak ada subkriteria untuk kriteria tersebut.
-  List<String> get keamananOptionsDynamic =>
-      _getSubkriteriaOptions((nama) => nama.contains('keamanan'));
+  List<String> get keamananOptionsDynamic => _cachedKeamananOptions;
 
-  List<String> get batasJamMalamOptionsDynamic => _getSubkriteriaOptions(
-        (nama) => nama.contains('batas') || nama.contains('jam malam'),
-      );
+  List<String> get batasJamMalamOptionsDynamic => _cachedBatasJamMalamOptions;
 
-  List<String> get jenisAirOptionsDynamic => _getSubkriteriaOptions(
-        (nama) => nama.contains('air') || nama.contains('pembayaran'),
-      );
+  List<String> get jenisAirOptionsDynamic => _cachedJenisAirOptions;
 
-  List<String> get jenisListrikOptionsDynamic =>
-      _getSubkriteriaOptions((nama) => nama.contains('listrik'));
+  List<String> get jenisListrikOptionsDynamic => _cachedJenisListrikOptions;
 
   /// True jika ada nilai dropdown pada data kost yang sudah tidak valid
   /// karena subkriteria terkait sudah dihapus.
@@ -265,6 +279,7 @@ class KostProvider with ChangeNotifier {
 
   void pilihjenislistrik(String value) {
     jenislistriks = value;
+    notifyListeners();
   }
 
   // kategori bayaran kost
@@ -1269,9 +1284,12 @@ class KostProvider with ChangeNotifier {
         print("✅ Berhasil mengambil ${_listKriteria.length} kriteria");
         _debugKriteriaPrinted = true;
       }
+      // Refresh cache opsi dinamis setelah data kriteria berubah
+      _refreshDynamicOptionsCache();
     } catch (e) {
       print("❌ Gagal mengambil kriteria: $e");
       _listKriteria = [];
+      _refreshDynamicOptionsCache();
     }
     notifyListeners();
   }
@@ -1287,9 +1305,12 @@ class KostProvider with ChangeNotifier {
         print("✅ Berhasil mengambil ${_listSubkriteria.length} subkriteria");
         _debugSubkriteriaPrinted = true;
       }
+      // Refresh cache opsi dinamis setelah data subkriteria berubah
+      _refreshDynamicOptionsCache();
     } catch (e) {
       print("❌ Gagal mengambil subkriteria: $e");
       _listSubkriteria = [];
+      _refreshDynamicOptionsCache();
     }
     notifyListeners();
   }

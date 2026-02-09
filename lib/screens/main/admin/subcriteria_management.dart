@@ -630,13 +630,25 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     if (!_isInitialized) {
       _isInitialized = true;
       keadaan = false;
-      _penghubung = Provider.of<KriteriaProvider>(context, listen: false)
-          .readdatasubkriteria();
+      final penghubung = Provider.of<KriteriaProvider>(context, listen: false);
+      _penghubung = Future.wait([
+        penghubung.readdata(),
+        penghubung.readdatasubkriteria(),
+      ]).then((_) {
+        // Auto-select kriteria pertama setelah data berhasil di-load
+        final current = (penghubung.nama ?? '').trim();
+        final isUnselected = current.isEmpty ||
+            current.toLowerCase() == 'pilih' ||
+            current.toLowerCase() == 'pilih kriteria';
+
+        if (mounted && isUnselected && penghubung.kategoriall.isNotEmpty) {
+          penghubung.pilihkriteria(penghubung.kategoriall.first);
+        }
+      });
     }
   }
 
@@ -688,13 +700,21 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
             // Jika belum ada kriteria terpilih, pilih otomatis kriteria pertama.
             // Gunakan post-frame callback agar tidak memanggil notifyListeners
             // (melalui pilihkriteria) langsung saat build FutureBuilder.
-            if ((penghubung.nama == null || penghubung.nama!.isEmpty) &&
-                penghubung.kategoriall.isNotEmpty) {
+            final current = (penghubung.nama ?? '').trim();
+            final isUnselected = current.isEmpty ||
+                current.toLowerCase() == 'pilih' ||
+                current.toLowerCase() == 'pilih kriteria';
+
+            if (isUnselected && penghubung.kategoriall.isNotEmpty) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (!mounted) return;
                 // Cek lagi untuk menghindari pemanggilan ganda jika state sudah berubah.
-                if ((penghubung.nama == null || penghubung.nama!.isEmpty) &&
-                    penghubung.kategoriall.isNotEmpty) {
+                final current2 = (penghubung.nama ?? '').trim();
+                final isUnselected2 = current2.isEmpty ||
+                    current2.toLowerCase() == 'pilih' ||
+                    current2.toLowerCase() == 'pilih kriteria';
+
+                if (isUnselected2 && penghubung.kategoriall.isNotEmpty) {
                   penghubung.pilihkriteria(penghubung.kategoriall.first);
                 }
               });

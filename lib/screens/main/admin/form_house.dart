@@ -93,33 +93,50 @@ class _FormAddHouseState extends State<FormHouse> {
   IconData? ikonTerpilih;
 
   void _coerceDeletedSubkriteriaSelections(
-    KostProvider penghubung,
-  ) {
+    KostProvider penghubung, {
+    bool notify = false,
+  }) {
     final optKeamanan = penghubung.keamananOptionsDynamic;
     if (optKeamanan.isNotEmpty && penghubung.jeniskeamanans != 'Pilih') {
       if (!optKeamanan.contains(penghubung.jeniskeamanans)) {
-        penghubung.jeniskeamanans = 'Pilih';
+        if (notify) {
+          penghubung.pilihkeamanan('Pilih');
+        } else {
+          penghubung.jeniskeamanans = 'Pilih';
+        }
       }
     }
 
     final optBatas = penghubung.batasJamMalamOptionsDynamic;
     if (optBatas.isNotEmpty && penghubung.batasjammalams != 'Pilih') {
       if (!optBatas.contains(penghubung.batasjammalams)) {
-        penghubung.batasjammalams = 'Pilih';
+        if (notify) {
+          penghubung.pilihbatasjammalam('Pilih');
+        } else {
+          penghubung.batasjammalams = 'Pilih';
+        }
       }
     }
 
     final optAir = penghubung.jenisAirOptionsDynamic;
     if (optAir.isNotEmpty && penghubung.jenispembayaranairs != 'Pilih') {
       if (!optAir.contains(penghubung.jenispembayaranairs)) {
-        penghubung.jenispembayaranairs = 'Pilih';
+        if (notify) {
+          penghubung.pilihjenispembayaranair('Pilih');
+        } else {
+          penghubung.jenispembayaranairs = 'Pilih';
+        }
       }
     }
 
     final optListrik = penghubung.jenisListrikOptionsDynamic;
     if (optListrik.isNotEmpty && penghubung.jenislistriks != 'Pilih') {
       if (!optListrik.contains(penghubung.jenislistriks)) {
-        penghubung.jenislistriks = 'Pilih';
+        if (notify) {
+          penghubung.pilihjenislistrik('Pilih');
+        } else {
+          penghubung.jenislistriks = 'Pilih';
+        }
       }
     }
   }
@@ -129,6 +146,14 @@ class _FormAddHouseState extends State<FormHouse> {
     super.initState();
     // Default teks untuk mode "Tujuan" saat pertama kali membuka form
     _koordinatController.text = 'Klik 2x pada peta';
+
+    // 🔄 REFRESH kriteria & subkriteria agar dropdown selalu up-to-date
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final penghubung = Provider.of<KostProvider>(context, listen: false);
+      await penghubung.fetchKriteria();
+      await penghubung.fetchSubkriteria();
+    });
 
     // Buat controller WebView (webview_flutter >=4.x)
     _mapController = WebViewController()
@@ -390,7 +415,7 @@ class _FormAddHouseState extends State<FormHouse> {
                 : pakai.per!;
 
         // Jika subkriteria terkait sudah dihapus, paksa kembali ke default.
-        _coerceDeletedSubkriteriaSelections(penghubung);
+        _coerceDeletedSubkriteriaSelections(penghubung, notify: false);
 
         // Isi fasilitas (jika tersedia) untuk mode edit
         _inilist.clear();
@@ -1486,7 +1511,7 @@ class _FormAddHouseState extends State<FormHouse> {
               builder: (context, value, child) {
                 final bool isEdit = terima != null;
                 final bool isReady = _isFormReadyAdmin(
-                  penghubung,
+                  value,
                   isEdit: isEdit,
                 );
                 final bool canSubmit = isReady && !_isSubmitting;
@@ -1515,7 +1540,7 @@ class _FormAddHouseState extends State<FormHouse> {
                                     try {
                                       final String? errorMessage =
                                           _validateFormAdmin(
-                                        penghubung,
+                                        value,
                                         isEdit: true,
                                         currentKostId: pakai!.id_kost,
                                       );
@@ -1567,27 +1592,27 @@ class _FormAddHouseState extends State<FormHouse> {
                                       //   _koordinatController.text,
                                       //   penghubung.pernama,
                                       // );
-                                      await penghubung.konversiupdatedata(
-                                        penghubung.foto,
+                                      await value.konversiupdatedata(
+                                        value.foto,
                                         pakai.gambar_kost!,
                                         pakai.id_kost!,
                                         pakai.id_auth!,
                                         _namakost.text,
-                                        penghubung.namanya,
+                                        value.namanya,
                                         _alamat.text,
-                                        int.parse(_notlpn.text),
+                                        int.tryParse(_notlpn.text.trim()) ?? 0,
                                         ThousandsSeparatorInputFormatter
                                                 .tryParseInt(_harga.text) ??
                                             0,
-                                        penghubung.batasjammalams,
-                                        penghubung.jenislistriks,
-                                        penghubung.jenispembayaranairs,
-                                        penghubung.jeniskeamanans,
-                                        penghubung.jeniskosts,
+                                        value.batasjammalams,
+                                        value.jenislistriks,
+                                        value.jenispembayaranairs,
+                                        value.jeniskeamanans,
+                                        value.jeniskosts,
                                         num.parse(_panjang.text),
                                         num.parse(_lebar.text),
                                         _koordinatController.text,
-                                        penghubung.pernama,
+                                        value.pernama,
                                         _inilist,
                                       );
                                       Navigator.of(context).pop();
@@ -1669,7 +1694,7 @@ class _FormAddHouseState extends State<FormHouse> {
                                     try {
                                       final String? errorMessage =
                                           _validateFormAdmin(
-                                        penghubung,
+                                        value,
                                         isEdit: false,
                                       );
 
@@ -1685,12 +1710,11 @@ class _FormAddHouseState extends State<FormHouse> {
                                         return;
                                       }
 
-                                      final inilist = penghubung.listauth;
+                                      final inilist = value.listauth;
 
                                       var cek = inilist.firstWhere(
                                         (element) =>
-                                            element.username ==
-                                            penghubung.namanya,
+                                            element.username == value.namanya,
                                       );
 
                                       // await penghubung.createdata(
@@ -1726,33 +1750,33 @@ class _FormAddHouseState extends State<FormHouse> {
                                       //   penghubung.pernama,
                                       // );
 
-                                      await penghubung.konversicreatedataAdmin(
+                                      await value.konversicreatedataAdmin(
                                         int.parse(cek.id_auth.toString()),
-                                        int.parse(_notlpn.text),
+                                        int.tryParse(_notlpn.text.trim()) ?? 0,
                                         _namakost.text,
                                         _alamat.text,
-                                        penghubung.namanya,
+                                        value.namanya,
                                         ThousandsSeparatorInputFormatter
                                                 .tryParseInt(
                                               _harga.text,
                                             ) ??
                                             0,
                                         _koordinatController.text,
-                                        penghubung.jeniskosts,
-                                        penghubung.jeniskeamanans,
-                                        penghubung.batasjammalams,
-                                        penghubung.jenispembayaranairs,
-                                        penghubung.jenislistriks,
+                                        value.jeniskosts,
+                                        value.jeniskeamanans,
+                                        value.batasjammalams,
+                                        value.jenispembayaranairs,
+                                        value.jenislistriks,
                                         num.parse(_panjang.text),
                                         num.parse(_lebar.text),
-                                        penghubung.foto!,
-                                        penghubung.pernama,
+                                        value.foto!,
+                                        value.pernama,
                                         _inilist,
                                       );
 
                                       setState(() {
-                                        penghubung.inputan.resetcheckbox();
-                                        penghubung.resetpilihan();
+                                        value.inputan.resetcheckbox();
+                                        value.resetpilihan();
                                       });
 
                                       Navigator.of(context).pop();
@@ -1821,9 +1845,8 @@ class _FormAddHouseState extends State<FormHouse> {
   }
 
   bool _isFormReadyAdmin(KostProvider penghubung, {required bool isEdit}) {
-    // Cek semua field teks wajib terisi
+    // Cek semua field teks wajib terisi (no telepon opsional)
     if (_namakost.text.trim().isEmpty ||
-        _notlpn.text.trim().isEmpty ||
         _alamat.text.trim().isEmpty ||
         _harga.text.trim().isEmpty ||
         _panjang.text.trim().isEmpty ||
@@ -1949,8 +1972,8 @@ class _FormAddHouseState extends State<FormHouse> {
       return "Harap pilih pemilik kost terlebih dahulu.";
     }
 
+    // No telepon opsional untuk admin (karena pemilik mungkin belum lengkapi profil)
     if (namaKost.isEmpty ||
-        noTelp.isEmpty ||
         alamat.isEmpty ||
         harga.isEmpty ||
         panjang.isEmpty ||
@@ -1992,7 +2015,8 @@ class _FormAddHouseState extends State<FormHouse> {
     //   return "Harap pilih minimal satu fasilitas kost.";
     // }
 
-    if (int.tryParse(noTelp) == null) {
+    // Validasi format telepon hanya jika diisi
+    if (noTelp.isNotEmpty && int.tryParse(noTelp) == null) {
       return "Nomor telepon hanya boleh berisi angka.";
     }
 
