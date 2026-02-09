@@ -2,6 +2,7 @@ class SubkriteriaModels {
   int? id_subkriteria, id_kriteria, id_auth, bobot;
   String? kategori;
   num? nilai_min, nilai_max;
+  String? min_operator, max_operator;
   DateTime? createdAt, updatedAt;
 
   SubkriteriaModels({
@@ -12,6 +13,8 @@ class SubkriteriaModels {
     this.bobot,
     this.nilai_min,
     this.nilai_max,
+    this.min_operator,
+    this.max_operator,
     this.createdAt,
     this.updatedAt,
   });
@@ -37,6 +40,13 @@ class SubkriteriaModels {
       data['nilai_max'] = nilai_max;
     }
 
+    if (min_operator != null) {
+      data['min_operator'] = min_operator;
+    }
+    if (max_operator != null) {
+      data['max_operator'] = max_operator;
+    }
+
     if (id_subkriteria != null) {
       data['id_subkriteria'] = id_subkriteria;
     }
@@ -60,6 +70,8 @@ class SubkriteriaModels {
       bobot: json['bobot'],
       nilai_min: _toNum(json['nilai_min']),
       nilai_max: _toNum(json['nilai_max']),
+      min_operator: json['min_operator'],
+      max_operator: json['max_operator'],
       createdAt:
           json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt:

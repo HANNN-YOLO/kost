@@ -14,6 +14,8 @@ class SubcriteriaItem {
   final TextEditingController bobot;
   num? nilaiMin;
   num? nilaiMax;
+  String? minOperator;
+  String? maxOperator;
 
   SubcriteriaItem({
     this.id_subkriteria,
@@ -23,6 +25,8 @@ class SubcriteriaItem {
     String bobotawal = "0",
     this.nilaiMin,
     this.nilaiMax,
+    this.minOperator,
+    this.maxOperator,
   })  : bobot = TextEditingController(text: bobotawal),
         kategori = TextEditingController(text: kategoriawal);
 
@@ -55,50 +59,122 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
   bool _strictMin = false;
   bool _strictMax = false;
 
-  static const String _kategoriMetaDelimiter = '||__META__||';
-
   String _decodeKategoriLabel(String rawKategori) {
-    final idx = rawKategori.indexOf(_kategoriMetaDelimiter);
-    final label = (idx >= 0) ? rawKategori.substring(0, idx) : rawKategori;
-    return label.trim();
+    // Backward-compat: data lama mungkin mengandung suffix metadata.
+    const oldDelimiter = '||__META__||';
+    final oldIdx = rawKategori.indexOf(oldDelimiter);
+    if (oldIdx >= 0) {
+      return rawKategori.substring(0, oldIdx).trim();
+    }
+
+    // Format baru: "nama||>|<="  (delimiter || diikuti 2-3 karakter operator)
+    // Contoh: "test||>| " = nama "test", min strict >, no max
+    const newDelimiter = '||';
+    final newIdx = rawKategori.indexOf(newDelimiter);
+    if (newIdx >= 0) {
+      // Cek apakah setelah || ada karakter operator (>, <, ≥, ≤, atau spasi)
+      final afterDelim = rawKategori.substring(newIdx + newDelimiter.length);
+      if (afterDelim.length >= 3 && afterDelim[1] == '|') {
+        // Format valid: 2 operator dipisah |
+        return rawKategori.substring(0, newIdx).trim();
+      }
+    }
+
+    return rawKategori.trim();
   }
 
   _RangeOps _decodeRangeOps(String rawKategori) {
-    final idx = rawKategori.indexOf(_kategoriMetaDelimiter);
-    if (idx < 0) {
-      return const _RangeOps(minInclusive: true, maxInclusive: true);
+    // 1. Coba decode format baru: "nama||>|<="
+    const newDelimiter = '||';
+    final newIdx = rawKategori.indexOf(newDelimiter);
+    if (newIdx >= 0) {
+      final afterDelim = rawKategori.substring(newIdx + newDelimiter.length);
+      // Format: {minOp}|{maxOp} dimana op adalah >, ≥, <, ≤, atau spasi
+      if (afterDelim.length >= 3 && afterDelim[1] == '|') {
+        final minOp = afterDelim[0];
+        final maxOp = afterDelim[2];
+
+        bool minInclusive = true;
+        bool maxInclusive = true;
+
+        // Min operator: '>' strict, '≥' atau '>=' inclusive
+        if (minOp == '>') {
+          minInclusive = false;
+        } else if (minOp == '≥') {
+          minInclusive = true;
+        }
+        // else spasi/kosong = no min = default inclusive
+
+        // Max operator: '<' strict, '≤' atau '<=' inclusive
+        if (maxOp == '<') {
+          maxInclusive = false;
+        } else if (maxOp == '≤') {
+          maxInclusive = true;
+        }
+        // else spasi/kosong = no max = default inclusive
+
+        return _RangeOps(
+            minInclusive: minInclusive, maxInclusive: maxInclusive);
+      }
     }
 
-    final metaStr = rawKategori.substring(idx + _kategoriMetaDelimiter.length);
-    try {
-      final meta = json.decode(metaStr);
-      if (meta is Map) {
-        final minInc = meta['minInclusive'];
-        final maxInc = meta['maxInclusive'];
-        return _RangeOps(
-          minInclusive: (minInc is bool) ? minInc : true,
-          maxInclusive: (maxInc is bool) ? maxInc : true,
-        );
+    // 2. Backward-compat: data lama dengan META JSON
+    const oldDelimiter = '||__META__||';
+    final oldIdx = rawKategori.indexOf(oldDelimiter);
+    if (oldIdx >= 0) {
+      final metaStr = rawKategori.substring(oldIdx + oldDelimiter.length);
+      try {
+        final meta = json.decode(metaStr);
+        if (meta is Map) {
+          final minInc = meta['minInclusive'];
+          final maxInc = meta['maxInclusive'];
+          return _RangeOps(
+            minInclusive: (minInc is bool) ? minInc : true,
+            maxInclusive: (maxInc is bool) ? maxInc : true,
+          );
+        }
+      } catch (_) {
+        // ignore
       }
-    } catch (_) {
-      // ignore
     }
-    return const _RangeOps(minInclusive: true, maxInclusive: true);
+
+    // 3. Fallback: infer dari operator di label (untuk data yang tidak ada encoding)
+    final s = rawKategori.trim();
+    bool minInclusive = true;
+    bool maxInclusive = true;
+
+    if (RegExp(r'(^|\s)>\s*\d').hasMatch(s) &&
+        !RegExp(r'(^|\s)>=\s*\d').hasMatch(s) &&
+        !RegExp(r'(^|\s)≥\s*\d').hasMatch(s)) {
+      minInclusive = false;
+    }
+    if (RegExp(r'(^|\s)<\s*\d').hasMatch(s) &&
+        !RegExp(r'(^|\s)<=\s*\d').hasMatch(s) &&
+        !RegExp(r'(^|\s)≤\s*\d').hasMatch(s)) {
+      maxInclusive = false;
+    }
+
+    return _RangeOps(minInclusive: minInclusive, maxInclusive: maxInclusive);
   }
 
-  String _encodeKategoriWithOps(
-    String label, {
-    required bool minInclusive,
-    required bool maxInclusive,
-  }) {
-    final cleanLabel = label.trim();
-    if (minInclusive && maxInclusive) return cleanLabel;
+  // Helper: Convert operator string dari DB ke boolean untuk UI
+  bool _operatorToInclusive(String? operator, bool isMin) {
+    if (operator == null) return true; // Default inclusive
+    if (isMin) {
+      return operator == '>=' || operator == '≥';
+    } else {
+      return operator == '<=' || operator == '≤';
+    }
+  }
 
-    final meta = json.encode({
-      'minInclusive': minInclusive,
-      'maxInclusive': maxInclusive,
-    });
-    return '$cleanLabel$_kategoriMetaDelimiter$meta';
+  // Helper: Convert boolean UI ke operator string untuk DB
+  String? _inclusiveToOperator(bool inclusive, bool isMin, bool exists) {
+    if (!exists) return null; // Tidak ada min/max
+    if (isMin) {
+      return inclusive ? '>=' : '>';
+    } else {
+      return inclusive ? '<=' : '<';
+    }
   }
 
   bool keadaan = true;
@@ -326,6 +402,8 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
       min: item.nilaiMin,
       max: item.nilaiMax,
       unitSuffix: unitSuffix,
+      minOperator: item.minOperator,
+      maxOperator: item.maxOperator,
     );
 
     await showDialog(
@@ -491,12 +569,25 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
     num? min,
     num? max,
     String? unitSuffix,
+    String? minOperator,
+    String? maxOperator,
   }) {
     final suffix = unitSuffix ?? '';
     final rawTitle = _decodeKategoriLabel(rawKategori);
-    final ops = _decodeRangeOps(rawKategori);
-    final opMin = ops.minInclusive ? '≥' : '>';
-    final opMax = ops.maxInclusive ? '≤' : '<';
+
+    // Prioritas 1: Gunakan operator yang diberikan
+    // Prioritas 2: Decode dari kategori (backward compat)
+    String opMin;
+    String opMax;
+
+    if (minOperator != null || maxOperator != null) {
+      opMin = minOperator ?? '>=';
+      opMax = maxOperator ?? '<=';
+    } else {
+      final ops = _decodeRangeOps(rawKategori);
+      opMin = ops.minInclusive ? '≥' : '>';
+      opMax = ops.maxInclusive ? '≤' : '<';
+    }
 
     if (min != null || max != null) {
       final minVal = min;
@@ -517,7 +608,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
         return _KategoriDisplay(
           title: rawTitle.isNotEmpty
               ? rawTitle
-              : '≤ ${_formatNumDisplay(maxVal)}$suffix',
+              : '$opMax ${_formatNumDisplay(maxVal)}$suffix',
           subtitle: subtitle,
         );
       }
@@ -526,7 +617,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
         return _KategoriDisplay(
           title: rawTitle.isNotEmpty
               ? rawTitle
-              : '≥ ${_formatNumDisplay(minVal)}$suffix',
+              : '$opMin ${_formatNumDisplay(minVal)}$suffix',
           subtitle: subtitle,
         );
       }
@@ -617,15 +708,33 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                   element.id_kriteria == kriteriaTerpilih.id_kriteria);
 
               for (var datanya in dataDbTerfilter) {
+                final rawKategori = datanya.kategori ?? '';
+
+                // Prioritas 1: Baca operator dari kolom database (data baru)
+                String? minOp = datanya.min_operator;
+                String? maxOp = datanya.max_operator;
+
+                // Prioritas 2: Jika operator NULL, fallback ke decode dari kategori (backward compatibility)
+                if (minOp == null && maxOp == null) {
+                  final ops = _decodeRangeOps(rawKategori);
+                  // Convert boolean ke string operator untuk consistency
+                  minOp = _inclusiveToOperator(
+                      !ops.minInclusive, true, datanya.nilai_min != null);
+                  maxOp = _inclusiveToOperator(
+                      !ops.maxInclusive, false, datanya.nilai_max != null);
+                }
+
                 _isinya.add(
                   SubcriteriaItem(
                     id_auth: datanya.id_auth,
                     id_kriteria: datanya.id_kriteria,
                     id_subkriteria: datanya.id_subkriteria,
-                    kategoriawal: datanya.kategori,
+                    kategoriawal: _decodeKategoriLabel(rawKategori),
                     bobotawal: datanya.bobot.toString(),
                     nilaiMin: datanya.nilai_min,
                     nilaiMax: datanya.nilai_max,
+                    minOperator: minOp,
+                    maxOperator: maxOp,
                   ),
                 );
               }
@@ -1510,18 +1619,23 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                     nilaiMax = maxVal;
                                                   }
 
-                                                  final minInclusive =
-                                                      !(nilaiMin != null &&
-                                                          _strictMin);
-                                                  final maxInclusive =
-                                                      !(nilaiMax != null &&
-                                                          _strictMax);
+                                                  // Simpan operator sebagai string terpisah (tidak di-encode ke kategori)
+                                                  // Format operator: '>' strict, '>=' inclusive
+                                                  String? minOpToSave;
+                                                  String? maxOpToSave;
+
+                                                  if (nilaiMin != null) {
+                                                    minOpToSave =
+                                                        _strictMin ? '>' : '>=';
+                                                  }
+                                                  if (nilaiMax != null) {
+                                                    maxOpToSave =
+                                                        _strictMax ? '<' : '<=';
+                                                  }
+
+                                                  // Kategori tetap bersih (tidak ada encoding)
                                                   kategoriToSave =
-                                                      _encodeKategoriWithOps(
-                                                    kategoriLabel,
-                                                    minInclusive: minInclusive,
-                                                    maxInclusive: maxInclusive,
-                                                  );
+                                                      kategoriLabel;
                                                 }
 
                                                 if (_isDuplicateNama(
@@ -1577,6 +1691,19 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                   .kategori ==
                                                               penghubung.nama);
 
+                                                  // Generate operator string untuk disimpan ke DB
+                                                  String? minOpToSave;
+                                                  String? maxOpToSave;
+
+                                                  if (nilaiMin != null) {
+                                                    minOpToSave =
+                                                        _strictMin ? '>' : '>=';
+                                                  }
+                                                  if (nilaiMax != null) {
+                                                    maxOpToSave =
+                                                        _strictMax ? '<' : '<=';
+                                                  }
+
                                                   _isinya.add(SubcriteriaItem(
                                                     id_auth: penghubung.id_auth,
                                                     id_kriteria:
@@ -1586,6 +1713,8 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                     bobotawal: bobotRaw,
                                                     nilaiMin: nilaiMin,
                                                     nilaiMax: nilaiMax,
+                                                    minOperator: minOpToSave,
+                                                    maxOperator: maxOpToSave,
                                                   ));
 
                                                   _sortSubkriteriaByBobot();
@@ -1796,6 +1925,8 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                           min: _isinya[idx].nilaiMin,
                                           max: _isinya[idx].nilaiMax,
                                           unitSuffix: unitSuffix,
+                                          minOperator: _isinya[idx].minOperator,
+                                          maxOperator: _isinya[idx].maxOperator,
                                         );
 
                                         return Container(
@@ -1853,13 +1984,14 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                         _maxController.clear();
                                                         _noLowerBound = false;
                                                         _noUpperBound = false;
-                                                        final ops =
-                                                            _decodeRangeOps(item
-                                                                .kategori.text);
+
+                                                        // Convert operator string ke boolean untuk UI
                                                         _strictMin =
-                                                            !ops.minInclusive;
+                                                            (item.minOperator ==
+                                                                '>');
                                                         _strictMax =
-                                                            !ops.maxInclusive;
+                                                            (item.maxOperator ==
+                                                                '<');
 
                                                         // Prefill min/max & checkbox: utamakan kolom DB (nilaiMin/nilaiMax). Fallback ke parsing string kategori.
                                                         if (_isRangeKriteria(
@@ -2674,23 +2806,38 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                             _isinya[editinde!].nilaiMax =
                                                                                 nilaiMax;
 
-                                                                            // Simpan operator strict/inclusive ke kategori (metadata), tanpa mengubah label.
-                                                                            final minInclusive =
-                                                                                !(nilaiMin != null && _strictMin);
-                                                                            final maxInclusive =
-                                                                                !(nilaiMax != null && _strictMax);
+                                                                            // Simpan operator sebagai string terpisah (tidak di-encode ke kategori)
+                                                                            String?
+                                                                                minOpToSave;
+                                                                            String?
+                                                                                maxOpToSave;
 
+                                                                            if (nilaiMin !=
+                                                                                null) {
+                                                                              minOpToSave = _strictMin ? '>' : '>=';
+                                                                            }
+                                                                            if (nilaiMax !=
+                                                                                null) {
+                                                                              maxOpToSave = _strictMax ? '<' : '<=';
+                                                                            }
+
+                                                                            _isinya[editinde!].minOperator =
+                                                                                minOpToSave;
+                                                                            _isinya[editinde!].maxOperator =
+                                                                                maxOpToSave;
+
+                                                                            // Kategori tetap bersih (tidak ada encoding)
                                                                             kategoriToSave =
-                                                                                _encodeKategoriWithOps(
-                                                                              kategoriLabel,
-                                                                              minInclusive: minInclusive,
-                                                                              maxInclusive: maxInclusive,
-                                                                            );
+                                                                                kategoriLabel;
                                                                           } else {
                                                                             // Jika bukan kriteria range, pastikan kolom range dikosongkan
                                                                             _isinya[editinde!].nilaiMin =
                                                                                 null;
                                                                             _isinya[editinde!].nilaiMax =
+                                                                                null;
+                                                                            _isinya[editinde!].minOperator =
+                                                                                null;
+                                                                            _isinya[editinde!].maxOperator =
                                                                                 null;
                                                                           }
 

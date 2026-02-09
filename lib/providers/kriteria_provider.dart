@@ -379,6 +379,9 @@ class KriteriaProvider with ChangeNotifier {
     final namanya = inilist.map((element) {
       num? nilaiMin;
       num? nilaiMax;
+      String? minOperator;
+      String? maxOperator;
+
       try {
         nilaiMin = element.nilaiMin as num?;
       } catch (_) {
@@ -398,6 +401,26 @@ class KriteriaProvider with ChangeNotifier {
         }
       }
 
+      // Ambil operator dari item
+      try {
+        minOperator = element.minOperator as String?;
+      } catch (_) {
+        try {
+          minOperator = element.min_operator as String?;
+        } catch (_) {
+          minOperator = null;
+        }
+      }
+      try {
+        maxOperator = element.maxOperator as String?;
+      } catch (_) {
+        try {
+          maxOperator = element.max_operator as String?;
+        } catch (_) {
+          maxOperator = null;
+        }
+      }
+
       final data = <String, dynamic>{
         'id_auth': element.id_auth,
         'id_kriteria': element.id_kriteria,
@@ -406,6 +429,8 @@ class KriteriaProvider with ChangeNotifier {
       };
       if (nilaiMin != null) data['nilai_min'] = nilaiMin;
       if (nilaiMax != null) data['nilai_max'] = nilaiMax;
+      if (minOperator != null) data['min_operator'] = minOperator;
+      if (maxOperator != null) data['max_operator'] = maxOperator;
       return data;
     }).toList();
 
@@ -442,6 +467,9 @@ class KriteriaProvider with ChangeNotifier {
     for (var element in mana) {
       num? nilaiMin;
       num? nilaiMax;
+      String? minOperator;
+      String? maxOperator;
+
       try {
         nilaiMin = element.nilaiMin as num?;
       } catch (_) {
@@ -461,6 +489,26 @@ class KriteriaProvider with ChangeNotifier {
         }
       }
 
+      // Ambil operator dari item
+      try {
+        minOperator = element.minOperator as String?;
+      } catch (_) {
+        try {
+          minOperator = element.min_operator as String?;
+        } catch (_) {
+          minOperator = null;
+        }
+      }
+      try {
+        maxOperator = element.maxOperator as String?;
+      } catch (_) {
+        try {
+          maxOperator = element.max_operator as String?;
+        } catch (_) {
+          maxOperator = null;
+        }
+      }
+
       if (element.id_subkriteria != null) {
         final row = <String, dynamic>{
           'id_kriteria': element.id_kriteria,
@@ -473,6 +521,8 @@ class KriteriaProvider with ChangeNotifier {
         // Sertakan null agar kolom DB bisa di-clear saat user menghapus batas.
         row['nilai_min'] = nilaiMin;
         row['nilai_max'] = nilaiMax;
+        row['min_operator'] = minOperator;
+        row['max_operator'] = maxOperator;
         lastdata.add(row);
       } else {
         final row = <String, dynamic>{
@@ -483,6 +533,8 @@ class KriteriaProvider with ChangeNotifier {
         };
         if (nilaiMin != null) row['nilai_min'] = nilaiMin;
         if (nilaiMax != null) row['nilai_max'] = nilaiMax;
+        if (minOperator != null) row['min_operator'] = minOperator;
+        if (maxOperator != null) row['max_operator'] = maxOperator;
         newdata.add(row);
       }
     }

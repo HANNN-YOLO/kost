@@ -853,17 +853,37 @@ class SimpleAdditiveWeighting {
 
       // Prioritas: gunakan kolom numeric (nilai_min/nilai_max) jika tersedia
       if (sub.nilai_min != null || sub.nilai_max != null) {
-        final ops = _decodeRangeOpsFromKategori(sub.kategori);
+        // Prioritas 1: Baca operator dari kolom database
+        bool minInclusive = true;
+        bool maxInclusive = true;
+
+        if (sub.min_operator != null || sub.max_operator != null) {
+          // Data baru dengan kolom operator terpisah
+          if (sub.min_operator != null) {
+            minInclusive =
+                (sub.min_operator == '>=' || sub.min_operator == '≥');
+          }
+          if (sub.max_operator != null) {
+            maxInclusive =
+                (sub.max_operator == '<=' || sub.max_operator == '≤');
+          }
+        } else {
+          // Prioritas 2: Fallback decode dari kategori (backward compatibility)
+          final ops = _decodeRangeOpsFromKategori(sub.kategori);
+          minInclusive = ops.minInclusive;
+          maxInclusive = ops.maxInclusive;
+        }
+
         final cocok = _nilaiCocokDenganMinMax(
           nilai,
           sub.nilai_min,
           sub.nilai_max,
-          minInclusive: ops.minInclusive,
-          maxInclusive: ops.maxInclusive,
+          minInclusive: minInclusive,
+          maxInclusive: maxInclusive,
         );
         if (cocok) {
           print(
-              "      📌 Match (min/max): '${sub.kategori}' [min=${sub.nilai_min}, max=${sub.nilai_max}] → bobot $bobot");
+              "      📌 Match (min/max): '${sub.kategori}' [min=${sub.nilai_min}, max=${sub.nilai_max}, minOp=${sub.min_operator}, maxOp=${sub.max_operator}] → bobot $bobot");
           return bobot;
         }
         continue;
@@ -899,27 +919,75 @@ class SimpleAdditiveWeighting {
       return const _RangeOps(minInclusive: true, maxInclusive: true);
     }
 
-    final idx = rawKategori.indexOf(_kategoriMetaDelimiter);
-    if (idx < 0) {
-      return const _RangeOps(minInclusive: true, maxInclusive: true);
-    }
+    // 1. Coba decode format baru: "nama||>|<="
+    const newDelimiter = '||';
+    final newIdx = rawKategori.indexOf(newDelimiter);
+    if (newIdx >= 0) {
+      final afterDelim = rawKategori.substring(newIdx + newDelimiter.length);
+      // Format: {minOp}|{maxOp} dimana op adalah >, ≥, <, ≤, atau spasi
+      if (afterDelim.length >= 3 && afterDelim[1] == '|') {
+        final minOp = afterDelim[0];
+        final maxOp = afterDelim[2];
 
-    final metaStr = rawKategori.substring(idx + _kategoriMetaDelimiter.length);
-    try {
-      final meta = json.decode(metaStr);
-      if (meta is Map) {
-        final minInc = meta['minInclusive'];
-        final maxInc = meta['maxInclusive'];
+        bool minInclusive = true;
+        bool maxInclusive = true;
+
+        // Min operator: '>' strict, '≥' inclusive
+        if (minOp == '>') {
+          minInclusive = false;
+        } else if (minOp == '≥') {
+          minInclusive = true;
+        }
+
+        // Max operator: '<' strict, '≤' inclusive
+        if (maxOp == '<') {
+          maxInclusive = false;
+        } else if (maxOp == '≤') {
+          maxInclusive = true;
+        }
+
         return _RangeOps(
-          minInclusive: (minInc is bool) ? minInc : true,
-          maxInclusive: (maxInc is bool) ? maxInc : true,
-        );
+            minInclusive: minInclusive, maxInclusive: maxInclusive);
       }
-    } catch (_) {
-      // ignore
     }
 
-    return const _RangeOps(minInclusive: true, maxInclusive: true);
+    // 2. Backward-compat: data lama dengan META JSON
+    final idx = rawKategori.indexOf(_kategoriMetaDelimiter);
+    if (idx >= 0) {
+      final metaStr =
+          rawKategori.substring(idx + _kategoriMetaDelimiter.length);
+      try {
+        final meta = json.decode(metaStr);
+        if (meta is Map) {
+          final minInc = meta['minInclusive'];
+          final maxInc = meta['maxInclusive'];
+          return _RangeOps(
+            minInclusive: (minInc is bool) ? minInc : true,
+            maxInclusive: (maxInc is bool) ? maxInc : true,
+          );
+        }
+      } catch (_) {
+        // ignore
+      }
+    }
+
+    // 3. Fallback: infer dari operator di label (untuk data yang tidak ada encoding)
+    final s = rawKategori.trim();
+    bool minInclusive = true;
+    bool maxInclusive = true;
+
+    if (RegExp(r'(^|\s)>\s*\d').hasMatch(s) &&
+        !RegExp(r'(^|\s)>=\s*\d').hasMatch(s) &&
+        !RegExp(r'(^|\s)≥\s*\d').hasMatch(s)) {
+      minInclusive = false;
+    }
+    if (RegExp(r'(^|\s)<\s*\d').hasMatch(s) &&
+        !RegExp(r'(^|\s)<=\s*\d').hasMatch(s) &&
+        !RegExp(r'(^|\s)≤\s*\d').hasMatch(s)) {
+      maxInclusive = false;
+    }
+
+    return _RangeOps(minInclusive: minInclusive, maxInclusive: maxInclusive);
   }
 
   static bool _nilaiCocokDenganMinMax(
@@ -1120,16 +1188,36 @@ class SimpleAdditiveWeighting {
 
       // Prioritas: gunakan kolom numeric (nilai_min/nilai_max) jika tersedia
       if (sub.nilai_min != null || sub.nilai_max != null) {
-        final ops = _decodeRangeOpsFromKategori(sub.kategori);
+        // Prioritas 1: Baca operator dari kolom database
+        bool minInclusive = true;
+        bool maxInclusive = true;
+
+        if (sub.min_operator != null || sub.max_operator != null) {
+          // Data baru dengan kolom operator terpisah
+          if (sub.min_operator != null) {
+            minInclusive =
+                (sub.min_operator == '>=' || sub.min_operator == '≥');
+          }
+          if (sub.max_operator != null) {
+            maxInclusive =
+                (sub.max_operator == '<=' || sub.max_operator == '≤');
+          }
+        } else {
+          // Prioritas 2: Fallback decode dari kategori (backward compatibility)
+          final ops = _decodeRangeOpsFromKategori(sub.kategori);
+          minInclusive = ops.minInclusive;
+          maxInclusive = ops.maxInclusive;
+        }
+
         if (_nilaiCocokDenganMinMax(
           jarakKm,
           sub.nilai_min,
           sub.nilai_max,
-          minInclusive: ops.minInclusive,
-          maxInclusive: ops.maxInclusive,
+          minInclusive: minInclusive,
+          maxInclusive: maxInclusive,
         )) {
           print(
-              "     ✅ Match (min/max): '${sub.kategori}' [min=${sub.nilai_min}, max=${sub.nilai_max}] → bobot $bobot");
+              "     ✅ Match (min/max): '${sub.kategori}' [min=${sub.nilai_min}, max=${sub.nilai_max}, minOp=${sub.min_operator}, maxOp=${sub.max_operator}] → bobot $bobot");
           return bobot;
         }
         continue;
