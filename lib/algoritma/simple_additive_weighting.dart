@@ -1021,6 +1021,9 @@ class SimpleAdditiveWeighting {
 
   /// Cocokkan nilai string dengan kategori subkriteria dari database
   /// Untuk: Keamanan, Batas Jam Malam, Jenis Kost, Jenis Listrik, Jenis Pembayaran Air
+  ///
+  /// PERBAIKAN: Prioritaskan exact match sebelum partial match
+  /// Agar "Penjaga" tidak salah cocok dengan "Penjaga sama CCTV"
   static double _cocokkanString(
       String nilai, List<SubkriteriaModels> subkriteria) {
     String nilaiLower = nilai.toLowerCase().trim();
@@ -1032,20 +1035,51 @@ class SimpleAdditiveWeighting {
       nilaiLower = 'khusus';
     }
 
+    // PRIORITAS 1: Cari EXACT MATCH terlebih dahulu untuk semua subkriteria
     for (var sub in subkriteria) {
       final katLower = (sub.kategori ?? '').toLowerCase().trim();
       final bobot = (sub.bobot ?? 1).toDouble();
 
-      // Exact match
       if (katLower == nilaiLower) {
         print("      📌 Exact match: $nilai = ${sub.kategori} → bobot $bobot");
         return bobot;
       }
+    }
 
-      // Partial match (nilai mengandung kategori atau sebaliknya)
-      if (katLower.contains(nilaiLower) || nilaiLower.contains(katLower)) {
+    // PRIORITAS 2: Jika tidak ada exact match, cari partial match
+    // Urutkan subkriteria berdasarkan panjang kategori (lebih pendek = lebih spesifik)
+    // Contoh: "Penjaga" (7 huruf) harus dicek sebelum "Penjaga sama CCTV" (17 huruf)
+    final sortedSub = List<SubkriteriaModels>.from(subkriteria);
+    sortedSub.sort((a, b) {
+      final lenA = (a.kategori ?? '').length;
+      final lenB = (b.kategori ?? '').length;
+      return lenA.compareTo(lenB); // Urutkan dari yang terpendek
+    });
+
+    for (var sub in sortedSub) {
+      final katLower = (sub.kategori ?? '').toLowerCase().trim();
+      final bobot = (sub.bobot ?? 1).toDouble();
+
+      // Partial match: nilai MENGANDUNG kategori subkriteria
+      // Contoh: nilai "Penjaga" mengandung subkriteria "Penjaga" → cocok
+      // Tapi "Penjaga" TIDAK mengandung "Penjaga sama CCTV" → tidak cocok
+      if (nilaiLower.contains(katLower)) {
         print(
-            "      📌 Partial match: $nilai ~ ${sub.kategori} → bobot $bobot");
+            "      📌 Partial match (nilai contains sub): $nilai mengandung '${sub.kategori}' → bobot $bobot");
+        return bobot;
+      }
+    }
+
+    // PRIORITAS 3: Cek sebaliknya - kategori subkriteria mengandung nilai
+    // Ini untuk kasus nilai di kost lebih pendek dari subkriteria
+    // Contoh: nilai "CCTV" bisa cocok dengan subkriteria "Penjaga sama CCTV"
+    for (var sub in sortedSub) {
+      final katLower = (sub.kategori ?? '').toLowerCase().trim();
+      final bobot = (sub.bobot ?? 1).toDouble();
+
+      if (katLower.contains(nilaiLower)) {
+        print(
+            "      📌 Partial match (sub contains nilai): '${sub.kategori}' mengandung $nilai → bobot $bobot");
         return bobot;
       }
     }

@@ -414,7 +414,8 @@ class _ProcessSawPageState extends State<ProcessSawPage> {
     for (int i = 0; i < hasil.matriksNormalisasi.length; i++) {
       List<String> row = [hasil.dataAlternatif[i].kode];
       for (var nilai in hasil.matriksNormalisasi[i]) {
-        row.add(nilai.toStringAsFixed(2));
+        // Menggunakan 4 digit di belakang koma untuk presisi perhitungan
+        row.add(nilai.toStringAsFixed(4));
       }
       rows.add(row);
     }
@@ -465,7 +466,8 @@ class _ProcessSawPageState extends State<ProcessSawPage> {
     for (int i = 0; i < hasil.matriksTerbobot.length; i++) {
       List<String> row = [hasil.dataAlternatif[i].kode];
       for (var nilai in hasil.matriksTerbobot[i]) {
-        row.add(nilai.toStringAsFixed(2));
+        // Menggunakan 4 digit di belakang koma untuk presisi perhitungan
+        row.add(nilai.toStringAsFixed(4));
       }
       rows.add(row);
     }
@@ -486,12 +488,12 @@ class _ProcessSawPageState extends State<ProcessSawPage> {
       List<String> row = [pref.kode];
 
       for (var nilai in pref.nilaiPerKriteria) {
-        // Tampilkan nilai terbobot per kriteria (dibulatkan untuk UI)
-        row.add(nilai.toStringAsFixed(2));
+        // Menggunakan 4 digit di belakang koma untuk presisi perhitungan
+        row.add(nilai.toStringAsFixed(4));
       }
 
-      // Total preferensi harus konsisten dengan nilai yang dipakai untuk ranking
-      row.add(pref.totalPreferensi.toStringAsFixed(2));
+      // Total preferensi menggunakan 4 digit untuk presisi perhitungan
+      row.add(pref.totalPreferensi.toStringAsFixed(4));
       rows.add(row);
     }
 
@@ -536,7 +538,9 @@ class _ProcessSawPageState extends State<ProcessSawPage> {
         '#${rank.peringkat}',
         rank.kode,
         rank.namaKost,
-        rank.skor.toStringAsFixed(2),
+        // Hasil akhir ranking menggunakan 4 digit untuk konsistensi
+        // Alternatif: gunakan toStringAsFixed(2) jika ingin tampilan lebih ringkas
+        rank.skor.toStringAsFixed(4),
       ]);
     }
 
@@ -575,7 +579,9 @@ class _ProcessSawPageState extends State<ProcessSawPage> {
                       ),
                       SizedBox(height: s(2)),
                       Text(
-                        '${hasil.hasilRanking.first.namaKost} dengan skor ${hasil.hasilRanking.first.skor.toStringAsFixed(2)}',
+                        // Kesimpulan hasil akhir menggunakan 4 digit untuk konsistensi
+                        // Alternatif: gunakan toStringAsFixed(2) jika ingin tampilan lebih ringkas
+                        '${hasil.hasilRanking.first.namaKost} dengan skor ${hasil.hasilRanking.first.skor.toStringAsFixed(4)}',
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.9),
                           fontSize: s(11),
@@ -600,11 +606,14 @@ class _ProcessSawPageState extends State<ProcessSawPage> {
   }
 
   /// Format double untuk tampilan
+  /// Menggunakan 4 digit di belakang koma untuk presisi perhitungan
   String _formatDouble(double nilai) {
     if (nilai == nilai.roundToDouble()) {
       return nilai.toInt().toString();
     }
-    return nilai.toStringAsFixed(2);
+    // Menggunakan 4 digit untuk presisi perhitungan
+    // Alternatif: gunakan toStringAsFixed(2) jika ingin tampilan lebih ringkas
+    return nilai.toStringAsFixed(4);
   }
 
   /// Widget tabel horizontal dengan scroll

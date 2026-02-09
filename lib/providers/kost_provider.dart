@@ -155,9 +155,12 @@ class KostProvider with ChangeNotifier {
 
   // jenis keamanan
   List<String> _jeniskeamanan = ['Penjaga', 'Penjaga sama CCTV'];
-  List<String> get jeniskeamanan {
+
+  List<String> get jeniskeamananan {
     final dinamis = _getSubkriteriaOptions((nama) => nama.contains('keamanan'));
-    return dinamis.isNotEmpty ? dinamis : _jeniskeamanan;
+    return dinamis
+        // .isNotEmpty ? dinamis : _jeniskeamanan
+        ;
   }
 
   String jeniskeamanans = "Pilih";
@@ -172,11 +175,12 @@ class KostProvider with ChangeNotifier {
     '21:00',
     '22:00',
     '23:00 -24:00',
-    'beri kunci pagar'
+    'beri kunci pagar',
   ];
   List<String> get jenisbatasjammalam {
     final dinamis = _getSubkriteriaOptions(
-        (nama) => nama.contains('batas') || nama.contains('jam malam'));
+      (nama) => nama.contains('batas') || nama.contains('jam malam'),
+    );
     return dinamis.isNotEmpty ? dinamis : _jenisbatasjammalam;
   }
 
@@ -238,7 +242,8 @@ class KostProvider with ChangeNotifier {
   List<String> _jenispembayaranair = ['meteran', 'pembayaran awal'];
   List<String> get jenispembayaranair {
     final dinamis = _getSubkriteriaOptions(
-        (nama) => nama.contains('air') || nama.contains('pembayaran'));
+      (nama) => nama.contains('air') || nama.contains('pembayaran'),
+    );
     return dinamis.isNotEmpty ? dinamis : _jenispembayaranair;
   }
 
@@ -306,7 +311,8 @@ class KostProvider with ChangeNotifier {
   /// Ambil opsi subkriteria berdasarkan nama kriteria (lowercase) yang cocok.
   /// Dipakai untuk mengisi dropdown keamanan, batas jam malam, jenis air, listrik.
   List<String> _getSubkriteriaOptions(
-      bool Function(String lowerNamaKriteria) match) {
+    bool Function(String lowerNamaKriteria) match,
+  ) {
     if (_listKriteria.isEmpty || _listSubkriteria.isEmpty) return [];
 
     final matchedIds = _listKriteria
@@ -333,22 +339,23 @@ class KostProvider with ChangeNotifier {
 
   // state konversi
   Future<void> konversicreatedata(
-      int notlp_kost,
-      String nama_kost,
-      String alamat_kost,
-      String pemilik_kost,
-      int harga_kost,
-      String titik_koordinat,
-      String jenis_kost,
-      String keamanan,
-      String batas_jam_malam,
-      String jenis_pembayaran_air,
-      String jenis_listrik,
-      num panjang,
-      num lebar,
-      XFile gambar,
-      String per,
-      List<dynamic> manalistnya) async {
+    int notlp_kost,
+    String nama_kost,
+    String alamat_kost,
+    String pemilik_kost,
+    int harga_kost,
+    String titik_koordinat,
+    String jenis_kost,
+    String keamanan,
+    String batas_jam_malam,
+    String jenis_pembayaran_air,
+    String jenis_listrik,
+    num panjang,
+    num lebar,
+    XFile gambar,
+    String per,
+    List<dynamic> manalistnya,
+  ) async {
     List<dynamic> inimilistnya = manalistnya
         .map((element) => element.namaFasilitasController.text)
         .toList();
@@ -397,8 +404,6 @@ class KostProvider with ChangeNotifier {
   ) async {
     final inimilistnya = manalistnya
         .map((element) => element.namaFasilitasController.text)
-        .map((s) => s.toString().trim())
-        .where((s) => s.isNotEmpty)
         .toList();
     final fasilitas = inimilistnya.join(", ");
 
@@ -444,13 +449,10 @@ class KostProvider with ChangeNotifier {
     String per,
     List<dynamic> seelist,
   ) async {
-    final konvert = seelist
-        .map((element) => element.namaFasilitasController.text)
-        .map((s) => s.toString().trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
+    List<dynamic> konvert =
+        seelist.map((element) => element.namaFasilitasController.text).toList();
 
-    final fasilitas = konvert.join(", ");
+    String fasilitas = konvert.join(", ");
 
     await updatedata(
       foto,
@@ -495,13 +497,10 @@ class KostProvider with ChangeNotifier {
     String per,
     List<dynamic> manalistnya,
   ) async {
-    final mapping = manalistnya
-        .map((element) => element.fasilitas.text)
-        .map((s) => s.toString().trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
+    List<dynamic> mapping =
+        manalistnya.map((element) => element.fasilitas.text).toList();
 
-    final fasilitas = mapping.join(", ");
+    String fasilitas = mapping.join(", ");
 
     await createdatapemilik(
       token,
@@ -526,33 +525,31 @@ class KostProvider with ChangeNotifier {
   }
 
   Future<void> konversiupdateddatapemilik(
-      String token,
-      int id_auth,
-      int id_kost,
-      String fotolama,
-      XFile? foto,
-      String nama_pemilik,
-      String nama_kost,
-      int telpon,
-      String alamat_kost,
-      int harga_kost,
-      String jenis_kost,
-      String keamanan,
-      num panjang,
-      num lebar,
-      String batas_jam_malam,
-      String jenis_pembayaran_air,
-      String jenis_listrik,
-      String koordinat,
-      String per,
-      List<dynamic> wherelist) async {
-    final pemisah = wherelist
-        .map((element) => element.fasilitas.text)
-        .map((s) => s.toString().trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
+    String token,
+    int id_auth,
+    int id_kost,
+    String fotolama,
+    XFile? foto,
+    String nama_pemilik,
+    String nama_kost,
+    int telpon,
+    String alamat_kost,
+    int harga_kost,
+    String jenis_kost,
+    String keamanan,
+    num panjang,
+    num lebar,
+    String batas_jam_malam,
+    String jenis_pembayaran_air,
+    String jenis_listrik,
+    String koordinat,
+    String per,
+    List<dynamic> wherelist,
+  ) async {
+    List<dynamic> pemisah =
+        wherelist.map((element) => element.fasilitas.text).toList();
 
-    final fasilitas = pemisah.join(", ");
+    String fasilitas = pemisah.join(", ");
 
     await updateddatapemilik(
       token,
@@ -590,9 +587,6 @@ class KostProvider with ChangeNotifier {
   List<FasilitasModel> _fasilitas = [];
   List<FasilitasModel> get faslitas => _fasilitas;
   final FasilitasService _kefasilitas = FasilitasService();
-
-  // Guard untuk mencegah aksi hapus kost dipanggil berkali-kali (double tap).
-  final Set<int> _deletingKostIds = <int>{};
 
   // Penyewa
   List<KostModel> _kostpenyewa = [];
@@ -729,8 +723,6 @@ class KostProvider with ChangeNotifier {
   }
 
   Future<void> deletedata(int id_kost, String gambar) async {
-    if (_deletingKostIds.contains(id_kost)) return;
-    _deletingKostIds.add(id_kost);
     try {
       // final cek = _kost.firstWhere((element) => element.id_kost == id_kost);
       // await _kekost.deletegambar(cek.gambar_kost!);
@@ -738,10 +730,9 @@ class KostProvider with ChangeNotifier {
       await _kekost.deletedata(id_kost);
       await _kekost.deletegambar(gambar);
       print("done data kehapus");
+      await _kekost.deletedata(id_kost);
     } catch (e) {
       throw e;
-    } finally {
-      _deletingKostIds.remove(id_kost);
     }
     await readdata();
     notifyListeners();
@@ -1117,7 +1108,8 @@ class KostProvider with ChangeNotifier {
             garis_bujur,
             fotolama,
             hari_ini,
-            per, fasilitas,
+            per,
+            fasilitas,
           );
         }
       } else {
@@ -1167,7 +1159,8 @@ class KostProvider with ChangeNotifier {
               garis_bujur,
               namanya,
               hari_ini,
-              per, fasilitas,
+              per,
+              fasilitas,
             );
           }
         }
@@ -1175,24 +1168,17 @@ class KostProvider with ChangeNotifier {
     } catch (e) {
       throw e;
     }
-    await readdatapemilik(
-      id_authnya!,
-      token,
-    );
+    await readdatapemilik(id_authnya!, token);
     notifyListeners();
   }
 
   Future<void> deletedatapemilik(int id_kost, String gambar) async {
-    if (_deletingKostIds.contains(id_kost)) return;
-    _deletingKostIds.add(id_kost);
     try {
       // await _kefasilitas.deletedatapemilik(token!, id_fasilitas);
       await _kekost.deletedata(id_kost);
       await _kekost.deletegambar(gambar);
     } catch (e) {
       throw e;
-    } finally {
-      _deletingKostIds.remove(id_kost);
     }
     await readdatapemilik(id_authnya!, token!);
     notifyListeners();
@@ -1276,8 +1262,9 @@ class KostProvider with ChangeNotifier {
   Future<void> fetchKriteria() async {
     if (!_debugKriteriaPrinted) print("\n📋 Mengambil data kriteria...");
     try {
-      _listKriteria =
-          await _kriteriaService.readdata(log: !_debugKriteriaPrinted);
+      _listKriteria = await _kriteriaService.readdata(
+        log: !_debugKriteriaPrinted,
+      );
       if (!_debugKriteriaPrinted) {
         print("✅ Berhasil mengambil ${_listKriteria.length} kriteria");
         _debugKriteriaPrinted = true;
@@ -1293,8 +1280,9 @@ class KostProvider with ChangeNotifier {
   Future<void> fetchSubkriteria() async {
     if (!_debugSubkriteriaPrinted) print("\n📋 Mengambil data subkriteria...");
     try {
-      _listSubkriteria =
-          await _subkriteriaService.readdata(log: !_debugSubkriteriaPrinted);
+      _listSubkriteria = await _subkriteriaService.readdata(
+        log: !_debugSubkriteriaPrinted,
+      );
       if (!_debugSubkriteriaPrinted) {
         print("✅ Berhasil mengambil ${_listSubkriteria.length} subkriteria");
         _debugSubkriteriaPrinted = true;
@@ -1348,14 +1336,16 @@ class KostProvider with ChangeNotifier {
       print("\n📦 DEBUG KOST DAN ID_FASILITAS:");
       for (var kost in _kostpenyewa) {
         print(
-            "   Kost: ${kost.nama_kost} (id_kost=${kost.id_kost}, id_fasilitas=${kost.id_fasilitas})");
+          "   Kost: ${kost.nama_kost} (id_kost=${kost.id_kost}, id_fasilitas=${kost.id_fasilitas})",
+        );
       }
 
       // Debug: Tampilkan detail fasilitas
       print("\n📦 DEBUG FASILITAS TERSEDIA:");
       for (var f in _fasilitaspenyewa) {
         print(
-            "   Fasilitas: id_fasilitas=${f.id_fasilitas}, id_auth=${f.id_auth}");
+          "   Fasilitas: id_fasilitas=${f.id_fasilitas}, id_auth=${f.id_auth}",
+        );
       }
 
       // Jalankan perhitungan SAW dengan lokasi user DAN jarak yang sudah dihitung
@@ -1376,10 +1366,12 @@ class KostProvider with ChangeNotifier {
       print("\n✅ PERHITUNGAN SAW BERHASIL!");
       if (_hasilSAW!.hasilRanking.isNotEmpty) {
         print(
-            "   Hasil ranking terbaik: ${_hasilSAW!.hasilRanking.first.namaKost}");
+          "   Hasil ranking terbaik: ${_hasilSAW!.hasilRanking.first.namaKost}",
+        );
       } else {
         print(
-            "   ⚠️ Tidak ada kost yang lolos penilaian (semua tidak cocok dengan subkriteria).");
+          "   ⚠️ Tidak ada kost yang lolos penilaian (semua tidak cocok dengan subkriteria).",
+        );
       }
     } catch (e) {
       print("❌ ERROR SAW: $e");

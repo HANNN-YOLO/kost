@@ -841,7 +841,7 @@ class _FormAddHouseState extends State<FormHouse> {
                             ? CustomDropdownSearchv2(
                                 lebar: lebarLayar,
                                 tinggi: tinggiLayar,
-                                manalistnya: penghubung.jeniskeamanan,
+                                manalistnya: penghubung.jeniskeamananan,
                                 label: penghubung.jeniskeamanans,
                                 pilihan: penghubung.jeniskeamanans,
                                 fungsi: (value) {
@@ -851,7 +851,7 @@ class _FormAddHouseState extends State<FormHouse> {
                             : CustomDropdownSearchv2(
                                 lebar: lebarLayar,
                                 tinggi: tinggiLayar,
-                                manalistnya: penghubung.jeniskeamanan,
+                                manalistnya: penghubung.jeniskeamananan,
                                 label: penghubung.jeniskeamanans,
                                 pilihan: penghubung.jeniskeamanans,
                                 fungsi: (value) {
