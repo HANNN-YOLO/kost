@@ -163,6 +163,25 @@ class _LoginPageState extends State<LoginPage> {
                       onPressed: _isLoading
                           ? null
                           : () async {
+                              // Validasi client-side
+                              if (email.text.trim().isEmpty ||
+                                  pass.text.isEmpty) {
+                                setState(() {
+                                  mesaage =
+                                      "Email dan password tidak boleh kosong.";
+                                });
+                                return;
+                              }
+
+                              // Validasi format email
+                              if (!RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$')
+                                  .hasMatch(email.text.trim())) {
+                                setState(() {
+                                  mesaage = "Format email tidak valid.";
+                                });
+                                return;
+                              }
+
                               setState(() {
                                 mesaage = null;
                                 _isLoading = true;

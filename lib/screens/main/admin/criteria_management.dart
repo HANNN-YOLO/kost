@@ -5,7 +5,6 @@ import '../shared/atribut_type.dart';
 
 class KriteriaItem {
   final int? id_kriteria;
-  final int? id_auth;
   String nama;
   AtributType atribut;
   int ranking; // Ranking untuk ROC (1 = paling penting)
@@ -14,7 +13,6 @@ class KriteriaItem {
 
   KriteriaItem({
     this.id_kriteria,
-    this.id_auth,
     required this.nama,
     this.atribut = AtributType.Benefit,
     this.ranking = 0,
@@ -154,7 +152,6 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
               var data = penghubung.mydata[i];
               _listKriteria.add(
                 KriteriaItem(
-                  id_auth: data.id_auth,
                   id_kriteria: data.id_kriteria,
                   nama: data.kategori!,
                   atribut: AtributType.fromString(data.atribut!),

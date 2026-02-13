@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:collection/collection.dart';
 import '../shared/formatCurrency.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/kost_provider.dart';
@@ -22,6 +21,19 @@ class _KostHomePageState extends State<KostHomePage> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Widget _buildFilterChip(String label) {
+    final bool isSelected = _selectedJenis == label;
+    return _FilterChipItem(
+      label: label,
+      selected: isSelected,
+      onTap: () {
+        setState(() {
+          _selectedJenis = label;
+        });
+      },
+    );
   }
 
   @override
@@ -112,28 +124,24 @@ class _KostHomePageState extends State<KostHomePage> {
     }
 
     // Styling adaptif berdasarkan kategori
-    double horizontalPadding;
     double cardRadius;
     double imageHeight;
     double titleFont;
     double priceFont;
     switch (kategori) {
       case "mobile":
-        horizontalPadding = 16;
         cardRadius = 14;
         imageHeight = tinggiBody * 0.32;
         titleFont = 16;
         priceFont = 16;
         break;
       case "tablet":
-        horizontalPadding = 32;
         cardRadius = 16;
         imageHeight = tinggiBody * 0.28;
         titleFont = 18;
         priceFont = 18;
         break;
       default: // desktop
-        horizontalPadding = 64;
         cardRadius = 18;
         imageHeight = tinggiBody * 0.22;
         titleFont = 20;
@@ -241,25 +249,22 @@ class _KostHomePageState extends State<KostHomePage> {
                     separatorBuilder: (_, __) => const SizedBox(height: 18),
                     itemBuilder: (context, index) {
                       final tesst = filtered[index];
-                      final yes = penghubung.fasilitaspenyewa.firstWhereOrNull(
-                        (element) => element.id_fasilitas == tesst.id_fasilitas,
-                      );
 
                       final perLabel =
                           ((tesst.per ?? '').toString().trim().isEmpty)
                               ? 'bulan'
                               : tesst.per.toString();
 
-                      // Build facility tags from database flags
+                      // Build facility tags from kost.fasilitas (comma-separated)
                       final List<String> fasilitasTags = [];
-                      if (yes != null) {
-                        if (yes.ac) fasilitasTags.add('AC');
-                        if (yes.wifi) fasilitasTags.add('WiFi');
-                        if (yes.kamar_mandi_dalam) {
-                          fasilitasTags.add('K. Mandi Dalam');
-                        }
-                        if (yes.tempat_parkir) fasilitasTags.add('Parkir');
-                        if (yes.dapur_dalam) fasilitasTags.add('Dapur');
+                      final rawFasilitas = (tesst.fasilitas ?? '').toString();
+                      if (rawFasilitas.trim().isNotEmpty) {
+                        fasilitasTags.addAll(
+                          rawFasilitas
+                              .split(',')
+                              .map((e) => e.trim())
+                              .where((e) => e.isNotEmpty),
+                        );
                       }
 
                       return _KostCard(
@@ -279,7 +284,6 @@ class _KostHomePageState extends State<KostHomePage> {
                             'detail-kost',
                             arguments: {
                               'data_kost': tesst,
-                              if (yes != null) 'data_fasilitas': yes,
                             },
                           );
                         },
@@ -343,21 +347,6 @@ class _FilterChipItem extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-extension on _KostHomePageState {
-  Widget _buildFilterChip(String label) {
-    final bool isSelected = _selectedJenis == label;
-    return _FilterChipItem(
-      label: label,
-      selected: isSelected,
-      onTap: () {
-        setState(() {
-          _selectedJenis = label;
-        });
-      },
     );
   }
 }

@@ -138,9 +138,7 @@ class ProfilService {
   Future<void> createprofil(
     int id_auth,
     String token,
-    String link,
-    DateTime tgllahir,
-    String jkl,
+    String? link,
     int hp,
   ) async {
     print("inisiasi buat data");
@@ -151,8 +149,6 @@ class ProfilService {
     final isian = ProfilModel(
       id_auth: id_auth,
       foto: link,
-      tgllahir: tgllahir,
-      jkl: jkl,
       kontak: hp,
     );
     print("buat data 2 profil");
@@ -179,9 +175,7 @@ class ProfilService {
   Future<void> updateprofil(
     int Id_profil,
     String token,
-    String link,
-    DateTime tgllahir,
-    String jkl,
+    String? link,
     int kontak,
     DateTime edit,
   ) async {
@@ -193,8 +187,6 @@ class ProfilService {
 
     final isian = ProfilModel(
       foto: link,
-      tgllahir: tgllahir,
-      jkl: jkl,
       kontak: kontak,
       updatedAt: edit,
     );

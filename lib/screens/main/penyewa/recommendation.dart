@@ -1323,8 +1323,6 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
 
                                                 dataKost.add({
                                                   'id_kost': k.id_kost,
-                                                  'id_fasilitas':
-                                                      k.id_fasilitas,
                                                   'name': k.nama_kost ?? 'Kost',
                                                   'address':
                                                       k.alamat_kost ?? '',

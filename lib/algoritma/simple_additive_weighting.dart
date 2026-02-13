@@ -573,7 +573,7 @@ class SimpleAdditiveWeighting {
             hargaPerBulan = hargaAsliDb;
           }
           nilaiMentah[kriteria.kategori ?? ''] =
-              'Rp ${_formatCurrency(hargaPerBulan)}/Bulan';
+              'Rp ${_formatCurrency(hargaPerBulan)}';
         } else if (kategori.contains('jarak')) {
           if (nilaiAsli is num) {
             nilaiMentah[kriteria.kategori ?? ''] =

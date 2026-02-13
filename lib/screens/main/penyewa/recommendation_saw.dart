@@ -63,6 +63,7 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
 
   late final KostProvider _kostProvider;
   bool _sawAutoStarted = false;
+  bool _showSkippedWarning = true; // State untuk show/hide warning banner
 
   String _jenisKostFilter = 'Semua';
   String _keamananFilter = 'Semua';
@@ -328,20 +329,45 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
                     ),
                   ),
                   SizedBox(height: s(12)),
-                  Text(
-                    'Kost Tidak Diproses',
-                    style: TextStyle(
-                      fontSize: s(16),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  SizedBox(height: s(6)),
-                  Text(
-                    'Berikut kost yang tidak masuk perangkingan karena ada kriteria yang tidak cocok dengan subkriteria.',
-                    style: TextStyle(
-                      fontSize: s(12),
-                      color: const Color(0xFF1F1F1F).withOpacity(0.7),
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Kost Tidak Diproses',
+                              style: TextStyle(
+                                fontSize: s(16),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            SizedBox(height: s(6)),
+                            Text(
+                              'Berikut kost yang tidak masuk perangkingan karena ada kriteria yang tidak cocok dengan subkriteria.',
+                              style: TextStyle(
+                                fontSize: s(12),
+                                color: const Color(0xFF1F1F1F).withOpacity(0.7),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: s(8)),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: Icon(Icons.close, size: s(24)),
+                        tooltip: 'Tutup',
+                        padding: EdgeInsets.zero,
+                        constraints: BoxConstraints(),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.grey.shade100,
+                          shape: CircleBorder(),
+                          padding: EdgeInsets.all(s(8)),
+                        ),
+                      ),
+                    ],
                   ),
                   SizedBox(height: s(12)),
                   Expanded(
@@ -764,7 +790,7 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (skipped.isNotEmpty) ...[
+                  if (skipped.isNotEmpty && _showSkippedWarning) ...[
                     Container(
                       width: double.infinity,
                       padding: EdgeInsets.all(s(12)),
@@ -837,7 +863,70 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
                               ],
                             ),
                           ),
+                          IconButton(
+                            onPressed: () {
+                              setState(() {
+                                _showSkippedWarning = false;
+                              });
+                            },
+                            icon: Icon(Icons.close, size: s(20)),
+                            tooltip: 'Tutup peringatan',
+                            constraints: BoxConstraints(),
+                            padding: EdgeInsets.all(s(4)),
+                            style: IconButton.styleFrom(
+                              backgroundColor:
+                                  const Color(0xFFF59E0B).withOpacity(0.15),
+                              shape: CircleBorder(),
+                            ),
+                          ),
                         ],
+                      ),
+                    ),
+                    SizedBox(height: s(12)),
+                  ],
+                  // Tombol untuk menampilkan kembali warning jika sudah disembunyikan
+                  if (skipped.isNotEmpty && !_showSkippedWarning) ...[
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(s(10)),
+                        border: Border.all(
+                          color: Colors.grey.shade300,
+                        ),
+                      ),
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            _showSkippedWarning = true;
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(s(10)),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: s(12),
+                            vertical: s(10),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                size: s(18),
+                                color: const Color(0xFFF59E0B),
+                              ),
+                              SizedBox(width: s(8)),
+                              Text(
+                                'Lihat ${skipped.length} kost yang tidak diproses',
+                                style: TextStyle(
+                                  fontSize: s(12),
+                                  color: const Color(0xFFB45309),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                     SizedBox(height: s(12)),
@@ -1015,7 +1104,6 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
                                 lebar: kost.lebar ?? 0,
                                 imageUrl: kost.gambar_kost,
                                 idKost: ranking.idKost,
-                                idFasilitas: kost.id_fasilitas,
                                 s: s,
                                 colorPrimary: colorPrimary,
                                 colorTextPrimary: colorTextPrimary,
@@ -1629,7 +1717,6 @@ class _RankingCard extends StatelessWidget {
   final num lebar;
   final String? imageUrl;
   final int idKost;
-  final int? idFasilitas;
   final double Function(double) s;
   final Color colorPrimary;
   final Color colorTextPrimary;
@@ -1651,7 +1738,6 @@ class _RankingCard extends StatelessWidget {
     required this.lebar,
     required this.imageUrl,
     required this.idKost,
-    required this.idFasilitas,
     required this.s,
     required this.colorPrimary,
     required this.colorTextPrimary,
@@ -1788,7 +1874,7 @@ class _RankingCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(s(10)),
                     ),
                     child: Text(
-                      "${formatCurrency(harga)} / ${(per.trim().isEmpty ? 'bulan' : per)}",
+                      "${formatCurrency(harga)}",
                       style: TextStyle(
                         color: colorWhite,
                         fontWeight: FontWeight.w700,
@@ -1949,23 +2035,10 @@ class _RankingCard extends StatelessWidget {
       return;
     }
 
-    dynamic selectedFasilitas;
-    final List fasilitasList = kostProvider.kostpenyewa.isNotEmpty
-        ? kostProvider.fasilitaspenyewa
-        : kostProvider.faslitas;
-
-    for (final f in fasilitasList) {
-      if (f.id_fasilitas == idFasilitas) {
-        selectedFasilitas = f;
-        break;
-      }
-    }
-
     Navigator.of(context).pushNamed(
       'detail-kost',
       arguments: {
         'data_kost': selectedKost,
-        'data_fasilitas': selectedFasilitas,
         if (destinationLat != null) 'destinationLat': destinationLat,
         if (destinationLng != null) 'destinationLng': destinationLng,
         if (distanceKm != null) 'distanceKm': distanceKm,

@@ -8,7 +8,6 @@ import '../../../providers/kriteria_provider.dart';
 
 class SubcriteriaItem {
   final int? id_subkriteria;
-  final int? id_auth;
   final int? id_kriteria;
   final TextEditingController kategori;
   final TextEditingController bobot;
@@ -19,7 +18,6 @@ class SubcriteriaItem {
 
   SubcriteriaItem({
     this.id_subkriteria,
-    this.id_auth,
     this.id_kriteria,
     String? kategoriawal,
     String bobotawal = "0",
@@ -746,7 +744,6 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
 
                 _isinya.add(
                   SubcriteriaItem(
-                    id_auth: datanya.id_auth,
                     id_kriteria: datanya.id_kriteria,
                     id_subkriteria: datanya.id_subkriteria,
                     kategoriawal: _decodeKategoriLabel(rawKategori),
@@ -1725,7 +1722,6 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                   }
 
                                                   _isinya.add(SubcriteriaItem(
-                                                    id_auth: penghubung.id_auth,
                                                     id_kriteria:
                                                         kSekarang?.id_kriteria,
                                                     kategoriawal:

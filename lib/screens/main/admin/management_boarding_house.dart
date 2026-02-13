@@ -237,13 +237,6 @@ class _ManagementBoardingHouseState extends State<ManagementBoardingHouse> {
                             fungsitap: () {
                               final test = penghubung.kost[index];
 
-                              final cek = Provider.of<KostProvider>(context,
-                                      listen: false)
-                                  .faslitas
-                                  .firstWhereOrNull((element) =>
-                                      element.id_fasilitas ==
-                                      test.id_fasilitas);
-
                               // if (cek == null) {
                               //   ScaffoldMessenger.of(context).showSnackBar(
                               //     const SnackBar(
@@ -331,7 +324,7 @@ class KostCard extends StatelessWidget {
     showGeneralDialog(
       context: context,
       barrierLabel: "Hapus Kost",
-      barrierDismissible: true,
+      barrierDismissible: false,
       barrierColor: Colors.black.withOpacity(0.4),
       transitionDuration: Duration(milliseconds: 250),
       pageBuilder: (context, anim1, anim2) {
@@ -345,126 +338,129 @@ class KostCard extends StatelessWidget {
             opacity: anim1.value,
             child: StatefulBuilder(
               builder: (context, setStateDialog) {
-                return AlertDialog(
-                  backgroundColor:
-                      const Color.fromARGB(255, 255, 255, 255), // lembut
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  title: Row(
-                    children: [
-                      const Icon(
-                        Icons.warning_amber_rounded,
-                        color: Colors.redAccent,
-                      ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        "Konfirmasi Hapus",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                return WillPopScope(
+                  onWillPop: () async => !isDeleting,
+                  child: AlertDialog(
+                    backgroundColor:
+                        const Color.fromARGB(255, 255, 255, 255), // lembut
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    title: Row(
+                      children: [
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.redAccent,
                         ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          "Konfirmasi Hapus",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                    content: const Text(
+                      "Apakah Anda yakin ingin menghapus kost ini? Tindakan ini tidak dapat dibatalkan.",
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Colors.black54,
+                        height: 1.4,
+                      ),
+                    ),
+                    actionsPadding: const EdgeInsets.symmetric(
+                        horizontal: 15, vertical: 10),
+                    actionsAlignment: MainAxisAlignment.spaceBetween,
+                    actions: [
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.black87,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 10,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: const BorderSide(color: Colors.black26),
+                          ),
+                        ),
+                        onPressed:
+                            isDeleting ? null : () => Navigator.pop(context),
+                        child: const Text(
+                          "Batal",
+                          style: TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 10,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          elevation: 2,
+                        ),
+                        onPressed: isDeleting
+                            ? null
+                            : () async {
+                                if (fungsihapus == null) return;
+                                setStateDialog(() {
+                                  isDeleting = true;
+                                });
+                                try {
+                                  await fungsihapus!.call();
+                                  if (!context.mounted) return;
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("Kost berhasil dihapus."),
+                                      behavior: SnackBarBehavior.floating,
+                                      backgroundColor: Colors.redAccent,
+                                    ),
+                                  );
+                                } catch (e) {
+                                  if (!context.mounted) return;
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) {
+                                      return ShowdialogEror(
+                                        label: "${e.toString()}",
+                                      );
+                                    },
+                                  );
+                                } finally {
+                                  if (context.mounted) {
+                                    setStateDialog(() {
+                                      isDeleting = false;
+                                    });
+                                  }
+                                }
+                              },
+                        child: isDeleting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
+                                ),
+                              )
+                            : const Text(
+                                "Hapus",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                       ),
                     ],
                   ),
-                  content: const Text(
-                    "Apakah Anda yakin ingin menghapus kost ini? Tindakan ini tidak dapat dibatalkan.",
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Colors.black54,
-                      height: 1.4,
-                    ),
-                  ),
-                  actionsPadding:
-                      const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-                  actionsAlignment: MainAxisAlignment.spaceBetween,
-                  actions: [
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.black87,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 10,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          side: const BorderSide(color: Colors.black26),
-                        ),
-                      ),
-                      onPressed:
-                          isDeleting ? null : () => Navigator.pop(context),
-                      child: const Text(
-                        "Batal",
-                        style: TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        elevation: 2,
-                      ),
-                      onPressed: isDeleting
-                          ? null
-                          : () async {
-                              if (fungsihapus == null) return;
-                              setStateDialog(() {
-                                isDeleting = true;
-                              });
-                              try {
-                                await fungsihapus!.call();
-                                if (!context.mounted) return;
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text("Kost berhasil dihapus."),
-                                    behavior: SnackBarBehavior.floating,
-                                    backgroundColor: Colors.redAccent,
-                                  ),
-                                );
-                              } catch (e) {
-                                if (!context.mounted) return;
-                                showDialog(
-                                  context: context,
-                                  builder: (context) {
-                                    return ShowdialogEror(
-                                      label: "${e.toString()}",
-                                    );
-                                  },
-                                );
-                              } finally {
-                                if (context.mounted) {
-                                  setStateDialog(() {
-                                    isDeleting = false;
-                                  });
-                                }
-                              }
-                            },
-                      child: isDeleting
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : const Text(
-                              "Hapus",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                    ),
-                  ],
                 );
               },
             ),

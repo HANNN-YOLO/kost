@@ -11,12 +11,10 @@ class KriteriaProvider with ChangeNotifier {
   // state penting
   String? _token, _email;
   DateTime? _expires_in;
-  int? _id_auth;
 
   String? get token => _token;
   String? get email => _email;
   DateTime? get expires_in => _expires_in;
-  int? get id_auth => _id_auth;
 
   void wajiib_terisi(
     String tokennya,
@@ -27,11 +25,8 @@ class KriteriaProvider with ChangeNotifier {
     _token = tokennya;
     _email = emailnya;
     _expires_in = waktunya;
-    _id_auth = id_authnya;
-    if (_token != null &&
-        _email != null &&
-        _expires_in != null &&
-        _id_auth != null) {
+    // id_auth tidak lagi digunakan
+    if (_token != null && _email != null && _expires_in != null) {
       // print("keadaan yang akan dijalankan");
       readdata();
       readdatasubkriteria();
@@ -109,7 +104,6 @@ class KriteriaProvider with ChangeNotifier {
     for (int i = 0; i < mana.length; i++) {
       var e = mana[i];
       dataKriteria.add({
-        'id_auth': int.tryParse(_id_auth.toString()),
         'kategori': e.nama,
         'atribut': e.atribut.value,
         'ranking': i + 1, // Ranking berdasarkan urutan
@@ -180,7 +174,6 @@ class KriteriaProvider with ChangeNotifier {
     for (int i = 0; i < manalisnya.length; i++) {
       var element = manalisnya[i];
       semuaData.add({
-        'id_auth': int.tryParse(_id_auth.toString()),
         'id_kriteria': element.id_kriteria,
         'kategori': element.nama,
         'atribut': element.atribut.value,
@@ -200,7 +193,6 @@ class KriteriaProvider with ChangeNotifier {
       if (item['id_kriteria'] != null) {
         // Data lama - perlu update
         lastdata.add({
-          'id_auth': item['id_auth'],
           'id_kriteria': int.tryParse(item['id_kriteria'].toString()),
           'kategori': item['kategori'],
           'atribut': item['atribut'],
@@ -214,7 +206,6 @@ class KriteriaProvider with ChangeNotifier {
       } else {
         // Data baru - perlu create
         newdata.add({
-          'id_auth': item['id_auth'],
           'kategori': item['kategori'],
           'atribut': item['atribut'],
           'bobot': item['bobot'],
@@ -305,7 +296,6 @@ class KriteriaProvider with ChangeNotifier {
     for (int i = 0; i < dataUrut.length; i++) {
       var item = dataUrut[i];
       dataKriteria.add({
-        'id_auth': item.id_auth,
         'id_kriteria': item.id_kriteria,
         'kategori': item.kategori,
         'atribut': item.atribut,
@@ -323,7 +313,6 @@ class KriteriaProvider with ChangeNotifier {
     final List<Map<String, dynamic>> updateData = [];
     for (var item in datadenganROC) {
       updateData.add({
-        'id_auth': item['id_auth'],
         'id_kriteria': item['id_kriteria'],
         'kategori': item['kategori'],
         'atribut': item['atribut'],
@@ -421,16 +410,16 @@ class KriteriaProvider with ChangeNotifier {
         }
       }
 
+      // Pastikan semua object punya key yang sama untuk menghindari PGRST102
       final data = <String, dynamic>{
-        'id_auth': element.id_auth,
         'id_kriteria': element.id_kriteria,
         'kategori': element.kategori.text,
         'bobot': element.bobot.text,
+        'nilai_min': nilaiMin,
+        'nilai_max': nilaiMax,
+        'min_operator': minOperator,
+        'max_operator': maxOperator,
       };
-      if (nilaiMin != null) data['nilai_min'] = nilaiMin;
-      if (nilaiMax != null) data['nilai_max'] = nilaiMax;
-      if (minOperator != null) data['min_operator'] = minOperator;
-      if (maxOperator != null) data['max_operator'] = maxOperator;
       return data;
     }).toList();
 
@@ -512,7 +501,6 @@ class KriteriaProvider with ChangeNotifier {
       if (element.id_subkriteria != null) {
         final row = <String, dynamic>{
           'id_kriteria': element.id_kriteria,
-          'id_auth': element.id_auth,
           'id_subkriteria': element.id_subkriteria,
           'kategori': element.kategori.text,
           'bobot': element.bobot.text,
@@ -525,16 +513,16 @@ class KriteriaProvider with ChangeNotifier {
         row['max_operator'] = maxOperator;
         lastdata.add(row);
       } else {
+        // Pastikan semua object punya key yang sama untuk menghindari PGRST102
         final row = <String, dynamic>{
-          'id_auth': element.id_auth,
           'id_kriteria': element.id_kriteria,
           'kategori': element.kategori.text,
           'bobot': element.bobot.text,
+          'nilai_min': nilaiMin,
+          'nilai_max': nilaiMax,
+          'min_operator': minOperator,
+          'max_operator': maxOperator,
         };
-        if (nilaiMin != null) row['nilai_min'] = nilaiMin;
-        if (nilaiMax != null) row['nilai_max'] = nilaiMax;
-        if (minOperator != null) row['min_operator'] = minOperator;
-        if (maxOperator != null) row['max_operator'] = maxOperator;
         newdata.add(row);
       }
     }

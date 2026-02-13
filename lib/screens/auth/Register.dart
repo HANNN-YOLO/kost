@@ -197,6 +197,50 @@ class _RegisterPageState extends State<RegisterPage> {
                               return;
                             }
 
+                            // Validasi username
+                            final username = user.text.trim();
+                            if (username.length < 3) {
+                              setState(() {
+                                message = "Username minimal 3 karakter.";
+                              });
+                              return;
+                            }
+                            if (username.contains(' ')) {
+                              setState(() {
+                                message =
+                                    "Username tidak boleh mengandung spasi.";
+                              });
+                              return;
+                            }
+
+                            // Validasi email format
+                            final emailText = email.text.trim();
+                            if (!RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$')
+                                .hasMatch(emailText)) {
+                              setState(() {
+                                message =
+                                    "Format email tidak valid. Contoh: user@example.com";
+                              });
+                              return;
+                            }
+
+                            // Validasi password
+                            if (pas1.text.length < 6) {
+                              setState(() {
+                                message = "Password minimal 6 karakter.";
+                              });
+                              return;
+                            }
+
+                            // Validasi password match
+                            if (pas1.text != pas2.text) {
+                              setState(() {
+                                message =
+                                    "Konfirmasi password tidak sama dengan password.";
+                              });
+                              return;
+                            }
+
                             setState(() {
                               message = null;
                               _isLoading = true;

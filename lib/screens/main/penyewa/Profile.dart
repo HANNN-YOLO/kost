@@ -20,19 +20,9 @@ class UserProfilePage extends StatefulWidget {
   /// Default: true (untuk profil penyewa).
   final bool showLogoutButton;
 
-  /// Kontrol apakah field tanggal lahir ditampilkan.
-  /// Default: true.
-  final bool showTanggalLahir;
-
-  /// Kontrol apakah field jenis kelamin ditampilkan.
-  /// Default: true.
-  final bool showJenisKelamin;
-
   UserProfilePage({
     Key? key,
     this.showLogoutButton = true,
-    this.showTanggalLahir = true,
-    this.showJenisKelamin = true,
   }) : super(key: key);
 
   @override
@@ -46,12 +36,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
   bool _isSaving = false;
   bool _hasChanges = false;
 
-  String? _initialTglText;
   String? _initialNoHpText;
-  String? _initialGender;
 
   final TextEditingController namaController = TextEditingController();
-  final TextEditingController tglLahirController = TextEditingController();
   final TextEditingController noHpController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
 
@@ -61,7 +48,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
     // pantau perubahan pada field agar bisa mengaktifkan/nonaktifkan tombol simpan
     namaController.addListener(_onFormChanged);
-    tglLahirController.addListener(_onFormChanged);
     noHpController.addListener(_onFormChanged);
     emailController.addListener(_onFormChanged);
 
@@ -94,23 +80,13 @@ class _UserProfilePageState extends State<UserProfilePage> {
         Navigator.of(context).pop();
 
         if (penghubung2.mydata.isEmpty) {
-          penghubung2.defaults = 'Jenis Kelamin';
           // profil baru, nilai awal masih kosong
-          _initialTglText = tglLahirController.text;
           _initialNoHpText = noHpController.text;
-          _initialGender = penghubung2.defaults;
         } else {
-          tglLahirController.text = DateFormat('dd-MM-yyyy')
-              .format(penghubung2.mydata[index].tgllahir!);
           noHpController.text = '${penghubung2.mydata[index].kontak}';
-          penghubung2.pilihan(
-            '${penghubung2.mydata[index].jkl}',
-          );
 
           // simpan nilai awal saat pertama kali berhasil dibaca
-          _initialTglText = tglLahirController.text;
           _initialNoHpText = noHpController.text;
-          _initialGender = penghubung2.defaults;
         }
 
         if (mounted) {
@@ -126,7 +102,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
   @override
   void dispose() {
     namaController.dispose();
-    tglLahirController.dispose();
     noHpController.dispose();
     emailController.dispose();
     super.dispose();
@@ -141,17 +116,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
     final profil = Provider.of<ProfilProvider>(context, listen: false);
 
-    final currentTgl = tglLahirController.text;
     final currentNoHp = noHpController.text;
-    final currentGender = profil.defaults;
 
     bool changed = false;
 
-    if (widget.showTanggalLahir && currentTgl != (_initialTglText ?? '')) {
-      changed = true;
-    } else if (currentNoHp != (_initialNoHpText ?? '')) {
-      changed = true;
-    } else if (widget.showJenisKelamin && currentGender != _initialGender) {
+    if (currentNoHp != (_initialNoHpText ?? '')) {
       changed = true;
     }
 
@@ -687,55 +656,13 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       icon: Icons.person_outline,
                       readOnly: true,
                     ),
-                    Consumer<ProfilProvider>(
-                      builder: (context, value, child) {
-                        return Column(
-                          children: [
-                            if (widget.showTanggalLahir)
-                              _IconTextField(
-                                controller: tglLahirController,
-                                label: 'Tanggal Lahir',
-                                icon: Icons.calendar_today_outlined,
-                                readOnly: true,
-                                onTap: () async {
-                                  final penanggalan = await showDatePicker(
-                                    context: context,
-                                    firstDate: DateTime(1945),
-                                    lastDate: DateTime(9999),
-                                    initialDate: DateTime.now(),
-                                  );
-
-                                  if (penanggalan != null) {
-                                    tglLahirController.text =
-                                        '${penanggalan.day.toString().padLeft(2, '0')}-'
-                                        '${penanggalan.month.toString().padLeft(2, '0')}-'
-                                        '${penanggalan.year.toString()}';
-                                  }
-                                },
-                              ),
-                            if (widget.showJenisKelamin)
-                              CustomDropdownSearch(
-                                manalistnya: penghubung2.jkl,
-                                label: 'Jenis Kelamin',
-                                pilihan: penghubung2.defaults!,
-                                fungsi: (value) {
-                                  penghubung2.pilihan(value);
-                                  _recomputeHasChanges();
-                                },
-                              ),
-                            if (widget.showTanggalLahir ||
-                                widget.showJenisKelamin)
-                              SizedBox(height: 20),
-                            _IconTextField(
-                              controller: noHpController,
-                              label: 'No. Hp',
-                              icon: Icons.phone_outlined,
-                              readOnly: false,
-                              keyboardType: TextInputType.phone,
-                            ),
-                          ],
-                        );
-                      },
+                    SizedBox(height: 12),
+                    _IconTextField(
+                      controller: noHpController,
+                      label: 'No. Hp',
+                      icon: Icons.phone_outlined,
+                      readOnly: false,
+                      keyboardType: TextInputType.phone,
                     ),
                     _IconTextField(
                       controller: emailController,
@@ -807,14 +734,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       // User bisa update partial data
                       bool hasValidData = false;
 
-                      if (widget.showTanggalLahir &&
-                          tglLahirController.text.isNotEmpty)
-                        hasValidData = true;
                       if (noHpController.text.isNotEmpty) hasValidData = true;
-                      if (widget.showJenisKelamin &&
-                          penghubung2.defaults != null &&
-                          penghubung2.defaults != 'Jenis Kelamin')
-                        hasValidData = true;
 
                       // Profil baru: minimal isi salah satu (No HP atau Foto)
                       if (penghubung2.mydata.isEmpty &&
@@ -874,6 +794,30 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           );
                           return;
                         }
+
+                        if (hpText.length > 15) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Nomor HP maksimal 15 digit.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
+                        // Validasi format nomor Indonesia (harus dimulai 0 atau 62)
+                        if (!hpText.startsWith('0') &&
+                            !hpText.startsWith('62')) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Nomor HP harus dimulai dengan 0 atau 62.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
                       }
 
                       try {
@@ -881,78 +825,23 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           _isSaving = true;
                         });
 
-                        // Parsing tanggal lahir (opsional, hanya jika field ditampilkan dan diisi)
-                        DateTime? tgl;
-                        if (widget.showTanggalLahir &&
-                            tglLahirController.text.isNotEmpty) {
-                          try {
-                            tgl = DateFormat('dd-MM-yyyy')
-                                .parse(tglLahirController.text);
-                          } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Format tanggal tidak valid. Gunakan format dd-MM-yyyy.',
-                                ),
-                              ),
-                            );
-                            setState(() {
-                              _isSaving = false;
-                            });
-                            return;
-                          }
-                        }
-
                         if (penghubung2.mydata.isEmpty) {
                           // Mode buat profil baru
                           // Foto tidak wajib - bisa dibuat profil tanpa foto
-                          // Gunakan default values untuk field yang kosong
 
-                          final DateTime tglToSave =
-                              tgl ?? DateTime(2000, 1, 1);
-                          final String genderToSave = widget.showJenisKelamin
-                              ? ((penghubung2.defaults != null &&
-                                      penghubung2.defaults != 'Jenis Kelamin')
-                                  ? penghubung2.defaults!
-                                  : 'Laki-Laki')
-                              : 'Laki-Laki';
                           final int hpToSave = hp ?? 0;
 
                           // Profil baru: boleh simpan tanpa upload foto
-                          if (penghubung2.isinya != null) {
-                            await penghubung2.createprofil(
-                              penghubung2.isinya!,
-                              tglToSave,
-                              genderToSave,
-                              hpToSave,
-                            );
-                          } else {
-                            final service = ProfilService();
-                            await service.createprofil(
-                              penghubung2.id_auth!,
-                              penghubung2.accesstoken!,
-                              '',
-                              tglToSave,
-                              genderToSave,
-                              hpToSave,
-                            );
-                            await penghubung2.readdata(
-                              penghubung2.accesstoken!,
-                              penghubung2.id_auth!,
-                            );
-                          }
+                          await penghubung2.createprofil(
+                            penghubung2.isinya,
+                            hpToSave,
+                          );
 
                           setState(() {
-                            tglLahirController.text = DateFormat('dd-MM-yyyy')
-                                .format(penghubung2.mydata[index].tgllahir!);
                             noHpController.text =
                                 '${penghubung2.mydata[index].kontak}';
-                            penghubung2.defaults =
-                                '${penghubung2.mydata[index].jkl}';
                             mesaage = 'Profil berhasil dibuat';
-                            _initialTglText = tglLahirController.text;
                             _initialNoHpText = noHpController.text;
-                            _initialGender = penghubung2.defaults;
                             _hasChanges = false;
                           });
                           if (mounted) {
@@ -986,37 +875,20 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           }
                         } else {
                           // Mode update - gunakan data lama jika field tidak diubah
-                          final tglToSave =
-                              tgl ?? penghubung2.mydata[index].tgllahir!;
-                          final genderToSave = widget.showJenisKelamin
-                              ? ((penghubung2.defaults != null &&
-                                      penghubung2.defaults != 'Jenis Kelamin')
-                                  ? penghubung2.defaults!
-                                  : (penghubung2.mydata[index].jkl ??
-                                      'Laki-Laki'))
-                              : (penghubung2.mydata[index].jkl ?? 'Laki-Laki');
                           final hpToSave =
                               hp ?? penghubung2.mydata[index].kontak ?? 0;
 
                           await penghubung2.updateprofil(
                             penghubung2.isinya,
                             penghubung2.mydata[index].foto,
-                            tglToSave,
-                            genderToSave,
                             hpToSave,
                           );
 
                           setState(() {
-                            tglLahirController.text = DateFormat('dd-MM-yyyy')
-                                .format(penghubung2.mydata[index].tgllahir!);
                             noHpController.text =
                                 '${penghubung2.mydata[index].kontak}';
-                            penghubung2.defaults =
-                                '${penghubung2.mydata[index].jkl}';
                             mesaage = 'Profil berhasil diperbarui';
-                            _initialTglText = tglLahirController.text;
                             _initialNoHpText = noHpController.text;
-                            _initialGender = penghubung2.defaults;
                             _hasChanges = false;
                           });
                           if (mounted) {

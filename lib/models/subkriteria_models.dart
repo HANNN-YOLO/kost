@@ -1,5 +1,5 @@
 class SubkriteriaModels {
-  int? id_subkriteria, id_kriteria, id_auth, bobot;
+  int? id_subkriteria, id_kriteria, bobot;
   String? kategori;
   num? nilai_min, nilai_max;
   String? min_operator, max_operator;
@@ -8,7 +8,6 @@ class SubkriteriaModels {
   SubkriteriaModels({
     this.id_subkriteria,
     required this.id_kriteria,
-    required this.id_auth,
     this.kategori,
     this.bobot,
     this.nilai_min,
@@ -28,7 +27,6 @@ class SubkriteriaModels {
   Map<String, dynamic> toJson() {
     final data = <String, dynamic>{
       'id_kriteria': id_kriteria,
-      'id_auth': id_auth,
       'kategori': kategori,
       'bobot': bobot,
     };
@@ -65,7 +63,6 @@ class SubkriteriaModels {
     return SubkriteriaModels(
       id_subkriteria: json['id_subkriteria'],
       id_kriteria: json['id_kriteria'],
-      id_auth: json['id_auth'],
       kategori: json['kategori'],
       bobot: json['bobot'],
       nilai_min: _toNum(json['nilai_min']),

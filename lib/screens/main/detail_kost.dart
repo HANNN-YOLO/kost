@@ -1,13 +1,10 @@
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
-import 'package:provider/provider.dart';
 import '../custom/satu_tombol.dart';
-import '../../models/fasilitas_model.dart';
 import '../main/shared/formatCurrency.dart';
-import '../../providers/kost_provider.dart';
+import '../../models/kost_model.dart';
 
 class DetailKost extends StatelessWidget {
   static const arah = "detail-kost";
@@ -15,312 +12,247 @@ class DetailKost extends StatelessWidget {
   static const Color warnaUtama = Color(0xFF1E3A8A);
   static const Color warnaLatar = Color(0xFFF5F7FB);
 
+  const DetailKost({super.key});
+
+  double? _asDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v);
+    return null;
+  }
+
+  List<String> _tokens(String? s) {
+    if (s == null) return const [];
+    final trimmed = s.trim();
+    if (trimmed.isEmpty || trimmed == '-') return const [];
+    return trimmed
+        .split(RegExp(r'[|,;]'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final argsRaw = ModalRoute.of(context)?.settings.arguments;
-    final gunakan =
-        argsRaw is Map<String, dynamic> ? argsRaw : <String, dynamic>{};
+    final Map args = argsRaw is Map ? argsRaw : const {};
 
-    final terima = gunakan['data_kost'];
-    final dynamic fasilitasArgRaw = gunakan['data_fasilitas'];
-    final FasilitasModel? fasilitasArg =
-        fasilitasArgRaw is FasilitasModel ? fasilitasArgRaw : null;
+    final dynamic kostRaw = args['data_kost'];
+    KostModel? terima;
+    if (kostRaw is KostModel) {
+      terima = kostRaw;
+    } else if (kostRaw is Map<String, dynamic>) {
+      terima = KostModel.fromJson(kostRaw);
+    } else if (kostRaw is Map) {
+      terima = KostModel.fromJson(kostRaw.cast<String, dynamic>());
+    }
 
     if (terima == null) {
-      return const Scaffold(
-        body: SafeArea(
-          child: Center(
-            child: Text('Data kost tidak ditemukan.'),
-          ),
+      return Scaffold(
+        backgroundColor: warnaLatar,
+        appBar: AppBar(
+          backgroundColor: warnaLatar,
+          elevation: 0,
+          title: const Text('Detail Kost'),
+        ),
+        body: const Center(
+          child: Text('Data kost tidak ditemukan.'),
         ),
       );
     }
 
-    final kostProvider = Provider.of<KostProvider>(context, listen: false);
+    final KostModel kost = terima;
 
-    FasilitasModel? fasilitasModel = fasilitasArg;
-    if (fasilitasModel == null) {
-      try {
-        final dynamic rawIdFasilitas = terima.id_fasilitas;
-        final int? idFasilitas = rawIdFasilitas is int ? rawIdFasilitas : null;
-        if (idFasilitas != null) {
-          fasilitasModel = kostProvider.fasilitaspenyewa
-                  .firstWhereOrNull((f) => f.id_fasilitas == idFasilitas) ??
-              kostProvider.faslitas
-                  .firstWhereOrNull((f) => f.id_fasilitas == idFasilitas) ??
-              kostProvider.fasilitaspemilik
-                  .firstWhereOrNull((f) => f.id_fasilitas == idFasilitas);
-        }
-      } catch (_) {
-        fasilitasModel = null;
-      }
-    }
+    final double? destinationLat = _asDouble(args['destinationLat']);
+    final double? destinationLng = _asDouble(args['destinationLng']);
+    final double? distanceKm = _asDouble(args['distanceKm']);
 
-    final List<String> fasilitasTags = [];
-    try {
-      final String rawFasilitas = (terima.fasilitas ?? '').toString().trim();
-      if (rawFasilitas.isNotEmpty) {
-        fasilitasTags.addAll(
-          rawFasilitas
-              .split(',')
-              .map((e) => e.trim())
-              .where((e) => e.isNotEmpty),
-        );
-      }
-    } catch (_) {
-      // ignore
-    }
-
-    if (fasilitasTags.isEmpty && fasilitasModel != null) {
-      if (fasilitasModel.tempat_tidur) fasilitasTags.add('Tempat Tidur');
-      if (fasilitasModel.kamar_mandi_dalam) {
-        fasilitasTags.add('Kamar Mandi Dalam');
-      }
-      if (fasilitasModel.meja) fasilitasTags.add('Meja');
-      if (fasilitasModel.tempat_parkir) fasilitasTags.add('Tempat Parkir');
-      if (fasilitasModel.lemari) fasilitasTags.add('Lemari');
-      if (fasilitasModel.ac) fasilitasTags.add('AC');
-      if (fasilitasModel.tv) fasilitasTags.add('TV');
-      if (fasilitasModel.kipas) fasilitasTags.add('Kipas');
-      if (fasilitasModel.dapur_dalam) fasilitasTags.add('Dapur Dalam');
-      if (fasilitasModel.wifi) fasilitasTags.add('WiFi');
-    }
-
-    final fasilitasUnique = fasilitasTags.toSet().toList();
-    // final pakai = gunakan['data_fasilitas'];
-    // final terima = ModalRoute.of(context)!.settings.arguments as int;
-    // final pakai = Provider.of<KostProvider>(context)
-    //     .kost
-    //     .firstWhereOrNull((element) => element.id_kost == terima);
-
-    // optional: koordinat tujuan & jarak dari halaman rekomendasi SAW
-    final dynamic rawDestLat = gunakan['destinationLat'];
-    final dynamic rawDestLng = gunakan['destinationLng'];
-    final dynamic rawDistanceKm = gunakan['distanceKm'];
-
-    double? destinationLat;
-    double? destinationLng;
-    double? distanceKm;
-
-    if (rawDestLat is num) destinationLat = rawDestLat.toDouble();
-    if (rawDestLng is num) destinationLng = rawDestLng.toDouble();
-    if (rawDistanceKm is num) distanceKm = rawDistanceKm.toDouble();
-    Positioned(
-      left: 12,
-      top: 12,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(22),
-          onTap: () => Navigator.of(context).maybePop(),
-          child: Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.10),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: const Center(
-              child: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: Color(0xFF1E3A8A),
-                size: 20,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+    final fasilitasUnique = _tokens(kost.fasilitas).toSet().toList();
+    fasilitasUnique.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
     return Scaffold(
       backgroundColor: warnaLatar,
-      body: SingleChildScrollView(
+      body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _DetailHeader(
-              imageUrl: terima.gambar_kost,
-              price: terima.harga_kost ?? 0,
-              per: (terima.per == null || (terima.per ?? '').trim().isEmpty)
-                  ? 'bulan'
-                  : terima.per!,
+              imageUrl: kost.gambar_kost,
+              price: kost.harga_kost ?? 0,
+              per: (kost.per ?? '').toString(),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    terima.nama_kost ?? "-",
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      (kost.nama_kost ?? '-').toString(),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.location_on_outlined,
-                          size: 18, color: Colors.grey),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          terima.alamat_kost ?? "-",
-                          style: const TextStyle(color: Colors.black54),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _StatChip(
-                        icon: Icons.sell_outlined,
-                        label: 'Harga',
-                        value: formatCurrency(terima.harga_kost ?? 0),
-                      ),
-                      _StatChip(
-                          icon: Icons.king_bed_outlined,
-                          label: 'Ukuran',
-                          value: "${terima.panjang} x ${terima.lebar}"),
-                      _StatChip(
-                        icon: Icons.home_work_outlined,
-                        label: 'Jenis',
-                        value: terima.jenis_kost.toString(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _SectionCard(
-                    title: 'Informasi Umum',
-                    children: [
-                      _InfoTile(
-                        icon: Icons.person_outline,
-                        label: 'Hubungi',
-                        value: () {
-                          final nama = (terima.pemilik_kost ?? '').toString();
-                          if (nama.trim().isNotEmpty) return nama;
-                          return '-';
-                        }(),
-                      ),
-                      _InfoTile(
-                        icon: Icons.phone_outlined,
-                        label: 'Kontak',
-                        value: (terima.notlp_kost == null ||
-                                '${terima.notlp_kost}' == '0')
-                            ? '-'
-                            : terima.notlp_kost.toString(),
-                      ),
-                      _InfoTile(
-                          icon: Icons.king_bed_outlined,
-                          label: 'Ukuran Kamar',
-                          value: "${terima.panjang} x ${terima.lebar}"),
-                      _InfoTile(
-                        icon: Icons.home_work_outlined,
-                        label: 'Jenis Kost',
-                        value: terima.jenis_kost.toString(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _SectionCard(
-                    title: 'Fasilitas & Utilitas',
-                    children: [
-                      _InfoTile(
-                        icon: Icons.flash_on_outlined,
-                        label: 'Jenis Listrik',
-                        value: terima.jenis_listrik.toString(),
-                      ),
-                      _InfoTile(
-                        icon: Icons.water_drop_outlined,
-                        label: 'Pembayaran Air',
-                        value: terima.jenis_pembayaran_air.toString(),
-                      ),
-                      _InfoTile(
-                        icon: Icons.security_outlined,
-                        label: 'Keamanan',
-                        value: terima.keamanan.toString(),
-                      ),
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Fasilitas',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      fasilitasUnique.isEmpty
-                          ? const Text(
-                              '- Tidak ada data fasilitas',
-                              style: TextStyle(color: Colors.black54),
-                            )
-                          : Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                for (final f in fasilitasUnique)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFE9EEF9),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      f,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: Color(0xFF1F1F1F),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _SectionCard(
-                    title: 'Lokasi Kost',
-                    children: [
-                      _MapWidget(
-                        latitude: terima.garis_lintang ?? -5.147665,
-                        longitude: terima.garis_bujur ?? 119.432731,
-                        destinationLat: destinationLat,
-                        destinationLng: destinationLng,
-                      ),
-                      if (distanceKm != null) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          'Jarak kost ke tujuan Anda: '
-                          '${distanceKm!.toStringAsFixed(2)} km',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black54,
+                    const SizedBox(height: 8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.location_on_outlined,
+                            size: 18, color: Colors.black54),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            kost.alamat_kost ?? "-",
+                            style: const TextStyle(color: Colors.black54),
                           ),
                         ),
                       ],
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _StatChip(
+                          icon: Icons.sell_outlined,
+                          label: 'Harga',
+                          value: formatCurrency(kost.harga_kost ?? 0),
+                        ),
+                        _StatChip(
+                          icon: Icons.king_bed_outlined,
+                          label: 'Ukuran',
+                          value: "${kost.panjang} x ${kost.lebar}",
+                        ),
+                        _StatChip(
+                          icon: Icons.home_work_outlined,
+                          label: 'Jenis',
+                          value: kost.jenis_kost.toString(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _SectionCard(
+                      title: 'Informasi Umum',
+                      children: [
+                        _InfoTile(
+                          icon: Icons.person_outline,
+                          label: 'Hubungi',
+                          value: () {
+                            final nama = (kost.pemilik_kost ?? '').toString();
+                            if (nama.trim().isNotEmpty) return nama;
+                            return '-';
+                          }(),
+                        ),
+                        _InfoTile(
+                          icon: Icons.phone_outlined,
+                          label: 'Kontak',
+                          value: (kost.notlp_kost == null ||
+                                  '${kost.notlp_kost}' == '0')
+                              ? '-'
+                              : kost.notlp_kost.toString(),
+                        ),
+                        _InfoTile(
+                          icon: Icons.king_bed_outlined,
+                          label: 'Ukuran Kamar',
+                          value: "${kost.panjang} x ${kost.lebar}",
+                        ),
+                        _InfoTile(
+                          icon: Icons.home_work_outlined,
+                          label: 'Jenis Kost',
+                          value: kost.jenis_kost.toString(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _SectionCard(
+                      title: 'Fasilitas & Utilitas',
+                      children: [
+                        _InfoTile(
+                          icon: Icons.flash_on_outlined,
+                          label: 'Jenis Listrik',
+                          value: kost.jenis_listrik.toString(),
+                        ),
+                        _InfoTile(
+                          icon: Icons.water_drop_outlined,
+                          label: 'Pembayaran Air',
+                          value: kost.jenis_pembayaran_air.toString(),
+                        ),
+                        _InfoTile(
+                          icon: Icons.security_outlined,
+                          label: 'Keamanan',
+                          value: kost.keamanan.toString(),
+                        ),
+                        const SizedBox(height: 8),
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Fasilitas',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        fasilitasUnique.isEmpty
+                            ? const Text(
+                                '- Tidak ada data fasilitas',
+                                style: TextStyle(color: Colors.black54),
+                              )
+                            : Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  for (final f in fasilitasUnique)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFE9EEF9),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        f,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF1F1F1F),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _SectionCard(
+                      title: 'Lokasi Kost',
+                      children: [
+                        _MapWidget(
+                          latitude: kost.garis_lintang ?? -5.147665,
+                          longitude: kost.garis_bujur ?? 119.432731,
+                          destinationLat: destinationLat,
+                          destinationLng: destinationLng,
+                        ),
+                        if (distanceKm != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'Jarak kost ke tujuan Anda: '
+                            '${distanceKm.toStringAsFixed(2)} km',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -333,7 +265,7 @@ class DetailKost extends StatelessWidget {
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withAlpha((0.06 * 255).round()),
                 blurRadius: 8,
                 offset: const Offset(0, -2),
               ),
@@ -363,21 +295,37 @@ class _DetailHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final perLabel = per.trim().isEmpty ? 'bulan' : per;
+    final url = (imageUrl ?? '').trim();
+    final bool hasImage = url.isNotEmpty;
     return Stack(
       children: [
         AspectRatio(
           aspectRatio: 16 / 9,
-          child: Image.network(
-            imageUrl ?? '',
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(
-              color: const Color(0xFFE5ECFF),
-              child: const Center(
-                child: Icon(Icons.image_not_supported_outlined,
-                    color: Colors.grey, size: 34),
-              ),
-            ),
-          ),
+          child: hasImage
+              ? Image.network(
+                  url,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: const Color(0xFFE5ECFF),
+                    child: const Center(
+                      child: Icon(
+                        Icons.image_not_supported_outlined,
+                        color: Colors.grey,
+                        size: 34,
+                      ),
+                    ),
+                  ),
+                )
+              : Container(
+                  color: const Color(0xFFE5ECFF),
+                  child: const Center(
+                    child: Icon(
+                      Icons.image_not_supported_outlined,
+                      color: Colors.grey,
+                      size: 34,
+                    ),
+                  ),
+                ),
         ),
         Positioned(
           right: 12,
@@ -385,11 +333,11 @@ class _DetailHeader extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withAlpha((0.9 * 255).round()),
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
+                  color: Colors.black.withAlpha((0.08 * 255).round()),
                   blurRadius: 6,
                   offset: const Offset(0, 3),
                 ),
@@ -435,7 +383,7 @@ class _SectionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withAlpha((0.05 * 255).round()),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -536,91 +484,6 @@ class _StatChip extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _FacilityChips extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final String? raw1;
-  // final String? raw2;
-
-  const _FacilityChips({
-    required this.label,
-    required this.icon,
-    required this.raw1,
-    // required this.raw2,
-  });
-
-  List<String> _tokens(String? s) {
-    if (s == null) return [];
-    final trimmed = s.trim();
-    if (trimmed.isEmpty || trimmed == '-') return [];
-    return trimmed
-        .split(RegExp(r'[|,;]'))
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final items = _tokens(raw1);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                color: Color(0xFFDDE6FF),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: const Color(0xFF1E3A8A)),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              'Fasilitas',
-              style: TextStyle(color: Colors.black54),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        if (items.isEmpty)
-          const Text(
-            '-',
-            style: TextStyle(fontWeight: FontWeight.w700),
-          )
-        else
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: items
-                .map(
-                  (e) => Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                          color: const Color(0xFF1E3A8A).withOpacity(0.25)),
-                    ),
-                    child: Text(
-                      e,
-                      style: const TextStyle(
-                        color: Color(0xFF1E3A8A),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-      ],
     );
   }
 }
@@ -735,129 +598,6 @@ class _MapWidgetState extends State<_MapWidget> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _FacilityList extends StatelessWidget {
-  final FasilitasModel fasilitas;
-
-  const _FacilityList({required this.fasilitas});
-
-  @override
-  Widget build(BuildContext context) {
-    final List<Map<String, dynamic>> fasilitasList = [
-      {
-        'icon': Icons.bed_outlined,
-        'label': 'Tempat Tidur',
-        'available': fasilitas.tempat_tidur
-      },
-      {
-        'icon': Icons.bathroom_outlined,
-        'label': 'Kamar Mandi Dalam',
-        'available': fasilitas.kamar_mandi_dalam
-      },
-      {
-        'icon': Icons.table_restaurant_outlined,
-        'label': 'Meja',
-        'available': fasilitas.meja
-      },
-      {
-        'icon': Icons.local_parking_outlined,
-        'label': 'Tempat Parkir',
-        'available': fasilitas.tempat_parkir
-      },
-      {
-        'icon': Icons.checkroom_outlined,
-        'label': 'Lemari',
-        'available': fasilitas.lemari
-      },
-      {
-        'icon': Icons.ac_unit_outlined,
-        'label': 'AC',
-        'available': fasilitas.ac
-      },
-      {'icon': Icons.tv_outlined, 'label': 'TV', 'available': fasilitas.tv},
-      {
-        'icon': Icons.air_outlined,
-        'label': 'Kipas',
-        'available': fasilitas.kipas
-      },
-      {
-        'icon': Icons.kitchen_outlined,
-        'label': 'Dapur Dalam',
-        'available': fasilitas.dapur_dalam
-      },
-      {
-        'icon': Icons.wifi_outlined,
-        'label': 'WiFi',
-        'available': fasilitas.wifi
-      },
-    ];
-
-    // Filter hanya fasilitas yang tersedia
-    final availableFacilities =
-        fasilitasList.where((item) => item['available'] == true).toList();
-
-    // Jika tidak ada fasilitas yang tersedia, return empty widget
-    if (availableFacilities.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: availableFacilities
-          .map(
-            (item) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: item['available'] == true
-                    ? const Color(0xFFE5ECFF)
-                    : Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: item['available'] == true
-                      ? const Color(0xFF1E3A8A).withOpacity(0.3)
-                      : Colors.grey.shade300,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    item['icon'],
-                    size: 16,
-                    color: item['available'] == true
-                        ? const Color(0xFF1E3A8A)
-                        : Colors.grey.shade500,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    item['label'],
-                    style: TextStyle(
-                      color: item['available'] == true
-                          ? const Color(0xFF1E3A8A)
-                          : Colors.grey.shade600,
-                      fontWeight: item['available'] == true
-                          ? FontWeight.w600
-                          : FontWeight.w500,
-                      fontSize: 13,
-                    ),
-                  ),
-                  if (item['available'] == true) ...[
-                    const SizedBox(width: 4),
-                    const Icon(
-                      Icons.check_circle,
-                      size: 14,
-                      color: Color(0xFF1E3A8A),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          )
-          .toList(),
     );
   }
 }

@@ -1866,8 +1866,9 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
         penghubung.jeniskeamanans == "Pilih" ||
         penghubung.batasjammalams == "Pilih" ||
         penghubung.jenispembayaranairs == "Pilih" ||
-        penghubung.jenislistriks == "Pilih") {
-      return "Harap pilih semua opsi dropdown (jenis kost, keamanan, jam malam, pembayaran air, dan listrik).";
+        penghubung.jenislistriks == "Pilih" ||
+        penghubung.pernama == "Pilih") {
+      return "Harap pilih semua opsi dropdown (jenis kost, keamanan, jam malam, pembayaran air, listrik, dan periode pembayaran).";
     }
 
     if (!isEdit && penghubung.foto == null) {
@@ -1895,16 +1896,33 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
     // }
 
     // Nomor telepon mengikuti profil dan boleh kosong jika profil belum diisi.
-    if (noTelp.isNotEmpty && int.tryParse(noTelp) == null) {
-      return "Nomor telepon hanya boleh berisi angka.";
+    if (noTelp.isNotEmpty) {
+      if (int.tryParse(noTelp) == null) {
+        return "Nomor telepon hanya boleh berisi angka.";
+      }
+      if (noTelp.length < 10 || noTelp.length > 15) {
+        return "Nomor telepon harus 10-15 digit.";
+      }
     }
 
-    if (ThousandsSeparatorInputFormatter.tryParseInt(harga) == null) {
+    final hargaParsed = ThousandsSeparatorInputFormatter.tryParseInt(harga);
+    if (hargaParsed == null) {
       return "Harga kost hanya boleh berisi angka.";
     }
+    if (hargaParsed <= 0) {
+      return "Harga kost harus lebih dari 0.";
+    }
 
-    if (int.tryParse(panjang) == null || int.tryParse(lebar) == null) {
+    final panjangParsed = int.tryParse(panjang);
+    final lebarParsed = int.tryParse(lebar);
+    if (panjangParsed == null || lebarParsed == null) {
       return "Panjang dan lebar kamar hanya boleh berisi angka.";
+    }
+    if (panjangParsed <= 0) {
+      return "Panjang kamar harus lebih dari 0.";
+    }
+    if (lebarParsed <= 0) {
+      return "Lebar kamar harus lebih dari 0.";
     }
 
     final parts = koordinat.split(',');

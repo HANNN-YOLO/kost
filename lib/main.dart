@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:kost_saw/models/fasilitas_model.dart';
 import 'package:kost_saw/models/auth_model.dart';
 import 'package:kost_saw/providers/tujuan_providers.dart';
 import 'package:kost_saw/screens/main/pemilik/form_house_pemilik.dart';
@@ -97,7 +96,6 @@ void main() async {
           return previous!;
         },
       ),
-      ChangeNotifierProvider(create: (_) => FasilitasModel()),
       ChangeNotifierProxyProvider<AuthProvider, TujuanProviders>(
         create: (_) => TujuanProviders(),
         update: (context, value, previous) {
@@ -185,10 +183,7 @@ class App extends StatelessWidget {
                 // state user
                 "/mainavigation": (_) => MainNavigation(),
                 "/kost-home": (_) => KostHomePage(),
-                "/profil-user": (_) => UserProfilePage(
-                      showTanggalLahir: false,
-                      showJenisKelamin: false,
-                    ),
+                "/profil-user": (_) => UserProfilePage(),
                 "/recomended-user": (_) => UserRecommendationPage(),
 
                 // state Admin

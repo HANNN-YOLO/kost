@@ -24,19 +24,13 @@ class ProfilePemilikPage extends StatefulWidget {
 }
 
 class _ProfilePemilikPageState extends State<ProfilePemilikPage> {
-  final TextEditingController _tgllahir = TextEditingController();
-  final TextEditingController _jenisKelamin = TextEditingController();
   final TextEditingController _teleponController = TextEditingController();
 
-  bool _editgllahir = false;
   bool _editTelepon = false;
-  bool _editJenisKelamin = false;
 
   bool _isSaving = false;
 
-  String? _backuptgllahir;
   String? _backupTelepon;
-  String? _backupJenisKelamin;
 
   bool keadaan = true;
 
@@ -160,15 +154,9 @@ class _ProfilePemilikPageState extends State<ProfilePemilikPage> {
       final penghubung2 = Provider.of<ProfilProvider>(context);
 
       if (penghubung2.mydata.isEmpty) {
-        _backuptgllahir = null;
-        _backupJenisKelamin = null;
         _backupTelepon = null;
         LoadinScreen();
       } else {
-        _tgllahir.text = DateFormat('dd-MM-yyyy')
-            .format(penghubung2.mydata.first.tgllahir!)
-            .toString();
-        _jenisKelamin.text = penghubung2.mydata.first.jkl.toString();
         _teleponController.text = penghubung2.mydata.first.kontak.toString();
         penghubung2.mydata.first.foto;
 
@@ -196,8 +184,6 @@ class _ProfilePemilikPageState extends State<ProfilePemilikPage> {
     // tetapi tanpa menampilkan tombol "Keluar Akun".
     return UserProfilePage(
       showLogoutButton: false,
-      showTanggalLahir: false,
-      showJenisKelamin: false,
     );
   }
 }
@@ -587,142 +573,6 @@ class _ActionTile extends StatelessWidget {
         trailing: Icon(Icons.chevron_right),
         onTap: () => onTap(context),
       ),
-    );
-  }
-}
-
-class _GenderFieldCard extends StatelessWidget {
-  final String value;
-  final bool isEditing;
-  final VoidCallback onEdit;
-  final VoidCallback onCancel;
-  final ValueChanged<String> onChanged;
-
-  _GenderFieldCard({
-    required this.value,
-    required this.isEditing,
-    required this.onEdit,
-    required this.onCancel,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: Color(0xFFDDE6FF),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              FontAwesomeIcons.venusMars,
-              color: Color(0xFF1E3A8A),
-              size: 18,
-            ),
-          ),
-          SizedBox(width: 12),
-
-          /// CONTENT
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Jenis Kelamin', style: TextStyle(color: Colors.black54)),
-                SizedBox(height: 6),
-
-                /// VIEW MODE
-                if (!isEditing)
-                  Text(
-                    value,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  )
-
-                /// EDIT MODE
-                else
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      _genderChip(
-                        icon: Icons.male,
-                        label: 'Laki-Laki',
-                        selected: value == 'Laki-Laki',
-                        onTap: () => onChanged('Laki-Laki'),
-                      ),
-                      _genderChip(
-                        icon: Icons.female,
-                        label: 'Perempuan',
-                        selected: value == 'Perempuan',
-                        onTap: () => onChanged('Perempuan'),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-          ),
-
-          /// BUTTON
-          InkWell(
-            onTap: isEditing ? onCancel : onEdit,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Color(0xFF1E3A8A).withOpacity(0.25),
-                ),
-              ),
-              child: Text(
-                isEditing ? 'Batal' : 'Ubah',
-                style: TextStyle(
-                  color: Color(0xFF1E3A8A),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _genderChip({
-    required IconData icon,
-    required String label,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return ChoiceChip(
-      selected: selected,
-      onSelected: (_) => onTap(),
-      label: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16),
-          SizedBox(width: 4),
-          Text(label),
-        ],
-      ),
-      selectedColor: Color(0xFF1E3A8A).withOpacity(0.15),
     );
   }
 }

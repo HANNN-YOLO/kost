@@ -1,26 +1,23 @@
 class ProfilModel {
   int? id_profil, id_auth, kontak;
-  String? foto, jkl;
-  // DateTime createdAt;
-  DateTime? tgllahir, updatedAt, createdAt;
+  String? foto;
+  DateTime? updatedAt, createdAt;
 
   ProfilModel({
     this.id_profil,
     this.id_auth,
-    required this.foto,
-    required this.tgllahir,
-    required this.jkl,
+    this.foto,
     this.kontak,
     this.createdAt,
     this.updatedAt,
   });
 
   Map<String, dynamic> toJson() {
-    final data = <String, dynamic>{
-      'foto': foto,
-      'tgllahir': tgllahir!.toIso8601String(),
-      'jkl': jkl,
-    };
+    final data = <String, dynamic>{};
+
+    if (foto != null) {
+      data['foto'] = foto;
+    }
 
     if (id_profil != null) {
       data['id_profil'] = id_profil;
@@ -50,13 +47,9 @@ class ProfilModel {
       id_profil: json['id_profil'],
       id_auth: json['id_auth'],
       foto: json['foto'],
-      tgllahir:
-          json['tgllahir'] != null ? DateTime.parse(json['tgllahir']) : null,
-      jkl: json['jkl'],
       kontak: json['kontak'],
       createdAt:
           json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
-      // json['createdAt'],
       updatedAt:
           json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );

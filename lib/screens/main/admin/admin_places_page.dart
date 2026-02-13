@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 import 'dart:convert';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
@@ -19,9 +20,10 @@ class AdminPlacesPage extends StatefulWidget {
 class _AdminPlacesPageState extends State<AdminPlacesPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _coordController = TextEditingController();
-  String? _errorText;
   int iniangka = 0;
   bool keadaan = true;
+
+  int _locationOptionRequestId = 0;
 
   // late  fungsi;
 
@@ -38,9 +40,6 @@ class _AdminPlacesPageState extends State<AdminPlacesPage> {
 
   // Debounce untuk update peta saat koordinat diketik
   Timer? _debounceTimer;
-
-  bool _isNameFilled = false;
-  bool _isCoordValid = false;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // OPSI LOKASI UNTUK TITIK KOORDINAT (seperti di form_house_pemilik.dart)
@@ -87,15 +86,11 @@ class _AdminPlacesPageState extends State<AdminPlacesPage> {
           try {
             final data = jsonDecode(message.message);
             if (data['type'] == 'destination_selected') {
-              final lat = data['lat'];
-              final lng = data['lng'];
-              if (lat != null && lng != null && mounted) {
-                setState(() {
-                  _coordController.text =
-                      '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}';
-                  _isCoordValid = true;
-                  _errorText = null;
-                });
+              final latNum = (data['lat'] as num?)?.toDouble();
+              final lngNum = (data['lng'] as num?)?.toDouble();
+              if (latNum != null && lngNum != null) {
+                _coordController.text =
+                    '${latNum.toStringAsFixed(6)}, ${lngNum.toStringAsFixed(6)}';
               }
             }
           } catch (e) {
@@ -106,8 +101,6 @@ class _AdminPlacesPageState extends State<AdminPlacesPage> {
 
     _loadMapHtmlFromAssets();
 
-    // Dengarkan perubahan field agar bisa mengaktifkan/nonaktifkan tombol simpan
-    _nameController.addListener(_onNameChanged);
     _coordController.addListener(_onCoordChanged);
   }
 
@@ -122,7 +115,6 @@ class _AdminPlacesPageState extends State<AdminPlacesPage> {
   @override
   void dispose() {
     _debounceTimer?.cancel();
-    _nameController.removeListener(_onNameChanged);
     _coordController.removeListener(_onCoordChanged);
     _nameController.dispose();
     _coordController.dispose();
@@ -138,71 +130,44 @@ class _AdminPlacesPageState extends State<AdminPlacesPage> {
     }
   }
 
-  void _onNameChanged() {
-    final filled = _nameController.text.trim().isNotEmpty;
-    if (filled != _isNameFilled) {
-      setState(() {
-        _isNameFilled = filled;
-      });
-    }
-  }
-
   void _onCoordChanged() {
+    if (!_mapLoaded) return;
+    if (_selectedLocationOption != _optManualKoordinat) return;
+
     final text = _coordController.text.trim();
-    if (text.isEmpty) {
-      _debounceTimer?.cancel();
-      if (_isCoordValid || _errorText != null) {
-        setState(() {
-          _isCoordValid = false;
-          _errorText = null;
-        });
-      }
-      return;
-    }
-
-    // Validasi koordinat langsung untuk mengatur status tombol simpan
-    bool valid = false;
-    try {
-      final parts = text.split(',').map((e) => e.trim()).toList();
-      if (parts.length == 2) {
-        final lat = double.tryParse(parts[0]);
-        final lng = double.tryParse(parts[1]);
-        if (lat != null && lng != null) {
-          valid = lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
-        }
-      }
-    } catch (_) {
-      valid = false;
-    }
-
-    setState(() {
-      _isCoordValid = valid;
-      _errorText = valid ? null : 'Titik koordinat tidak ditemukan';
-    });
-
-    if (!valid || !_mapLoaded) return;
+    final parsed = _tryParseLatLng(text);
+    if (parsed == null) return;
 
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 800), () {
-      _parseAndUpdateMap(text);
+      _updateMapManualLocation(parsed[0], parsed[1]);
     });
   }
 
-  void _parseAndUpdateMap(String text) {
-    try {
-      final parts = text.split(',').map((e) => e.trim()).toList();
-      if (parts.length == 2) {
-        final lat = double.tryParse(parts[0]);
-        final lng = double.tryParse(parts[1]);
+  String? _getCoordErrorText(String rawText) {
+    final text = rawText.trim();
 
-        if (lat != null && lng != null) {
-          if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-            _updateMapLocation(lat, lng);
-          }
-        }
-      }
+    // Placeholder tujuan jangan dianggap error.
+    if (_selectedLocationOption == _optLokasiTujuan) {
+      final bool looksLikeCoordinate = text.contains(',');
+      if (!looksLikeCoordinate) return null;
+    }
+
+    if (text.isEmpty) return null;
+    final parsed = _tryParseLatLng(text);
+    if (parsed == null) return 'Titik koordinat tidak ditemukan';
+    return null;
+  }
+
+  Future<void> _updateMapManualLocation(double lat, double lng) async {
+    if (!_mapLoaded) return;
+
+    try {
+      await _mapController.runJavaScript(
+        'clearMyLocation(); clearDestination(); setMarker($lat, $lng);',
+      );
     } catch (_) {
-      // abaikan jika parsing gagal
+      // abaikan error JS ringan
     }
   }
 
@@ -216,6 +181,21 @@ class _AdminPlacesPageState extends State<AdminPlacesPage> {
     } catch (_) {
       // abaikan error JS ringan
     }
+  }
+
+  List<double>? _tryParseLatLng(String text) {
+    final parts = text
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    if (parts.length != 2) return null;
+    final lat = double.tryParse(parts[0]);
+    final lng = double.tryParse(parts[1]);
+    if (lat == null || lng == null) return null;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+    return [lat, lng];
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -245,6 +225,8 @@ class _AdminPlacesPageState extends State<AdminPlacesPage> {
   // ═══════════════════════════════════════════════════════════════════════════
   Future<void> _useCurrentLocation() async {
     try {
+      if (_selectedLocationOption != _optLokasiSekarang) return;
+
       if (!_mapLoaded) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Peta belum siap, tunggu sebentar...')),
@@ -285,11 +267,11 @@ class _AdminPlacesPageState extends State<AdminPlacesPage> {
       final lat = pos.latitude;
       final lng = pos.longitude;
 
-      setState(() {
-        _coordController.text = '$lat, $lng';
-        _isCoordValid = true;
-        _errorText = null;
-      });
+      // Jika user sudah pindah opsi saat proses GPS berjalan, jangan override UI.
+      if (_selectedLocationOption != _optLokasiSekarang) return;
+
+      _coordController.text =
+          '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}';
 
       await _updateMapLocation(lat, lng);
     } catch (e) {
@@ -302,36 +284,43 @@ class _AdminPlacesPageState extends State<AdminPlacesPage> {
   // ═══════════════════════════════════════════════════════════════════════════
   // FUNGSI UNTUK MENANGANI PERUBAHAN OPSI LOKASI
   // ═══════════════════════════════════════════════════════════════════════════
-  Future<void> _onLocationOptionChanged(String newOption) async {
-    setState(() {
-      _selectedLocationOption = newOption;
-      _errorText = null;
-    });
+  Future<void> _onLocationOptionChanged(
+    String newOption, {
+    void Function(VoidCallback)? modalSetState,
+  }) async {
+    final int requestId = ++_locationOptionRequestId;
+
+    if (mounted) {
+      setState(() {
+        _selectedLocationOption = newOption;
+      });
+    }
+    modalSetState?.call(() {});
 
     await _syncMapModeWithLocationOption();
 
+    if (!mounted || requestId != _locationOptionRequestId) return;
+
+    // Pastikan marker mode sebelumnya hilang saat pindah opsi.
+    if (_mapLoaded) {
+      try {
+        await _mapController.runJavaScript(
+          'clearMyLocation(); clearDestination();',
+        );
+      } catch (_) {}
+    }
+
     if (newOption == _optLokasiTujuan) {
       // Mode tujuan: user pilih di peta dengan double-click
-      setState(() {
-        _coordController.text = 'Klik 2x pada peta';
-        _isCoordValid = false;
-      });
-      // Clear marker lama
-      if (_mapLoaded) {
-        try {
-          await _mapController
-              .runJavaScript('clearMyLocation(); clearDestination();');
-        } catch (_) {}
-      }
+      _coordController.text = 'Klik 2x pada peta';
+      modalSetState?.call(() {});
     } else if (newOption == _optLokasiSekarang) {
       // Mode lokasi sekarang: ambil GPS
       await _useCurrentLocation();
     } else if (newOption == _optManualKoordinat) {
       // Mode manual: user ketik koordinat
-      setState(() {
-        _coordController.text = '';
-        _isCoordValid = false;
-      });
+      _coordController.text = '';
+      modalSetState?.call(() {});
     }
   }
 
@@ -343,13 +332,17 @@ class _AdminPlacesPageState extends State<AdminPlacesPage> {
     required String label,
     required String value,
     required double lebar,
+    void Function(VoidCallback)? modalSetState,
   }) {
     final bool isActive = _selectedLocationOption == value;
     final Color color = isActive ? const Color(0xFF1C3B98) : Colors.grey;
 
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () async {
-        await _onLocationOptionChanged(value);
+        // Jangan await di onTap untuk menghindari tap terasa "macet".
+        // Gunakan mekanisme requestId di _onLocationOptionChanged.
+        _onLocationOptionChanged(value, modalSetState: modalSetState);
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -387,7 +380,13 @@ class _AdminPlacesPageState extends State<AdminPlacesPage> {
   // ═══════════════════════════════════════════════════════════════════════════
   // WIDGET INPUT KOORDINAT DENGAN 3 OPSI (untuk digunakan di bottom sheet)
   // ═══════════════════════════════════════════════════════════════════════════
-  Widget _buildKoordinatInputSection(double tinggi, double lebar) {
+  Widget _buildKoordinatInputSection(
+    double tinggi,
+    double lebar, {
+    void Function(VoidCallback)? modalSetState,
+  }) {
+    final coordListenable = _coordController;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -411,62 +410,77 @@ class _AdminPlacesPageState extends State<AdminPlacesPage> {
               label: 'Tujuan',
               value: _optLokasiTujuan,
               lebar: lebar,
+              modalSetState: modalSetState,
             ),
             _buildLocationOptionIcon(
               icon: Icons.my_location,
               label: 'Sekarang',
               value: _optLokasiSekarang,
               lebar: lebar,
+              modalSetState: modalSetState,
             ),
             _buildLocationOptionIcon(
               icon: Icons.edit_location_alt_outlined,
               label: 'Koordinat',
               value: _optManualKoordinat,
               lebar: lebar,
+              modalSetState: modalSetState,
             ),
           ],
         ),
         SizedBox(height: tinggi * 0.015),
 
-        // TextField Koordinat
-        TextField(
-          controller: _coordController,
-          keyboardType: _selectedLocationOption == _optManualKoordinat
-              ? TextInputType.text
-              : TextInputType.none,
-          readOnly: _selectedLocationOption != _optManualKoordinat,
-          decoration: InputDecoration(
-            hintText: _selectedLocationOption == _optManualKoordinat
-                ? '-5.147665, 119.432731'
-                : _selectedLocationOption == _optLokasiTujuan
-                    ? 'Klik 2x pada peta untuk memilih titik'
-                    : 'Menunggu lokasi GPS...',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            suffixIcon: _selectedLocationOption == _optLokasiSekarang
-                ? IconButton(
-                    icon: const Icon(Icons.refresh),
-                    onPressed: _useCurrentLocation,
-                    tooltip: 'Refresh Lokasi',
-                  )
-                : null,
-          ),
-        ),
+        // TextField + error (error dihitung dari controller)
+        AnimatedBuilder(
+          animation: coordListenable,
+          builder: (context, _) {
+            final errText = _getCoordErrorText(_coordController.text);
 
-        // Error text
-        if (_errorText != null) ...[
-          const SizedBox(height: 8),
-          Text(
-            _errorText!,
-            style: const TextStyle(
-              color: Colors.red,
-              fontSize: 12,
-            ),
-          ),
-        ],
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: _coordController,
+                  keyboardType: _selectedLocationOption == _optManualKoordinat
+                      ? TextInputType.text
+                      : TextInputType.none,
+                  readOnly: _selectedLocationOption != _optManualKoordinat,
+                  decoration: InputDecoration(
+                    hintText: _selectedLocationOption == _optManualKoordinat
+                        ? '-5.147665, 119.432731'
+                        : _selectedLocationOption == _optLokasiTujuan
+                            ? 'Klik 2x pada peta untuk memilih titik'
+                            : 'Menunggu lokasi GPS...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    suffixIcon: _selectedLocationOption == _optLokasiSekarang
+                        ? IconButton(
+                            icon: const Icon(Icons.refresh),
+                            onPressed: _useCurrentLocation,
+                            tooltip: 'Refresh Lokasi',
+                          )
+                        : null,
+                  ),
+                ),
+                if (errText != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    errText,
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+            );
+          },
+        ),
 
         SizedBox(height: tinggi * 0.015),
 
@@ -477,7 +491,14 @@ class _AdminPlacesPageState extends State<AdminPlacesPage> {
             borderRadius: BorderRadius.circular(8),
             child: Stack(
               children: [
-                WebViewWidget(controller: _mapController),
+                WebViewWidget(
+                  controller: _mapController,
+                  gestureRecognizers: {
+                    Factory<OneSequenceGestureRecognizer>(
+                      () => EagerGestureRecognizer(),
+                    ),
+                  },
+                ),
                 if (!_mapLoaded)
                   const Center(child: CircularProgressIndicator()),
               ],
@@ -485,6 +506,187 @@ class _AdminPlacesPageState extends State<AdminPlacesPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _openPlaceFormSheet({
+    required TujuanProviders penghubung,
+    required double tinggiLayar,
+    required double lebarLayar,
+    int? editId,
+    String? initialName,
+    String? initialCoord,
+  }) async {
+    final isEdit = editId != null;
+
+    _selectedLocationOption = isEdit ? _optManualKoordinat : _optLokasiTujuan;
+    _nameController.text = (initialName ?? '').trim();
+    _coordController.text =
+        isEdit ? (initialCoord ?? '').trim() : 'Klik 2x pada peta';
+
+    await _syncMapModeWithLocationOption();
+
+    if (_mapLoaded) {
+      try {
+        await _mapController.runJavaScript(
+          'clearMyLocation(); clearDestination();',
+        );
+      } catch (_) {}
+    }
+
+    if (isEdit) {
+      final parsed = _tryParseLatLng(_coordController.text.trim());
+      if (parsed != null) {
+        await _updateMapManualLocation(parsed[0], parsed[1]);
+      }
+    }
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
+        return StatefulBuilder(
+          builder: (context, modalSetState) {
+            final merged = Listenable.merge([
+              _nameController,
+              _coordController,
+            ]);
+
+            return GestureDetector(
+              onTap: () => FocusScope.of(ctx).unfocus(),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                child: Container(
+                  color: Colors.black26,
+                  padding: EdgeInsets.only(bottom: bottomInset),
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: lebarLayar * 0.06,
+                        vertical: tinggiLayar * 0.02,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(20),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.15),
+                            blurRadius: 10,
+                            offset: const Offset(0, -2),
+                          ),
+                        ],
+                      ),
+                      child: SafeArea(
+                        top: false,
+                        child: SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Center(
+                                child: Container(
+                                  width: lebarLayar * 0.12,
+                                  height: 4,
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade300,
+                                    borderRadius: BorderRadius.circular(50),
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                isEdit ? 'Edit Tempat' : 'Tambah Tempat',
+                                style: TextStyle(
+                                  fontSize: lebarLayar * 0.040,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              SizedBox(height: tinggiLayar * 0.012),
+                              TextField(
+                                controller: _nameController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Nama Tempat',
+                                ),
+                              ),
+                              SizedBox(height: tinggiLayar * 0.015),
+                              _buildKoordinatInputSection(
+                                tinggiLayar,
+                                lebarLayar,
+                                modalSetState: modalSetState,
+                              ),
+                              SizedBox(height: tinggiLayar * 0.018),
+                              SizedBox(
+                                width: double.infinity,
+                                height: tinggiLayar * 0.055,
+                                child: AnimatedBuilder(
+                                  animation: merged,
+                                  builder: (context, _) {
+                                    final name = _nameController.text.trim();
+                                    final coord = _coordController.text.trim();
+                                    final canSave = name.isNotEmpty &&
+                                        _tryParseLatLng(coord) != null;
+
+                                    return ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: canSave
+                                            ? const Color(0xFF12111F)
+                                            : Colors.grey.shade400,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(50),
+                                        ),
+                                      ),
+                                      onPressed: canSave
+                                          ? () {
+                                              if (isEdit) {
+                                                penghubung.updateddata(
+                                                  editId,
+                                                  name,
+                                                  coord,
+                                                );
+                                              } else {
+                                                penghubung.createdata(
+                                                  name,
+                                                  coord,
+                                                );
+                                              }
+
+                                              _nameController.clear();
+                                              _coordController.clear();
+                                              Navigator.of(ctx).pop();
+                                            }
+                                          : null,
+                                      child: Text(
+                                        isEdit
+                                            ? 'Simpan Perubahan'
+                                            : 'Simpan Tempat',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -640,245 +842,17 @@ class _AdminPlacesPageState extends State<AdminPlacesPage> {
                                             color: Colors.grey.shade700,
                                           ),
                                           onPressed: () {
-                                            setState(() {
-                                              _errorText = null;
-                                              _isNameFilled = true;
-                                              _isCoordValid = true;
-                                            });
-
-                                            if (_mapLoaded) {
-                                              // _updateMapLocation(place.lat, place.lng);
-                                              _updateMapLocation(
-                                                penghubung.mydata[index]
-                                                    .garislintang!,
-                                                penghubung
-                                                    .mydata[index].garisbujur!,
-                                              );
-                                            }
-
-                                            _nameController.text = penghubung
-                                                .mydata[index].namatujuan!;
-                                            _coordController.text =
-                                                "${penghubung.mydata[index].garislintang},${penghubung.mydata[index].garisbujur}";
-
-                                            showModalBottomSheet(
-                                              context: context,
-                                              isScrollControlled: true,
-                                              backgroundColor:
-                                                  Colors.transparent,
-                                              builder: (ctx) {
-                                                final bottomInset =
-                                                    MediaQuery.of(ctx)
-                                                        .viewInsets
-                                                        .bottom;
-                                                return GestureDetector(
-                                                    onTap: () =>
-                                                        FocusScope.of(ctx)
-                                                            .unfocus(),
-                                                    child: BackdropFilter(
-                                                      filter: ImageFilter.blur(
-                                                          sigmaX: 6, sigmaY: 6),
-                                                      child: Container(
-                                                        color: Colors.black26,
-                                                        padding: EdgeInsets.only(
-                                                            bottom:
-                                                                bottomInset),
-                                                        child: Align(
-                                                          alignment: Alignment
-                                                              .bottomCenter,
-                                                          child: Container(
-                                                            width:
-                                                                double.infinity,
-                                                            padding: EdgeInsets
-                                                                .symmetric(
-                                                              horizontal:
-                                                                  lebarLayar *
-                                                                      0.06,
-                                                              vertical:
-                                                                  tinggiLayar *
-                                                                      0.02,
-                                                            ),
-                                                            decoration:
-                                                                BoxDecoration(
-                                                              color:
-                                                                  Colors.white,
-                                                              borderRadius:
-                                                                  const BorderRadius
-                                                                      .vertical(
-                                                                top: Radius
-                                                                    .circular(
-                                                                        20),
-                                                              ),
-                                                              boxShadow: [
-                                                                BoxShadow(
-                                                                  color: Colors
-                                                                      .black
-                                                                      .withOpacity(
-                                                                          0.15),
-                                                                  blurRadius:
-                                                                      10,
-                                                                  offset:
-                                                                      const Offset(
-                                                                          0,
-                                                                          -2),
-                                                                ),
-                                                              ],
-                                                            ),
-                                                            child: SafeArea(
-                                                              top: false,
-                                                              child:
-                                                                  SingleChildScrollView(
-                                                                child: Column(
-                                                                  mainAxisSize:
-                                                                      MainAxisSize
-                                                                          .min,
-                                                                  crossAxisAlignment:
-                                                                      CrossAxisAlignment
-                                                                          .start,
-                                                                  children: [
-                                                                    Center(
-                                                                      child:
-                                                                          Container(
-                                                                        width: lebarLayar *
-                                                                            0.12,
-                                                                        height:
-                                                                            4,
-                                                                        margin: const EdgeInsets
-                                                                            .only(
-                                                                            bottom:
-                                                                                12),
-                                                                        decoration:
-                                                                            BoxDecoration(
-                                                                          color: Colors
-                                                                              .grey
-                                                                              .shade300,
-                                                                          borderRadius:
-                                                                              BorderRadius.circular(50),
-                                                                        ),
-                                                                      ),
-                                                                    ),
-                                                                    Text(
-                                                                      'Edit Tempat',
-                                                                      style:
-                                                                          TextStyle(
-                                                                        fontSize:
-                                                                            lebarLayar *
-                                                                                0.040,
-                                                                        fontWeight:
-                                                                            FontWeight.w700,
-                                                                      ),
-                                                                    ),
-                                                                    SizedBox(
-                                                                        height: tinggiLayar *
-                                                                            0.012),
-                                                                    TextField(
-                                                                      controller:
-                                                                          _nameController,
-                                                                      decoration:
-                                                                          const InputDecoration(
-                                                                        labelText:
-                                                                            'Nama Tempat',
-                                                                      ),
-                                                                    ),
-                                                                    SizedBox(
-                                                                        height: tinggiLayar *
-                                                                            0.015),
-
-                                                                    // ═══════════════════════════════════════════════════════
-                                                                    // INPUT KOORDINAT DENGAN 3 OPSI (Tujuan, Sekarang, Manual)
-                                                                    // ═══════════════════════════════════════════════════════
-                                                                    _buildKoordinatInputSection(
-                                                                        tinggiLayar,
-                                                                        lebarLayar),
-
-                                                                    SizedBox(
-                                                                        height: tinggiLayar *
-                                                                            0.018),
-                                                                    SizedBox(
-                                                                      width: double
-                                                                          .infinity,
-                                                                      height: tinggiLayar *
-                                                                          0.055,
-                                                                      child:
-                                                                          ElevatedButton(
-                                                                        style: ElevatedButton
-                                                                            .styleFrom(
-                                                                          backgroundColor: _isNameFilled && _isCoordValid
-                                                                              ? const Color(0xFF12111F)
-                                                                              : Colors.grey.shade400,
-                                                                          shape:
-                                                                              RoundedRectangleBorder(
-                                                                            borderRadius:
-                                                                                BorderRadius.circular(50),
-                                                                          ),
-                                                                        ),
-                                                                        onPressed: _isNameFilled &&
-                                                                                _isCoordValid
-                                                                            ? () {
-                                                                                // _onSavePlace(
-                                                                                //   penghubung,
-                                                                                //   index: index,
-                                                                                // );
-                                                                                final name = _nameController.text.trim();
-                                                                                final coord = _coordController.text.trim();
-
-                                                                                final parts = coord.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-
-                                                                                double? lat;
-                                                                                double? lng;
-
-                                                                                if (parts.length == 2) {
-                                                                                  lat = double.tryParse(parts[0]);
-                                                                                  lng = double.tryParse(parts[1]);
-                                                                                }
-
-                                                                                if (name.isEmpty || lat == null || lng == null) {
-                                                                                  setState(() {
-                                                                                    _errorText = 'Titik koordinat tidak ditemukan';
-                                                                                  });
-                                                                                  return;
-                                                                                }
-
-                                                                                if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-                                                                                  setState(() {
-                                                                                    _errorText = 'Titik koordinat tidak ditemukan';
-                                                                                  });
-                                                                                  return;
-                                                                                }
-
-                                                                                setState(() {
-                                                                                  _errorText = null;
-                                                                                });
-
-                                                                                penghubung.updateddata(penghubung.mydata[index].id_tujuan!, _nameController.text, _coordController.text);
-
-                                                                                _nameController.clear();
-                                                                                _coordController.clear();
-                                                                                Navigator.of(ctx).pop();
-                                                                              }
-                                                                            : null,
-                                                                        child:
-                                                                            const Text(
-                                                                          'Simpan Perubahan',
-                                                                          style:
-                                                                              TextStyle(
-                                                                            color:
-                                                                                Colors.white,
-                                                                            fontWeight:
-                                                                                FontWeight.w600,
-                                                                          ),
-                                                                        ),
-                                                                      ),
-                                                                    ),
-                                                                  ],
-                                                                ),
-                                                              ),
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ));
-                                              },
+                                            final coord =
+                                                '${penghubung.mydata[index].garislintang}, ${penghubung.mydata[index].garisbujur}';
+                                            _openPlaceFormSheet(
+                                              penghubung: penghubung,
+                                              tinggiLayar: tinggiLayar,
+                                              lebarLayar: lebarLayar,
+                                              editId: penghubung
+                                                  .mydata[index].id_tujuan!,
+                                              initialName: penghubung
+                                                  .mydata[index].namatujuan,
+                                              initialCoord: coord,
                                             );
                                           },
                                         ),
@@ -978,202 +952,10 @@ class _AdminPlacesPageState extends State<AdminPlacesPage> {
                     ),
                   ),
                   onPressed: () {
-                    // _openAddPlaceSheet(
-                    //   penghubung,
-                    //   tinggiLayar,
-                    //   lebarLayar,
-                    // );
-
-                    setState(() {
-                      _errorText = null;
-                      _nameController.clear();
-                      _coordController.text = 'Klik 2x pada peta';
-                      _isNameFilled = false;
-                      _isCoordValid = false;
-                      _selectedLocationOption = _optLokasiTujuan;
-                    });
-
-                    // Sinkronkan mode peta
-                    _syncMapModeWithLocationOption();
-
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (ctx) {
-                        final bottomInset =
-                            MediaQuery.of(ctx).viewInsets.bottom;
-                        return GestureDetector(
-                          onTap: () => FocusScope.of(ctx).unfocus(),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                            child: Container(
-                              color: Colors.black26,
-                              padding: EdgeInsets.only(bottom: bottomInset),
-                              child: Align(
-                                alignment: Alignment.bottomCenter,
-                                child: Container(
-                                  width: double.infinity,
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: lebarLayar * 0.06,
-                                    vertical: tinggiLayar * 0.02,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: const BorderRadius.vertical(
-                                      top: Radius.circular(20),
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.15),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, -2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: SafeArea(
-                                    top: false,
-                                    child: SingleChildScrollView(
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Center(
-                                            child: Container(
-                                              width: lebarLayar * 0.12,
-                                              height: 4,
-                                              margin: const EdgeInsets.only(
-                                                  bottom: 12),
-                                              decoration: BoxDecoration(
-                                                color: Colors.grey.shade300,
-                                                borderRadius:
-                                                    BorderRadius.circular(50),
-                                              ),
-                                            ),
-                                          ),
-                                          Text(
-                                            'Tambah Tempat',
-                                            style: TextStyle(
-                                              fontSize: lebarLayar * 0.040,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          SizedBox(height: tinggiLayar * 0.012),
-                                          TextField(
-                                            controller: _nameController,
-                                            decoration: const InputDecoration(
-                                              labelText: 'Nama Tempat',
-                                            ),
-                                          ),
-                                          SizedBox(height: tinggiLayar * 0.015),
-
-                                          // ═══════════════════════════════════════════════════════
-                                          // INPUT KOORDINAT DENGAN 3 OPSI (Tujuan, Sekarang, Manual)
-                                          // ═══════════════════════════════════════════════════════
-                                          _buildKoordinatInputSection(
-                                              tinggiLayar, lebarLayar),
-
-                                          SizedBox(height: tinggiLayar * 0.018),
-                                          SizedBox(
-                                            width: double.infinity,
-                                            height: tinggiLayar * 0.055,
-                                            child: ElevatedButton(
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor:
-                                                    _isNameFilled &&
-                                                            _isCoordValid
-                                                        ? const Color(
-                                                            0xFF12111F)
-                                                        : Colors.grey.shade400,
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(50),
-                                                ),
-                                              ),
-                                              onPressed: _isNameFilled &&
-                                                      _isCoordValid
-                                                  ? () {
-                                                      // _onSavePlace(
-                                                      //     penghubung);
-                                                      final name =
-                                                          _nameController.text
-                                                              .trim();
-                                                      final coord =
-                                                          _coordController.text
-                                                              .trim();
-
-                                                      final parts = coord
-                                                          .split(',')
-                                                          .map((e) => e.trim())
-                                                          .where((e) =>
-                                                              e.isNotEmpty)
-                                                          .toList();
-
-                                                      double? lat;
-                                                      double? lng;
-
-                                                      if (parts.length == 2) {
-                                                        lat = double.tryParse(
-                                                            parts[0]);
-                                                        lng = double.tryParse(
-                                                            parts[1]);
-                                                      }
-
-                                                      if (name.isEmpty ||
-                                                          lat == null ||
-                                                          lng == null) {
-                                                        setState(() {
-                                                          _errorText =
-                                                              'Titik koordinat tidak ditemukan';
-                                                        });
-                                                        return;
-                                                      }
-
-                                                      if (lat < -90 ||
-                                                          lat > 90 ||
-                                                          lng < -180 ||
-                                                          lng > 180) {
-                                                        setState(() {
-                                                          _errorText =
-                                                              'Titik koordinat tidak ditemukan';
-                                                        });
-                                                        return;
-                                                      }
-
-                                                      setState(() {
-                                                        _errorText = null;
-                                                      });
-
-                                                      penghubung.createdata(
-                                                        _nameController.text,
-                                                        _coordController.text,
-                                                      );
-
-                                                      _nameController.clear();
-                                                      _coordController.clear();
-                                                      Navigator.of(ctx).pop();
-                                                    }
-                                                  : null,
-                                              child: const Text(
-                                                'Simpan Tempat',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
+                    _openPlaceFormSheet(
+                      penghubung: penghubung,
+                      tinggiLayar: tinggiLayar,
+                      lebarLayar: lebarLayar,
                     );
                   },
                   icon: const Icon(

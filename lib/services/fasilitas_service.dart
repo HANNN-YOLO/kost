@@ -5,6 +5,18 @@ import '../models/fasilitas_model.dart';
 import 'package:http/http.dart' as htpp;
 
 class FasilitasService {
+  bool _isMissingFasilitasTable(String responseBody) {
+    try {
+      final decoded = json.decode(responseBody);
+      if (decoded is Map<String, dynamic>) {
+        return decoded['code'] == 'PGRST205';
+      }
+    } catch (_) {
+      // ignore parse errors
+    }
+    return false;
+  }
+
   Future<Map<String, dynamic>> createdata(
     int id_auth,
     bool tempat_tidur,
@@ -160,6 +172,12 @@ class FasilitasService {
       });
       // print("done ambil datanya fasilitas $ambil");
     } else {
+      if (_isMissingFasilitasTable(save.body)) {
+        print(
+          "Info: tabel 'fasilitas' sudah tidak ada (PGRST205). Lewati ambil fasilitas.",
+        );
+        return <FasilitasModel>[];
+      }
       print("error ambi data fasilitas ${save.body}");
       throw "error ambil data fasilitas ${save.body}";
     }
@@ -186,6 +204,12 @@ class FasilitasService {
         hasilnya.add(item);
       });
     } else {
+      if (_isMissingFasilitasTable(simpan.body)) {
+        print(
+          "Info: tabel 'fasilitas' sudah tidak ada (PGRST205). Lewati ambil fasilitas penyewa.",
+        );
+        return <FasilitasModel>[];
+      }
       print("error ambil data fasilitas penyewa");
       throw "error ambil data fasilitas penyewa";
     }
@@ -215,6 +239,12 @@ class FasilitasService {
         hasilnya.add(item);
       });
     } else {
+      if (_isMissingFasilitasTable(simpan.body)) {
+        print(
+          "Info: tabel 'fasilitas' sudah tidak ada (PGRST205). Lewati ambil fasilitas pemilik.",
+        );
+        return <FasilitasModel>[];
+      }
       print("gagal mengambil data fasilitas pemilik ${simpan.body}");
       throw "Gagagl mengambil data fasilitas pemilik ${simpan.body}";
     }

@@ -1,12 +1,11 @@
 class KriteriaModels {
-  int? id_kriteria, id_auth, bobot, ranking;
+  int? id_kriteria, bobot, ranking;
   double? bobot_decimal;
   String? kategori, atribut;
   DateTime? createdAt, updatedAt;
 
   KriteriaModels({
     this.id_kriteria,
-    this.id_auth,
     required this.kategori,
     required this.atribut,
     required this.bobot,
@@ -18,7 +17,6 @@ class KriteriaModels {
 
   Map<String, dynamic> toJson() {
     final data = <String, dynamic>{
-      'id_auth': id_auth,
       'kategori': kategori,
       'atribut': atribut,
       // 'bobot': bobot,
@@ -48,7 +46,6 @@ class KriteriaModels {
   factory KriteriaModels.fromJjson(Map<String, dynamic> json) {
     return KriteriaModels(
       id_kriteria: json['id_kriteria'],
-      id_auth: json['id_auth'],
       kategori: json['kategori'],
       atribut: json['atribut'],
       bobot: json['bobot'],

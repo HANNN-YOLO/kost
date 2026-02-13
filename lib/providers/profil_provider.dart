@@ -30,7 +30,6 @@ class ProfilProvider with ChangeNotifier {
       _mydata = [];
       this.hasil = [];
       id_profil = null;
-      defaults = 'Jenis Kelamin';
     }
 
     _accesstoken = value;
@@ -54,21 +53,6 @@ class ProfilProvider with ChangeNotifier {
       }
       readdata(_accesstoken!, id_auth!);
     }
-    notifyListeners();
-  }
-
-  // State dropdown profil
-  List<String> _jkl = ['Laki-Laki', 'Perempuan'];
-  List<String> get jkl => _jkl;
-  String? defaults = 'Jenis Kelamin';
-
-  void pilihan(String value) {
-    defaults = value;
-    notifyListeners();
-  }
-
-  pilihanbersih() {
-    defaults = null;
     notifyListeners();
   }
 
@@ -116,52 +100,21 @@ class ProfilProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> createprofil(
-      XFile foto, DateTime tgllahir, String jkl, int hp) async {
+  Future<void> createprofil(XFile? foto, int hp) async {
     try {
-      final link = await _ref.uploadfoto(foto, _accesstoken!);
-      if (link != null) {
-        await _ref.createprofil(
-          id_auth!,
-          _accesstoken!,
-          link,
-          tgllahir,
-          jkl,
-          hp,
-        );
-      }
-    } catch (e) {
-      throw e;
-    }
-    await readdata(_accesstoken!, id_auth!);
-    notifyListeners();
-  }
-
-  Future<void> createprofilFlexible(
-    XFile? foto,
-    DateTime tgllahir,
-    String jkl,
-    int hp,
-  ) async {
-    try {
-      // Foto opsional: jika tidak ada foto, simpan link kosong agar profil tetap bisa dibuat.
-      String link = '';
+      String? link;
       if (foto != null) {
         link = await _ref.uploadfoto(foto, _accesstoken!);
       }
-
       await _ref.createprofil(
         id_auth!,
         _accesstoken!,
         link,
-        tgllahir,
-        jkl,
         hp,
       );
     } catch (e) {
       throw e;
     }
-
     await readdata(_accesstoken!, id_auth!);
     notifyListeners();
   }
@@ -169,8 +122,6 @@ class ProfilProvider with ChangeNotifier {
   Future<void> updateprofil(
     XFile? foto,
     String? linklama,
-    DateTime tgllahir,
-    String jkl,
     int hp,
   ) async {
     final edit = DateTime.now();
@@ -183,9 +134,7 @@ class ProfilProvider with ChangeNotifier {
         await _ref.updateprofil(
           id_profil!,
           _accesstoken!,
-          hasOldLink ? linklama! : '',
-          tgllahir,
-          jkl,
+          hasOldLink ? linklama! : null,
           hp,
           edit,
         );
@@ -205,8 +154,6 @@ class ProfilProvider with ChangeNotifier {
             id_profil!,
             _accesstoken!,
             link,
-            tgllahir,
-            jkl,
             hp,
             edit,
           );
@@ -311,7 +258,7 @@ class ProfilProvider with ChangeNotifier {
 
     _mydata = [];
     _isinya = null;
-    defaults = 'Jenis Kelamin';
+    // defaults = 'Jenis Kelamin';
 
     id_profil = null;
     id_auth = null;

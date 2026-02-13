@@ -726,8 +726,9 @@ class KostProvider with ChangeNotifier {
 
     try {
       final hasilnya = await _kekost.readdata();
-      final isinya = await _kefasilitas.readdata();
-      _fasilitas = isinya;
+      // Tabel 'fasilitas' sudah dihapus; fasilitas kini disimpan di kolom
+      // `kost.fasilitas` (string). Jadi tidak perlu fetch tabel terpisah.
+      _fasilitas = <FasilitasModel>[];
       _kost = hasilnya;
     } catch (e) {
       throw e;
@@ -898,8 +899,9 @@ class KostProvider with ChangeNotifier {
 
     try {
       final inikost = await _kekost.readdatapenyewa(token);
-      final inifasilitas = await _kefasilitas.readdatapenyewa(token);
-      _fasilitaspenyewa = inifasilitas;
+      // Tabel 'fasilitas' sudah dihapus; fasilitas kini disimpan di kolom
+      // `kost.fasilitas` (string). Jadi tidak perlu fetch tabel terpisah.
+      _fasilitaspenyewa = <FasilitasModel>[];
       _kostpenyewa = inikost;
     } catch (e) {
       debugPrint('Error ambil data kost sebagai penyewa: $e');
