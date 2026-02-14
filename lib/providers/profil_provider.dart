@@ -60,13 +60,32 @@ class ProfilProvider with ChangeNotifier {
   XFile? _isinya;
   XFile? get isinya => _isinya;
 
+  // Flag untuk mencegah multiple image picker calls
+  bool _isPickingImage = false;
+  bool get isPickingImage => _isPickingImage;
+
   Future<void> uploadfoto() async {
-    final pembuka = ImagePicker();
-    final cek = await pembuka.pickImage(source: ImageSource.gallery);
-    if (cek != null) {
-      _isinya = cek;
+    // Cegah multiple calls jika sedang picking image
+    if (_isPickingImage) {
+      print('Image picker already active, ignoring tap');
+      return;
     }
-    notifyListeners();
+
+    try {
+      _isPickingImage = true;
+      notifyListeners();
+
+      final pembuka = ImagePicker();
+      final cek = await pembuka.pickImage(source: ImageSource.gallery);
+      if (cek != null) {
+        _isinya = cek;
+      }
+    } catch (e) {
+      print('Error picking image: $e');
+    } finally {
+      _isPickingImage = false;
+      notifyListeners();
+    }
   }
 
   void bersihfoto() {

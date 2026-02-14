@@ -88,6 +88,7 @@ class KostService {
     String pemilik_kost,
     int harga_kost,
     String jenis_kost,
+    String penghuni,
     String keamanan,
     String batas_jam_malam,
     String jenis_pembayaran_air,
@@ -114,6 +115,7 @@ class KostService {
       pemilik_kost: pemilik_kost,
       harga_kost: harga_kost,
       jenis_kost: jenis_kost,
+      penghuni: penghuni,
       keamanan: keamanan,
       batas_jam_malam: batas_jam_malam,
       jenis_listrik: jenis_listrik,
@@ -218,6 +220,7 @@ class KostService {
     String jenis_pembayaran_air,
     String keamanan,
     String jenis_kost,
+    String penghuni,
     num panjang,
     num lebar,
     String gambar_kost,
@@ -247,6 +250,7 @@ class KostService {
       jenis_pembayaran_air: jenis_pembayaran_air,
       keamanan: keamanan,
       jenis_kost: jenis_kost,
+      penghuni: penghuni,
       panjang: panjang,
       lebar: lebar,
       gambar_kost: gambar_kost,
@@ -340,6 +344,7 @@ class KostService {
     int? telpon,
     int harga,
     String jenis_kost,
+    String penghuni,
     String keamanan,
     num panjang,
     num lebar,
@@ -363,6 +368,7 @@ class KostService {
       notlp_kost: telpon,
       harga_kost: harga,
       jenis_kost: jenis_kost,
+      penghuni: penghuni,
       keamanan: keamanan,
       panjang: panjang,
       lebar: lebar,
@@ -375,6 +381,9 @@ class KostService {
       per: per,
       fasilitas: fasilitas,
     );
+
+    print("🔍 DEBUG - Penghuni value: $penghuni");
+    print("🔍 DEBUG - ToJson: ${json.encode(isian.toJson())}");
 
     var pengisian = await htpp.post(
       url,
@@ -406,6 +415,7 @@ class KostService {
     String alamat_kost,
     int harga_kost,
     String jenis_kost,
+    String penghuni,
     String keamanan,
     num panjang,
     num lebar,
@@ -431,6 +441,7 @@ class KostService {
       alamat_kost: alamat_kost,
       harga_kost: harga_kost,
       jenis_kost: jenis_kost,
+      penghuni: penghuni,
       keamanan: keamanan,
       panjang: panjang,
       lebar: lebar,
@@ -444,6 +455,9 @@ class KostService {
       per: per,
       fasilitas: fasilitas,
     );
+
+    print("🔍 DEBUG UPDATE - Penghuni value: $penghuni");
+    print("🔍 DEBUG UPDATE - ToJson: ${json.encode(isian.toJson())}");
 
     var updated = await htpp.patch(
       url,

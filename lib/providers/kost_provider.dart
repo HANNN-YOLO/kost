@@ -87,13 +87,32 @@ class KostProvider with ChangeNotifier {
   XFile? _foto;
   XFile? get foto => _foto;
 
+  // Flag untuk mencegah multiple image picker calls
+  bool _isPickingImage = false;
+  bool get isPickingImage => _isPickingImage;
+
   void uploadfoto() async {
-    final ambil = ImagePicker();
-    final take = await ambil.pickImage(source: ImageSource.gallery);
-    if (take != null) {
-      _foto = take;
+    // Cegah multiple calls jika sedang picking image
+    if (_isPickingImage) {
+      print('Image picker already active, ignoring tap');
+      return;
     }
-    notifyListeners();
+
+    try {
+      _isPickingImage = true;
+      notifyListeners();
+
+      final ambil = ImagePicker();
+      final take = await ambil.pickImage(source: ImageSource.gallery);
+      if (take != null) {
+        _foto = take;
+      }
+    } catch (e) {
+      print('Error picking image: $e');
+    } finally {
+      _isPickingImage = false;
+      notifyListeners();
+    }
   }
 
   // state pilihan
@@ -141,15 +160,30 @@ class KostProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // jenis kost (dropdown tetap 3 opsi di form: Umum, Khusus Putri, Khusus Putra)
-  // Untuk perhitungan SAW, nilai "Khusus Putri/Putra" akan dipetakan ke subkriteria "Khusus".
+  // jenis kost (dropdown dari subkriteria jenis kost, fallback ke 3 opsi)
   List<String> _jeniskost = ['Umum', 'Khusus Putri', 'Khusus Putra'];
-  List<String> get jeniskost => _jeniskost;
+  List<String> get jeniskost {
+    final dinamis = _getSubkriteriaOptions(
+      (nama) => nama.contains('jenis') && nama.contains('kost'),
+    );
+    return dinamis.isNotEmpty ? dinamis : _jeniskost;
+  }
 
   String jeniskosts = "Pilih";
 
   void pilihkost(String value) {
     jeniskosts = value;
+    notifyListeners();
+  }
+
+  // tipe penghuni (enum: Umum, Putra, Putri)
+  List<String> _penghuniOptions = ['Umum', 'Putra', 'Putri'];
+  List<String> get penghuniOptions => _penghuniOptions;
+
+  String penghunis = "Pilih";
+
+  void pilihpenghuni(String value) {
+    penghunis = value;
     notifyListeners();
   }
 
@@ -196,6 +230,7 @@ class KostProvider with ChangeNotifier {
   List<String> _cachedBatasJamMalamOptions = [];
   List<String> _cachedJenisAirOptions = [];
   List<String> _cachedJenisListrikOptions = [];
+  List<String> _cachedJenisKostOptions = [];
 
   void _refreshDynamicOptionsCache() {
     _cachedKeamananOptions =
@@ -208,6 +243,9 @@ class KostProvider with ChangeNotifier {
     );
     _cachedJenisListrikOptions =
         _getSubkriteriaOptions((nama) => nama.contains('listrik'));
+    _cachedJenisKostOptions = _getSubkriteriaOptions(
+      (nama) => nama.contains('jenis') && nama.contains('kost'),
+    );
   }
 
   /// Opsi subkriteria dinamis (tanpa fallback) untuk validasi data tersimpan.
@@ -221,6 +259,8 @@ class KostProvider with ChangeNotifier {
 
   List<String> get jenisListrikOptionsDynamic => _cachedJenisListrikOptions;
 
+  List<String> get jenisKostOptionsDynamic => _cachedJenisKostOptions;
+
   /// True jika ada nilai dropdown pada data kost yang sudah tidak valid
   /// karena subkriteria terkait sudah dihapus.
   bool kostNeedsSubkriteriaFix(KostModel kost) {
@@ -228,6 +268,7 @@ class KostProvider with ChangeNotifier {
     final batas = (kost.batas_jam_malam ?? '').trim();
     final air = (kost.jenis_pembayaran_air ?? '').trim();
     final listrik = (kost.jenis_listrik ?? '').trim();
+    final jenisKost = (kost.jenis_kost ?? '').trim();
 
     final optKeamanan = keamananOptionsDynamic;
     if (optKeamanan.isNotEmpty && keamanan.isNotEmpty) {
@@ -247,6 +288,11 @@ class KostProvider with ChangeNotifier {
     final optListrik = jenisListrikOptionsDynamic;
     if (optListrik.isNotEmpty && listrik.isNotEmpty) {
       if (!optListrik.contains(listrik)) return true;
+    }
+
+    final optJenisKost = jenisKostOptionsDynamic;
+    if (optJenisKost.isNotEmpty && jenisKost.isNotEmpty) {
+      if (!optJenisKost.contains(jenisKost)) return true;
     }
 
     return false;
@@ -300,6 +346,7 @@ class KostProvider with ChangeNotifier {
     _foto = null;
     namanya = "Pilih";
     jeniskosts = "Pilih";
+    penghunis = "Pilih";
     jeniskeamanans = "Pilih";
     batasjammalams = "Pilih";
     jenispembayaranairs = "Pilih";
@@ -361,6 +408,7 @@ class KostProvider with ChangeNotifier {
     int harga_kost,
     String titik_koordinat,
     String jenis_kost,
+    String penghuni,
     String keamanan,
     String batas_jam_malam,
     String jenis_pembayaran_air,
@@ -385,6 +433,7 @@ class KostProvider with ChangeNotifier {
       harga_kost,
       titik_koordinat,
       jenis_kost,
+      penghuni,
       keamanan,
       batas_jam_malam,
       jenis_pembayaran_air,
@@ -407,6 +456,7 @@ class KostProvider with ChangeNotifier {
     int harga_kost,
     String titik_koordinat,
     String jenis_kost,
+    String penghuni,
     String keamanan,
     String batas_jam_malam,
     String jenis_pembayaran_air,
@@ -431,6 +481,7 @@ class KostProvider with ChangeNotifier {
       harga_kost,
       titik_koordinat,
       jenis_kost,
+      penghuni,
       keamanan,
       batas_jam_malam,
       jenis_pembayaran_air,
@@ -458,6 +509,7 @@ class KostProvider with ChangeNotifier {
     String jenis_pembayaran_air,
     String keamanan,
     String jenis_kost,
+    String penghuni,
     num panjang,
     num lebar,
     String koordinnat,
@@ -484,6 +536,7 @@ class KostProvider with ChangeNotifier {
       jenis_pembayaran_air,
       keamanan,
       jenis_kost,
+      penghuni,
       panjang,
       lebar,
       koordinnat,
@@ -503,6 +556,7 @@ class KostProvider with ChangeNotifier {
     int telpon,
     int harga,
     String jenis_kost,
+    String penghuni,
     String keamanan,
     num panjang,
     num lebar,
@@ -528,6 +582,7 @@ class KostProvider with ChangeNotifier {
       telpon,
       harga,
       jenis_kost,
+      penghuni,
       keamanan,
       panjang,
       lebar,
@@ -551,6 +606,7 @@ class KostProvider with ChangeNotifier {
     String alamat_kost,
     int harga_kost,
     String jenis_kost,
+    String penghuni,
     String keamanan,
     num panjang,
     num lebar,
@@ -579,6 +635,7 @@ class KostProvider with ChangeNotifier {
       alamat_kost,
       harga_kost,
       jenis_kost,
+      penghuni,
       keamanan,
       panjang,
       lebar,
@@ -656,6 +713,7 @@ class KostProvider with ChangeNotifier {
     int harga_kost,
     String titik_koordinat,
     String jenis_kost,
+    String penghuni,
     String keamanan,
     String batas_jam_malam,
     String jenis_pembayaran_air,
@@ -699,6 +757,7 @@ class KostProvider with ChangeNotifier {
             pemilik_kost,
             harga_kost,
             jenis_kost,
+            penghuni,
             keamanan,
             batas_jam_malam,
             jenis_pembayaran_air,
@@ -780,6 +839,7 @@ class KostProvider with ChangeNotifier {
     String jenis_pembayaran_air,
     String keamanan,
     String jenis_kost,
+    String penghuni,
     num panjang,
     num lebar,
     String koordinnat,
@@ -825,6 +885,7 @@ class KostProvider with ChangeNotifier {
             jenis_pembayaran_air,
             keamanan,
             jenis_kost,
+            penghuni,
             panjang,
             lebar,
             fotolama,
@@ -874,6 +935,7 @@ class KostProvider with ChangeNotifier {
               jenis_pembayaran_air,
               keamanan,
               jenis_kost,
+              penghuni,
               panjang,
               lebar,
               upload,
@@ -975,6 +1037,7 @@ class KostProvider with ChangeNotifier {
     int telpon,
     int harga,
     String jenis_kost,
+    String penghuni,
     String keamanan,
     num panjang,
     num lebar,
@@ -1026,6 +1089,7 @@ class KostProvider with ChangeNotifier {
         telpon,
         harga,
         jenis_kost,
+        penghuni,
         keamanan,
         panjang,
         lebar,
@@ -1069,6 +1133,7 @@ class KostProvider with ChangeNotifier {
     String alamat_kost,
     int harga_kost,
     String jenis_kost,
+    String penghuni,
     String keamanan,
     num panjang,
     num lebar,
@@ -1115,6 +1180,7 @@ class KostProvider with ChangeNotifier {
             alamat_kost,
             harga_kost,
             jenis_kost,
+            penghuni,
             keamanan,
             panjang,
             lebar,
@@ -1166,6 +1232,7 @@ class KostProvider with ChangeNotifier {
               alamat_kost,
               harga_kost,
               jenis_kost,
+              penghuni,
               keamanan,
               panjang,
               lebar,

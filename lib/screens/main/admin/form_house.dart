@@ -139,6 +139,17 @@ class _FormAddHouseState extends State<FormHouse> {
         }
       }
     }
+
+    final optJenisKost = penghubung.jenisKostOptionsDynamic;
+    if (optJenisKost.isNotEmpty && penghubung.jeniskosts != 'Pilih') {
+      if (!optJenisKost.contains(penghubung.jeniskosts)) {
+        if (notify) {
+          penghubung.pilihkost('Pilih');
+        } else {
+          penghubung.jeniskosts = 'Pilih';
+        }
+      }
+    }
   }
 
   @override
@@ -405,6 +416,7 @@ class _FormAddHouseState extends State<FormHouse> {
 
         penghubung.namanya = pakai.pemilik_kost ?? "Pilih";
         penghubung.jeniskosts = pakai.jenis_kost ?? "Pilih";
+        penghubung.penghunis = pakai.penghuni ?? "Pilih";
         penghubung.jeniskeamanans = pakai.keamanan ?? "Pilih";
         penghubung.batasjammalams = pakai.batas_jam_malam ?? "Pilih";
         penghubung.jenispembayaranairs = pakai.jenis_pembayaran_air ?? "Pilih";
@@ -743,6 +755,80 @@ class _FormAddHouseState extends State<FormHouse> {
                       },
                     ),
 
+                    Label1barisFull(
+                      label: "Tipe Penghuni",
+                      lebar: lebarLayar,
+                      jarak: 1,
+                    ),
+                    SizedBox(height: tinggiLayar * 0.005),
+                    Consumer<KostProvider>(
+                      builder: (context, value, child) {
+                        return Container(
+                          width: lebarLayar,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: RadioListTile<String>(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(
+                                    "Umum",
+                                    style: TextStyle(
+                                      fontSize: lebarLayar * 0.035,
+                                    ),
+                                  ),
+                                  value: "Umum",
+                                  groupValue: penghubung.penghunis == "Pilih"
+                                      ? null
+                                      : penghubung.penghunis,
+                                  onChanged: (val) {
+                                    penghubung.pilihpenghuni(val!);
+                                  },
+                                ),
+                              ),
+                              Expanded(
+                                child: RadioListTile<String>(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(
+                                    "Khusus Putra",
+                                    style: TextStyle(
+                                      fontSize: lebarLayar * 0.035,
+                                    ),
+                                  ),
+                                  value: "Khusus Putra",
+                                  groupValue: penghubung.penghunis == "Pilih"
+                                      ? null
+                                      : penghubung.penghunis,
+                                  onChanged: (val) {
+                                    penghubung.pilihpenghuni(val!);
+                                  },
+                                ),
+                              ),
+                              Expanded(
+                                child: RadioListTile<String>(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(
+                                    "Khusus Putri",
+                                    style: TextStyle(
+                                      fontSize: lebarLayar * 0.035,
+                                    ),
+                                  ),
+                                  value: "Khusus Putri",
+                                  groupValue: penghubung.penghunis == "Pilih"
+                                      ? null
+                                      : penghubung.penghunis,
+                                  onChanged: (val) {
+                                    penghubung.pilihpenghuni(val!);
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                    SizedBox(height: tinggiLayar * 0.025),
+
                     Consumer<KostProvider>(
                       builder: (context, value, child) {
                         return terima != null
@@ -927,8 +1013,15 @@ class _FormAddHouseState extends State<FormHouse> {
                                               ),
                                               child: TextField(
                                                 controller: _panjang,
-                                                keyboardType:
-                                                    TextInputType.number,
+                                                keyboardType: TextInputType
+                                                    .numberWithOptions(
+                                                        decimal: true),
+                                                inputFormatters: [
+                                                  FilteringTextInputFormatter
+                                                      .allow(
+                                                    RegExp(r'^\d+\.?\d{0,2}'),
+                                                  ),
+                                                ],
                                                 decoration: InputDecoration(
                                                   hintText: "00",
                                                   contentPadding:
@@ -974,8 +1067,15 @@ class _FormAddHouseState extends State<FormHouse> {
                                               ),
                                               child: TextField(
                                                 controller: _lebar,
-                                                keyboardType:
-                                                    TextInputType.number,
+                                                keyboardType: TextInputType
+                                                    .numberWithOptions(
+                                                        decimal: true),
+                                                inputFormatters: [
+                                                  FilteringTextInputFormatter
+                                                      .allow(
+                                                    RegExp(r'^\d+\.?\d{0,2}'),
+                                                  ),
+                                                ],
                                                 decoration: InputDecoration(
                                                   contentPadding:
                                                       EdgeInsets.symmetric(
@@ -1027,8 +1127,15 @@ class _FormAddHouseState extends State<FormHouse> {
                                               ),
                                               child: TextField(
                                                 controller: _panjang,
-                                                keyboardType:
-                                                    TextInputType.number,
+                                                keyboardType: TextInputType
+                                                    .numberWithOptions(
+                                                        decimal: true),
+                                                inputFormatters: [
+                                                  FilteringTextInputFormatter
+                                                      .allow(
+                                                    RegExp(r'^\d+\.?\d{0,2}'),
+                                                  ),
+                                                ],
                                                 decoration: InputDecoration(
                                                   hintText: "00",
                                                   contentPadding:
@@ -1074,8 +1181,15 @@ class _FormAddHouseState extends State<FormHouse> {
                                               ),
                                               child: TextField(
                                                 controller: _lebar,
-                                                keyboardType:
-                                                    TextInputType.number,
+                                                keyboardType: TextInputType
+                                                    .numberWithOptions(
+                                                        decimal: true),
+                                                inputFormatters: [
+                                                  FilteringTextInputFormatter
+                                                      .allow(
+                                                    RegExp(r'^\d+\.?\d{0,2}'),
+                                                  ),
+                                                ],
                                                 decoration: InputDecoration(
                                                   contentPadding:
                                                       EdgeInsets.symmetric(
@@ -1592,6 +1706,33 @@ class _FormAddHouseState extends State<FormHouse> {
                                       //   _koordinatController.text,
                                       //   penghubung.pernama,
                                       // );
+
+                                      // Parse dimensions with error handling
+                                      num? panjangValue;
+                                      num? lebarValue;
+                                      try {
+                                        panjangValue = num.parse(
+                                            _panjang.text.replaceAll(',', '.'));
+                                        lebarValue = num.parse(
+                                            _lebar.text.replaceAll(',', '.'));
+                                      } catch (e) {
+                                        if (mounted) {
+                                          setState(() {
+                                            _isSubmitting = false;
+                                          });
+                                        }
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) {
+                                            return ShowdialogEror(
+                                              label:
+                                                  "Format angka tidak valid untuk panjang/lebar kamar.",
+                                            );
+                                          },
+                                        );
+                                        return;
+                                      }
+
                                       await value.konversiupdatedata(
                                         value.foto,
                                         pakai.gambar_kost!,
@@ -1609,8 +1750,9 @@ class _FormAddHouseState extends State<FormHouse> {
                                         value.jenispembayaranairs,
                                         value.jeniskeamanans,
                                         value.jeniskosts,
-                                        num.parse(_panjang.text),
-                                        num.parse(_lebar.text),
+                                        value.penghunis,
+                                        panjangValue,
+                                        lebarValue,
                                         _koordinatController.text,
                                         value.pernama,
                                         _inilist,
@@ -1750,6 +1892,32 @@ class _FormAddHouseState extends State<FormHouse> {
                                       //   penghubung.pernama,
                                       // );
 
+                                      // Parse dimensions with error handling
+                                      num? panjangValue;
+                                      num? lebarValue;
+                                      try {
+                                        panjangValue = num.parse(
+                                            _panjang.text.replaceAll(',', '.'));
+                                        lebarValue = num.parse(
+                                            _lebar.text.replaceAll(',', '.'));
+                                      } catch (e) {
+                                        if (mounted) {
+                                          setState(() {
+                                            _isSubmitting = false;
+                                          });
+                                        }
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) {
+                                            return ShowdialogEror(
+                                              label:
+                                                  "Format angka tidak valid untuk panjang/lebar kamar.",
+                                            );
+                                          },
+                                        );
+                                        return;
+                                      }
+
                                       await value.konversicreatedataAdmin(
                                         int.parse(cek.id_auth.toString()),
                                         int.tryParse(_notlpn.text.trim()) ?? 0,
@@ -1763,12 +1931,13 @@ class _FormAddHouseState extends State<FormHouse> {
                                             0,
                                         _koordinatController.text,
                                         value.jeniskosts,
+                                        value.penghunis,
                                         value.jeniskeamanans,
                                         value.batasjammalams,
                                         value.jenispembayaranairs,
                                         value.jenislistriks,
-                                        num.parse(_panjang.text),
-                                        num.parse(_lebar.text),
+                                        panjangValue,
+                                        lebarValue,
                                         value.foto!,
                                         value.pernama,
                                         _inilist,
@@ -1870,6 +2039,7 @@ class _FormAddHouseState extends State<FormHouse> {
     // Cek dropdown wajib sudah dipilih
     if ((penghubung.namanya == null || penghubung.namanya == "Pilih") ||
         penghubung.jeniskosts == "Pilih" ||
+        penghubung.penghunis == "Pilih" ||
         penghubung.jeniskeamanans == "Pilih" ||
         penghubung.batasjammalams == "Pilih" ||
         penghubung.jenispembayaranairs == "Pilih" ||
@@ -1984,12 +2154,13 @@ class _FormAddHouseState extends State<FormHouse> {
     }
 
     if (penghubung.jeniskosts == "Pilih" ||
+        penghubung.penghunis == "Pilih" ||
         penghubung.jeniskeamanans == "Pilih" ||
         penghubung.batasjammalams == "Pilih" ||
         penghubung.jenispembayaranairs == "Pilih" ||
         penghubung.jenislistriks == "Pilih" ||
         penghubung.pernama == "Pilih") {
-      return "Harap pilih semua opsi dropdown (jenis kost, keamanan, jam malam, pembayaran air, listrik, dan periode pembayaran).";
+      return "Harap pilih semua opsi dropdown (jenis kost, tipe penghuni, keamanan, jam malam, pembayaran air, listrik, dan periode pembayaran).";
     }
 
     if (!isEdit && penghubung.foto == null) {
@@ -2034,10 +2205,14 @@ class _FormAddHouseState extends State<FormHouse> {
       return "Harga kost harus lebih dari 0.";
     }
 
-    final panjangParsed = int.tryParse(panjang);
-    final lebarParsed = int.tryParse(lebar);
+    // Support both comma and dot as decimal separator
+    final panjangClean = panjang.replaceAll(',', '.');
+    final lebarClean = lebar.replaceAll(',', '.');
+
+    final panjangParsed = num.tryParse(panjangClean);
+    final lebarParsed = num.tryParse(lebarClean);
     if (panjangParsed == null || lebarParsed == null) {
-      return "Panjang dan lebar kamar hanya boleh berisi angka.";
+      return "Panjang dan lebar kamar hanya boleh berisi angka (contoh: 3.5 atau 3,5).";
     }
     if (panjangParsed <= 0) {
       return "Panjang kamar harus lebih dari 0.";
@@ -2045,30 +2220,37 @@ class _FormAddHouseState extends State<FormHouse> {
     if (lebarParsed <= 0) {
       return "Lebar kamar harus lebih dari 0.";
     }
-
-    final parts = koordinat.split(',');
-    if (parts.length != 2) {
-      return "Format titik koordinat tidak valid. Contoh: -5.147665, 119.432731";
+    if (panjangParsed > 50) {
+      return "Panjang kamar tidak realistis (maksimal 50 meter).";
+    }
+    if (lebarParsed > 50) {
+      return "Lebar kamar tidak realistis (maksimal 50 meter).";
     }
 
-    final lat = double.tryParse(parts[0].trim());
-    final lng = double.tryParse(parts[1].trim());
-    if (lat == null || lng == null) {
-      return "Format titik koordinat tidak valid. Contoh: -5.147665, 119.432731";
-    }
-
-    final namaLower = namaKost.toLowerCase();
-    final alamatLower = alamat.toLowerCase();
-
+    // Check duplicate nama kost + alamat
     final existingNamaAlamat = penghubung.kost.where((k) {
       if (currentKostId != null && k.id_kost == currentKostId) return false;
       final existingNama = (k.nama_kost ?? "").trim().toLowerCase();
       final existingAlamat = (k.alamat_kost ?? "").trim().toLowerCase();
-      return existingNama == namaLower && existingAlamat == alamatLower;
+      return existingNama == namaKost.toLowerCase() &&
+          existingAlamat == alamat.toLowerCase();
     }).toList();
 
     if (!isEdit && existingNamaAlamat.isNotEmpty) {
       return "Kost dengan nama dan alamat tersebut sudah terdaftar.";
+    }
+
+    // Parse koordinat untuk validasi duplikat
+    final koordinatParts = koordinat.split(',');
+    if (koordinatParts.length != 2) {
+      return "Format koordinat tidak valid. Gunakan format: latitude,longitude";
+    }
+
+    final lat = double.tryParse(koordinatParts[0].trim());
+    final lng = double.tryParse(koordinatParts[1].trim());
+
+    if (lat == null || lng == null) {
+      return "Koordinat harus berisi angka yang valid.";
     }
 
     final existingKoordinat = penghubung.kost.where((k) {
