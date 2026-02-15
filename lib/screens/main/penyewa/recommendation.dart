@@ -685,35 +685,40 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
   // █ OPSI 1: HITUNG DUA ARAH, AMBIL TERPENDEK (AKTIF - DEFAULT)              █
   // █ Kelebihan: Mengatasi masalah jalan satu arah yang salah tercatat        █
   // █ Kekurangan: Request API 2x lipat (lebih lambat)                         █
+  // █ TIDAK PAKAI HAVERSINE - Hanya gunakan jarak OSRM routing yang akurat    █
   // ███████████████████████████████████████████████████████████████████████████
-  // Future<double> _getDistanceForSAW(
-  //     double pointLat, double pointLng, double kostLat, double kostLng) async {
-  //   debugPrint('📍 OPSI 1: Menghitung dua arah...');
+  Future<double?> _getDistanceForSAW(
+      double pointLat, double pointLng, double kostLat, double kostLng) async {
+    debugPrint('📍 Menghitung jarak routing dua arah (OSRM)...');
 
-  //   // Hitung arah 1: Titik Tujuan → Kost
-  //   final dist1 = await _osrmOneWay(pointLat, pointLng, kostLat, kostLng);
-  //   debugPrint('   → Titik→Kost: ${dist1?.toStringAsFixed(2) ?? "gagal"} km');
+    // Hitung arah 1: Titik Tujuan → Kost
+    final dist1 = await _osrmOneWay(pointLat, pointLng, kostLat, kostLng);
+    debugPrint('   → Tujuan→Kost: ${dist1?.toStringAsFixed(2) ?? "gagal"} km');
 
-  //   // Hitung arah 2: Kost → Titik Tujuan
-  //   final dist2 = await _osrmOneWay(kostLat, kostLng, pointLat, pointLng);
-  //   debugPrint('   ← Kost→Titik: ${dist2?.toStringAsFixed(2) ?? "gagal"} km');
+    // Hitung arah 2: Kost → Titik Tujuan
+    final dist2 = await _osrmOneWay(kostLat, kostLng, pointLat, pointLng);
+    debugPrint('   ← Kost→Tujuan: ${dist2?.toStringAsFixed(2) ?? "gagal"} km');
 
-  //   // Ambil yang terpendek, fallback ke Haversine jika keduanya gagal
-  //   if (dist1 != null && dist2 != null) {
-  //     final shortest = dist1 < dist2 ? dist1 : dist2;
-  //     debugPrint('   ✅ Ambil terpendek: ${shortest.toStringAsFixed(2)} km');
-  //     return shortest;
-  //   } else if (dist1 != null) {
-  //     return dist1;
-  //   } else if (dist2 != null) {
-  //     return dist2;
-  //   } else {
-  //     final haversine = _distanceKm(pointLat, pointLng, kostLat, kostLng);
-  //     debugPrint(
-  //         '   ⚠️ Fallback Haversine: ${haversine.toStringAsFixed(2)} km');
-  //     return haversine;
-  //   }
-  // }
+    // Ambil yang terpendek dari routing yang berhasil
+    if (dist1 != null && dist2 != null) {
+      final shortest = dist1 < dist2 ? dist1 : dist2;
+      debugPrint(
+          '   ✅ Jarak routing terpendek: ${shortest.toStringAsFixed(2)} km');
+      return shortest;
+    } else if (dist1 != null) {
+      debugPrint(
+          '   ✅ Menggunakan jarak Tujuan→Kost: ${dist1.toStringAsFixed(2)} km');
+      return dist1;
+    } else if (dist2 != null) {
+      debugPrint(
+          '   ✅ Menggunakan jarak Kost→Tujuan: ${dist2.toStringAsFixed(2)} km');
+      return dist2;
+    } else {
+      // Kedua routing gagal - skip kost ini (return null)
+      debugPrint('   ❌ Routing gagal untuk kost ini, akan di-skip');
+      return null;
+    }
+  }
 
   /*
   // ███████████████████████████████████████████████████████████████████████████
@@ -752,7 +757,7 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
 
   /*
   // ███████████████████████████████████████████████████████████████████████████
-  // █ OPSI 4: HYBRID - DUA ARAH + DETEKSI ANOMALI                             █
+  // █ OPSI 4: HYBRID - DUA ARAH + DETEKSI ANOMALI (DIKOMENTARI)               █
   // █ Kelebihan: Paling robust, mendeteksi jika data OSM bermasalah           █
   // █ Kekurangan: Paling kompleks, request API 2x lipat                       █
   // █ Logika: Jika jarak OSRM > 2x Haversine, anggap anomali → pakai Haversine█
@@ -791,12 +796,14 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
         debugPrint('   ⚠️ ANOMALI TERDETEKSI! Menggunakan Haversine.');
         return haversine;
       } else {
-        debugPrint('   ✅ Normal, menggunakan OSRM: ${osrmShortest.toStringAsFixed(2)} km');
+        debugPrint(
+            '   ✅ Normal, menggunakan OSRM: ${osrmShortest.toStringAsFixed(2)} km');
         return osrmShortest;
       }
     }
 
-    debugPrint('   ⚠️ OSRM gagal, fallback Haversine: ${haversine.toStringAsFixed(2)} km');
+    debugPrint(
+        '   ⚠️ OSRM gagal, fallback Haversine: ${haversine.toStringAsFixed(2)} km');
     return haversine;
   }
   */
@@ -810,32 +817,32 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
 
   // Fungsi lama sebelum ada opsi - hanya satu arah
 
-  Future<double> _getDistanceForSAW(
-      double fromLat, double fromLng, double toLat, double toLng) async {
-    final uri = Uri.parse('https://router.project-osrm.org/route/v1/driving/'
-        '$fromLng,$fromLat;$toLng,$toLat?overview=false&alternatives=false&steps=false');
+  // Future<double> _getDistanceForSAW(
+  //     double fromLat, double fromLng, double toLat, double toLng) async {
+  //   final uri = Uri.parse('https://router.project-osrm.org/route/v1/driving/'
+  //       '$fromLng,$fromLat;$toLng,$toLat?overview=false&alternatives=false&steps=false');
 
-    try {
-      final response = await http.get(uri);
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        final routes = data['routes'] as List?;
-        if (routes != null && routes.isNotEmpty) {
-          final distanceMeters = (routes[0]['distance'] as num?)?.toDouble();
-          if (distanceMeters != null) {
-            return distanceMeters / 1000.0;
-          }
-        }
-      } else {
-        debugPrint('OSRM route error: ${response.statusCode}');
-      }
-    } catch (e) {
-      debugPrint('OSRM route exception: $e');
-    }
+  //   try {
+  //     final response = await http.get(uri);
+  //     if (response.statusCode == 200) {
+  //       final Map<String, dynamic> data = jsonDecode(response.body);
+  //       final routes = data['routes'] as List?;
+  //       if (routes != null && routes.isNotEmpty) {
+  //         final distanceMeters = (routes[0]['distance'] as num?)?.toDouble();
+  //         if (distanceMeters != null) {
+  //           return distanceMeters / 1000.0;
+  //         }
+  //       }
+  //     } else {
+  //       debugPrint('OSRM route error: ${response.statusCode}');
+  //     }
+  //   } catch (e) {
+  //     debugPrint('OSRM route exception: $e');
+  //   }
 
-    // fallback jika gagal
-    return _distanceKm(fromLat, fromLng, toLat, toLng);
-  }
+  //   // fallback jika gagal
+  //   return _distanceKm(fromLat, fromLng, toLat, toLng);
+  // }
   // */
 
   // ================= UI =============================
@@ -1312,7 +1319,8 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
 
                                                 // ═══════════════════════════════════════════════
                                                 // GUNAKAN FUNGSI _getDistanceForSAW
-                                                // yang sudah dikonfigurasi di atas (Opsi 1-4)
+                                                // yang sudah dikonfigurasi di atas
+                                                // Return null jika routing gagal (skip kost)
                                                 // ═══════════════════════════════════════════════
                                                 final dKm =
                                                     await _getDistanceForSAW(
@@ -1320,6 +1328,13 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
                                                         destLng,
                                                         lat,
                                                         lng);
+
+                                                // Skip kost jika routing gagal (tidak ada jarak OSRM)
+                                                if (dKm == null) {
+                                                  debugPrint(
+                                                      '⚠️ Skip kost ${k.nama_kost} - routing gagal');
+                                                  continue;
+                                                }
 
                                                 dataKost.add({
                                                   'id_kost': k.id_kost,
