@@ -119,7 +119,7 @@ class ProfilProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> createprofil(XFile? foto, int hp) async {
+  Future<void> createprofil(XFile? foto, String? hp) async {
     try {
       String? link;
       if (foto != null) {
@@ -141,7 +141,7 @@ class ProfilProvider with ChangeNotifier {
   Future<void> updateprofil(
     XFile? foto,
     String? linklama,
-    int hp,
+    String? hp,
   ) async {
     final edit = DateTime.now();
     await readdata(_accesstoken!, id_auth!);
@@ -228,7 +228,7 @@ class ProfilProvider with ChangeNotifier {
   Future<void> adminUpdateUserProfil({
     required int idProfil,
     String? jkl,
-    int? kontak,
+    num? kontak,
     DateTime? tgllahir,
   }) async {
     try {

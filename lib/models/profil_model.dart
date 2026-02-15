@@ -1,5 +1,6 @@
 class ProfilModel {
-  int? id_profil, id_auth, kontak;
+  int? id_profil, id_auth;
+  String? kontak;
   String? foto;
   DateTime? updatedAt, createdAt;
 
@@ -43,11 +44,27 @@ class ProfilModel {
   }
 
   factory ProfilModel.fromJson(Map<String, dynamic> json) {
+    // Handle kontak as both String and number (for backward compatibility)
+    String? kontakValue;
+    if (json['kontak'] != null) {
+      if (json['kontak'] is String) {
+        kontakValue = json['kontak'] as String;
+      } else if (json['kontak'] is num) {
+        // Convert number to string, handling integers without decimal point
+        final num kontakNum = json['kontak'] as num;
+        if (kontakNum == 0) {
+          kontakValue = '0';
+        } else {
+          kontakValue = kontakNum.toInt().toString();
+        }
+      }
+    }
+
     return ProfilModel(
       id_profil: json['id_profil'],
       id_auth: json['id_auth'],
       foto: json['foto'],
-      kontak: json['kontak'],
+      kontak: kontakValue,
       createdAt:
           json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt:

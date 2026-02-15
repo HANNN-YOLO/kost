@@ -566,11 +566,12 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
 
     // Nomor telepon kost selalu mengikuti nomor telepon profil pemilik.
     // Jika profil belum diisi, field ini akan kosong dan tidak bisa diedit.
-    final int? profilKontak =
+    final String? profilKontak =
         penghubung3.mydata.isNotEmpty ? penghubung3.mydata.first.kontak : null;
-    final String profilNoHp = (profilKontak != null && profilKontak != 0)
-        ? profilKontak.toString()
-        : '';
+    final String profilNoHp =
+        (profilKontak != null && profilKontak != '0' && profilKontak.isNotEmpty)
+            ? profilKontak
+            : '';
     if (_notlpn.text != profilNoHp) {
       _notlpn.text = profilNoHp;
     }
@@ -1690,7 +1691,9 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                             penghubung.foto,
                                             _namapemilik.text,
                                             _namakost.text,
-                                            int.tryParse(_notlpn.text) ?? 0,
+                                            _notlpn.text.trim().isEmpty
+                                                ? '0'
+                                                : _notlpn.text.trim(),
                                             _alamat.text,
                                             ThousandsSeparatorInputFormatter
                                                     .tryParseInt(_harga.text) ??
@@ -1880,7 +1883,9 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                             _namapemilik.text,
                                             _namakost.text,
                                             _alamat.text,
-                                            int.tryParse(_notlpn.text) ?? 0,
+                                            _notlpn.text.trim().isEmpty
+                                                ? '0'
+                                                : _notlpn.text.trim(),
                                             ThousandsSeparatorInputFormatter
                                                     .tryParseInt(_harga.text) ??
                                                 0,
@@ -2070,7 +2075,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
     // }
 
     // Nomor telepon mengikuti profil dan boleh kosong jika profil belum diisi.
-    if (noTelp.isNotEmpty) {
+    if (noTelp.isNotEmpty && noTelp != '0') {
       if (int.tryParse(noTelp) == null) {
         return "Nomor telepon hanya boleh berisi angka.";
       }

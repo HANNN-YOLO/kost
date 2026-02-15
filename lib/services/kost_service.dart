@@ -82,7 +82,7 @@ class KostService {
   Future<void> createdata(
     int id_auth,
     // int? id_fasilitas,
-    int? notlp_kost,
+    String? notlp_kost,
     String nama_kost,
     String alamat_kost,
     String pemilik_kost,
@@ -213,7 +213,7 @@ class KostService {
     String nama_kost,
     String nama_pemilik,
     String alamat_kost,
-    int? notlp_kost,
+    String? notlp_kost,
     int harga_kost,
     String batas_jam_malam,
     String jenis_listrik,
@@ -341,7 +341,7 @@ class KostService {
     String nama_pemilik,
     String nama_kost,
     String alamat,
-    int? telpon,
+    String? telpon,
     int harga,
     String jenis_kost,
     String penghuni,
@@ -411,7 +411,7 @@ class KostService {
     // int id_fasilitas,
     String nama_pemilik,
     String nama_kost,
-    int? telpon,
+    String? telpon,
     String alamat_kost,
     int harga_kost,
     String jenis_kost,
@@ -486,7 +486,7 @@ class KostService {
   Future<void> updateNoTelpKostPemilikJikaKosong(
     String token,
     int id_auth,
-    int noTelpBaru,
+    num noTelpBaru,
   ) async {
     final url = Uri.parse(
       "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_auth=eq.$id_auth&or=(notlp_kost.eq.0,notlp_kost.is.null)",
@@ -520,7 +520,7 @@ class KostService {
   Future<void> updateNoTelpKostPemilikSemua(
     String token,
     int id_auth,
-    int noTelpBaru,
+    String? noTelpBaru,
   ) async {
     final url = Uri.parse(
       "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_auth=eq.$id_auth",

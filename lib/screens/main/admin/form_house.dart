@@ -1741,7 +1741,9 @@ class _FormAddHouseState extends State<FormHouse> {
                                         _namakost.text,
                                         value.namanya,
                                         _alamat.text,
-                                        int.tryParse(_notlpn.text.trim()) ?? 0,
+                                        _notlpn.text.trim().isEmpty
+                                            ? '0'
+                                            : _notlpn.text.trim(),
                                         ThousandsSeparatorInputFormatter
                                                 .tryParseInt(_harga.text) ??
                                             0,
@@ -1920,7 +1922,9 @@ class _FormAddHouseState extends State<FormHouse> {
 
                                       await value.konversicreatedataAdmin(
                                         int.parse(cek.id_auth.toString()),
-                                        int.tryParse(_notlpn.text.trim()) ?? 0,
+                                        _notlpn.text.trim().isEmpty
+                                            ? '0'
+                                            : _notlpn.text.trim(),
                                         _namakost.text,
                                         _alamat.text,
                                         value.namanya,
@@ -2187,14 +2191,14 @@ class _FormAddHouseState extends State<FormHouse> {
     //   return "Harap pilih minimal satu fasilitas kost.";
     // }
 
-    // Validasi format telepon hanya jika diisi
-    if (noTelp.isNotEmpty) {
+    // Validasi format telepon hanya jika diisi dan bukan dari profil pemilik yang sudah ada
+    // Admin tidak perlu validasi ketat untuk no tlp karena itu mengikuti profil pemilik
+    if (noTelp.isNotEmpty && noTelp != '0') {
       if (int.tryParse(noTelp) == null) {
         return "Nomor telepon hanya boleh berisi angka.";
       }
-      if (noTelp.length < 10 || noTelp.length > 15) {
-        return "Nomor telepon harus 10-15 digit.";
-      }
+      // Skip validasi panjang jika dalam mode edit atau jika no tlp sudah terisi dari profil pemilik
+      // Admin hanya menambah kost, bukan mengedit profil pemilik
     }
 
     final hargaParsed = ThousandsSeparatorInputFormatter.tryParseInt(harga);

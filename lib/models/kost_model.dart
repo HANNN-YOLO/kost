@@ -1,5 +1,5 @@
 class KostModel {
-  int? id_kost, id_fasilitas, notlp_kost, harga_kost, id_auth;
+  int? id_kost, id_fasilitas, harga_kost, id_auth;
   String? nama_kost,
       alamat_kost,
       pemilik_kost,
@@ -15,7 +15,7 @@ class KostModel {
   double? garis_lintang, garis_bujur;
   num? panjang, lebar;
   DateTime? createdAt, updatedAt;
-
+  String? notlp_kost;
   KostModel({
     this.id_kost,
     this.id_fasilitas,
@@ -91,6 +91,21 @@ class KostModel {
   }
 
   factory KostModel.fromJson(Map<String, dynamic> json) {
+    // Handle notlp_kost as both String and number (for backward compatibility)
+    String? notlpValue;
+    if (json['notlp_kost'] != null) {
+      if (json['notlp_kost'] is String) {
+        notlpValue = json['notlp_kost'] as String;
+      } else if (json['notlp_kost'] is num) {
+        final num notlpNum = json['notlp_kost'] as num;
+        if (notlpNum == 0) {
+          notlpValue = '0';
+        } else {
+          notlpValue = notlpNum.toInt().toString();
+        }
+      }
+    }
+
     return KostModel(
       id_kost: json['id_kost'],
       id_fasilitas: json['id_fasilitas'],
@@ -98,7 +113,7 @@ class KostModel {
       nama_kost: json['nama_kost'],
       pemilik_kost: json['pemilik_kost'],
       alamat_kost: json['alamat_kost'],
-      notlp_kost: json['notlp_kost'],
+      notlp_kost: notlpValue,
       harga_kost: json['harga_kost'],
       batas_jam_malam: json['batas_jam_malam'],
       jenis_listrik: json['jenis_listrik'],

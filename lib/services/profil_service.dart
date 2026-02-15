@@ -139,7 +139,7 @@ class ProfilService {
     int id_auth,
     String token,
     String? link,
-    int hp,
+    String? hp,
   ) async {
     print("inisiasi buat data");
 
@@ -176,7 +176,7 @@ class ProfilService {
     int Id_profil,
     String token,
     String? link,
-    int kontak,
+    String? kontak,
     DateTime edit,
   ) async {
     print("inisasi perubahan data");
@@ -280,7 +280,7 @@ class ProfilService {
   Future<void> adminUpdateProfil({
     required int idProfil,
     String? jkl,
-    int? kontak,
+    num? kontak,
     DateTime? tgllahir,
   }) async {
     print("inisiasi update profil oleh admin");
