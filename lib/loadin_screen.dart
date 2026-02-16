@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
 class LoadinScreen extends StatelessWidget {
-  LoadinScreen({super.key});
+  const LoadinScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade300,
+      backgroundColor: Colors.white,
       body: Center(
         child: _LoadingAnimation(),
       ),
@@ -15,7 +15,7 @@ class LoadinScreen extends StatelessWidget {
 }
 
 class _LoadingAnimation extends StatefulWidget {
-  _LoadingAnimation();
+  const _LoadingAnimation();
 
   @override
   State<_LoadingAnimation> createState() => _LoadingAnimationState();
@@ -24,14 +24,24 @@ class _LoadingAnimation extends StatefulWidget {
 class _LoadingAnimationState extends State<_LoadingAnimation>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _opacityAnimation;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: Duration(seconds: 1),
-    )..repeat();
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+
+    _scaleAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+
+    _opacityAnimation = Tween<double>(begin: 0.7, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -42,16 +52,50 @@ class _LoadingAnimationState extends State<_LoadingAnimation>
 
   @override
   Widget build(BuildContext context) {
-    return RotationTransition(
-      turns: _controller,
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade700,
-          borderRadius: BorderRadius.circular(8),
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Logo dengan animasi pulse
+        AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _scaleAnimation.value,
+              child: Opacity(
+                opacity: _opacityAnimation.value,
+                child: child,
+              ),
+            );
+          },
+          child: Image.asset(
+            'lib/assets/icon_full_border.png',
+            width: 180,
+            height: 180,
+          ),
         ),
-      ),
+        const SizedBox(height: 30),
+        // Loading indicator
+        SizedBox(
+          width: 40,
+          height: 40,
+          child: CircularProgressIndicator(
+            strokeWidth: 3,
+            valueColor: AlwaysStoppedAnimation<Color>(
+              Color(0xFF237EF2), // Warna biru tema app
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        // Teks loading
+        Text(
+          'Memuat...',
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.grey.shade600,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -46,6 +46,7 @@ dependencies:
   collection: ^1.19.1
   phosphor_flutter: ^2.1.0
   font_awesome_flutter: any
+  flutter_launcher_icons: ^0.14.4
   # font_awesome_flutter: ^10.12.0
 
 dev_dependencies:
@@ -72,6 +73,34 @@ flutter:
     - .env
     - assets/map/map.html
     - lib/assets/arrow_up.jpg
+    - lib/assets/6f07a055-196a-40b0-9344-833a80d267fb.png
+    - lib/assets/icon_scaled.png
+    - lib/assets/coba_scale.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "lib/assets/icon_full_border.png"
+  min_sdk_android: 21
+
+  # ============================================
+  # ADAPTIVE ICON - FULL BORDER (92% AREA)
+  # ============================================
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "lib/assets/icon_full_border.png"
+
+  # Hapus alpha/transparansi di iOS agar icon tidak ada background hitam
+  remove_alpha_ios: true
+
+  # Web favicon
+  web:
+    generate: true
+    image_path: "lib/assets/icon_full_border.png"
+
+  # Windows desktop icon
+  windows:
+    generate: true
+    image_path: "lib/assets/icon_full_border.png"
 
   # To add assets to your application, add an assets section, like this:
   # assets:

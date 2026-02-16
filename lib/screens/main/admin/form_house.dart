@@ -53,7 +53,6 @@ class _FormAddHouseState extends State<FormHouse> {
   int index = 0;
   bool keadaan = true;
   bool _isSubmitting = false;
-  bool _didSyncLatestEditData = false;
 
   String? _initialEditSignature;
 
@@ -476,47 +475,6 @@ class _FormAddHouseState extends State<FormHouse> {
 
         // Ambil snapshot awal untuk deteksi perubahan pada mode edit.
         _initialEditSignature = _currentEditSignatureAdmin(penghubung);
-
-        // Sinkronkan ulang dengan data terbaru dari database + opsi subkriteria terbaru.
-        // Ini mencegah dropdown jatuh ke "Pilih" saat opsi di provider masih stale
-        // setelah subkriteria di-rename.
-        if (!_didSyncLatestEditData) {
-          _didSyncLatestEditData = true;
-          WidgetsBinding.instance.addPostFrameCallback((_) async {
-            if (!mounted) return;
-
-            final penghubung =
-                Provider.of<KostProvider>(context, listen: false);
-
-            // Refresh opsi subkriteria pada KostProvider (digunakan untuk dropdown).
-            await penghubung.fetchSubkriteria();
-
-            // Ambil ulang 1 kost (by id) supaya nilai dropdown mengikuti DB.
-            final latest = await penghubung.fetchKostById(terima);
-            if (!mounted || latest == null) return;
-
-            // Jangan overwrite jika user sudah mulai mengedit.
-            final currentSig = _currentEditSignatureAdmin(penghubung);
-            if (_initialEditSignature != null &&
-                currentSig != _initialEditSignature) {
-              return;
-            }
-
-            penghubung.namanya = latest.pemilik_kost ?? "Pilih";
-            penghubung.jeniskosts = latest.jenis_kost ?? "Pilih";
-            penghubung.penghunis = latest.penghuni ?? "Pilih";
-            penghubung.jeniskeamanans = latest.keamanan ?? "Pilih";
-            penghubung.batasjammalams = latest.batas_jam_malam ?? "Pilih";
-            penghubung.jenispembayaranairs =
-                latest.jenis_pembayaran_air ?? "Pilih";
-            penghubung.jenislistriks = latest.jenis_listrik ?? "Pilih";
-
-            _coerceDeletedSubkriteriaSelections(penghubung, notify: false);
-
-            // Update snapshot supaya tombol simpan tidak dianggap "berubah".
-            _initialEditSignature = _currentEditSignatureAdmin(penghubung);
-          });
-        }
 
         // if (pakai != null) {
         //   final cekker = Provider.of<KostProvider>(
