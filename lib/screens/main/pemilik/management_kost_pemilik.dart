@@ -140,87 +140,96 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
                                 onDelete: () async {
                                   await showDialog<void>(
                                     context: context,
+                                    barrierDismissible: false,
                                     builder: (dialogContext) {
                                       bool isDeleting = false;
+                                      String? dialogError;
                                       return StatefulBuilder(
                                         builder: (context, setStateDialog) {
-                                          return AlertDialog(
-                                            title:
-                                                const Text('Konfirmasi Hapus'),
-                                            content: const Text(
-                                              'Apakah Anda yakin ingin menghapus kost ini?',
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: isDeleting
-                                                    ? null
-                                                    : () => Navigator.of(
-                                                          dialogContext,
-                                                        ).pop(),
-                                                child: const Text('Batal'),
+                                          return WillPopScope(
+                                            onWillPop: () async => !isDeleting,
+                                            child: AlertDialog(
+                                              title: const Text(
+                                                'Konfirmasi Hapus',
                                               ),
-                                              TextButton(
-                                                onPressed: isDeleting
-                                                    ? null
-                                                    : () async {
-                                                        setStateDialog(() {
-                                                          isDeleting = true;
-                                                        });
-                                                        try {
-                                                          await penghubung
-                                                              .deletedatapemilik(
-                                                            penghubung
-                                                                .kostpemilik[
-                                                                    index]
-                                                                .id_kost!,
-                                                            penghubung
-                                                                .kostpemilik[
-                                                                    index]
-                                                                .gambar_kost!,
-                                                          );
-                                                          if (!dialogContext
-                                                              .mounted) {
-                                                            return;
-                                                          }
-                                                          Navigator.of(
+                                              content: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text(
+                                                    'Apakah Anda yakin ingin menghapus kost ini?',
+                                                  ),
+                                                  if (dialogError != null) ...[
+                                                    const SizedBox(height: 10),
+                                                    Text(
+                                                      dialogError!,
+                                                      style: const TextStyle(
+                                                        color: Colors.red,
+                                                        fontSize: 13,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: isDeleting
+                                                      ? null
+                                                      : () => Navigator.of(
                                                             dialogContext,
-                                                          ).pop();
-                                                        } catch (e) {
-                                                          if (!dialogContext
-                                                              .mounted) {
-                                                            return;
-                                                          }
-                                                          ScaffoldMessenger.of(
-                                                                  dialogContext)
-                                                              .showSnackBar(
-                                                            SnackBar(
-                                                              content: Text(
-                                                                'Gagal menghapus kost: $e',
-                                                              ),
-                                                            ),
-                                                          );
-                                                        } finally {
-                                                          if (dialogContext
-                                                              .mounted) {
+                                                          ).pop(),
+                                                  child: const Text('Batal'),
+                                                ),
+                                                TextButton(
+                                                  onPressed: isDeleting
+                                                      ? null
+                                                      : () async {
+                                                          setStateDialog(() {
+                                                            isDeleting = true;
+                                                            dialogError = null;
+                                                          });
+                                                          try {
+                                                            await penghubung
+                                                                .deletedatapemilik(
+                                                              penghubung
+                                                                  .kostpemilik[
+                                                                      index]
+                                                                  .id_kost!,
+                                                              penghubung
+                                                                  .kostpemilik[
+                                                                      index]
+                                                                  .gambar_kost!,
+                                                            );
+                                                            if (!dialogContext
+                                                                .mounted) {
+                                                              return;
+                                                            }
+                                                            Navigator.of(
+                                                              dialogContext,
+                                                            ).pop();
+                                                          } catch (e) {
                                                             setStateDialog(() {
                                                               isDeleting =
                                                                   false;
+                                                              dialogError =
+                                                                  'Gagal menghapus kost: $e';
                                                             });
                                                           }
-                                                        }
-                                                      },
-                                                child: isDeleting
-                                                    ? const SizedBox(
-                                                        width: 16,
-                                                        height: 16,
-                                                        child:
-                                                            CircularProgressIndicator(
-                                                          strokeWidth: 2,
-                                                        ),
-                                                      )
-                                                    : const Text('Hapus'),
-                                              ),
-                                            ],
+                                                        },
+                                                  child: isDeleting
+                                                      ? const SizedBox(
+                                                          width: 16,
+                                                          height: 16,
+                                                          child:
+                                                              CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                          ),
+                                                        )
+                                                      : const Text('Hapus'),
+                                                ),
+                                              ],
+                                            ),
                                           );
                                         },
                                       );

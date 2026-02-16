@@ -276,7 +276,10 @@ class _KostHomePageState extends State<KostHomePage> {
                         per: " / $perLabel",
                         title: tesst.nama_kost ?? '-',
                         location: tesst.alamat_kost ?? '-',
-                        genderLabel: tesst.jenis_kost ?? '-',
+                        genderLabel: (tesst.penghuni == null ||
+                                (tesst.penghuni ?? '').trim().isEmpty)
+                            ? '-'
+                            : (tesst.penghuni ?? '-'),
                         gambar: tesst.gambar_kost ?? '',
                         fasilitas: fasilitasTags,
                         fungsitap: () {

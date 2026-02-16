@@ -325,4 +325,38 @@ class AuthServices {
       throw "gagal hapus data user di modul auth karena ${hapus.body}";
     }
   }
+
+  Future<void> updateUsernameRest({
+    required String token,
+    required int idAuth,
+    required String username,
+    DateTime? updatedAt,
+  }) async {
+    final url = Uri.parse(
+      "${SupabaseApiConfig.masterurl}/rest/v1/auth?id_auth=eq.$idAuth",
+    );
+
+    final payload = <String, dynamic>{
+      'username': username,
+      'updatedAt': (updatedAt ?? DateTime.now()).toIso8601String(),
+    };
+
+    final updated = await htpp.patch(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apipublic}',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode(payload),
+    );
+
+    if (updated.statusCode == 204 ||
+        updated.statusCode == 200 ||
+        updated.statusCode == 201) {
+      return;
+    }
+
+    throw "gagal update nama pengguna ${updated.body}";
+  }
 }
