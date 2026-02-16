@@ -1921,7 +1921,7 @@ class _RankingCard extends StatelessWidget {
                     Expanded(
                       child: _infoChip(
                         icon: Icons.route_rounded,
-                        label: 'Jarak',
+                        label: '',
                         value: distanceKm != null
                             ? '${distanceKm!.toStringAsFixed(2)} km'
                             : '-',
@@ -1975,7 +1975,7 @@ class _RankingCard extends StatelessWidget {
   }
 
   Widget _infoChip({
-    required IconData icon,
+    IconData? icon,
     required String label,
     required String value,
     required Color color,
@@ -1988,17 +1988,21 @@ class _RankingCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(icon, size: s(20), color: color),
-          SizedBox(height: s(4)),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: s(10),
-              color: colorTextPrimary.withOpacity(0.6),
-              fontWeight: FontWeight.w500,
+          if (icon != null) ...[
+            Icon(icon, size: s(20), color: color),
+            SizedBox(height: s(4)),
+          ],
+          if (label.trim().isNotEmpty) ...[
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: s(10),
+                color: colorTextPrimary.withOpacity(0.6),
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-          SizedBox(height: s(2)),
+            SizedBox(height: s(2)),
+          ],
           Text(
             value,
             style: TextStyle(

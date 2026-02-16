@@ -240,7 +240,7 @@ class DetailKost extends StatelessWidget {
                         if (distanceKm != null) ...[
                           const SizedBox(height: 8),
                           Text(
-                            'Jarak kost ke tujuan Anda: '
+                            'Jarak dari tujuan ke kost: '
                             '${distanceKm.toStringAsFixed(2)} km',
                             style: const TextStyle(
                               fontSize: 13,
@@ -548,8 +548,8 @@ class _MapWidgetState extends State<_MapWidget> {
         );
         await _controller!.runJavaScript('window.fitToKostAndDestination();');
         await _controller!.runJavaScript(
-          'window.drawRouteBetweenPoints(${widget.latitude}, ${widget.longitude}, '
-          '${widget.destinationLat}, ${widget.destinationLng});',
+          'window.drawRouteBetweenPoints(${widget.destinationLat}, ${widget.destinationLng}, '
+          '${widget.latitude}, ${widget.longitude});',
         );
       } else {
         // View & marker hanya pada kost seperti sebelumnya

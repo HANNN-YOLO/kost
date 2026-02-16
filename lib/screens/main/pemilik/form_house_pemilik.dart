@@ -51,10 +51,11 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
   final TextEditingController _koordinatController = TextEditingController();
   final TextEditingController _panjang = TextEditingController();
   final TextEditingController _lebar = TextEditingController();
-  bool allstatus = true;
   int index = 0;
   bool keadaan = true;
   bool _isSubmitting = false;
+
+  late final Listenable _formFieldsListenable;
 
   List<inputanlist> _listini = [];
 
@@ -190,8 +191,8 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
     // Listener untuk koordinat controller
     _koordinatController.addListener(_onKoordinatChanged);
 
-    // Listener untuk field teks agar tombol simpan bisa enable/disable dinamis
-    for (final controller in [
+    // Agar tombol submit bisa update tanpa rebuild seluruh halaman
+    _formFieldsListenable = Listenable.merge([
       _namapemilik,
       _namakost,
       _notlpn,
@@ -200,9 +201,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
       _panjang,
       _lebar,
       _koordinatController,
-    ]) {
-      controller.addListener(_onFormFieldChanged);
-    }
+    ]);
   }
 
   Future<void> _loadMapHtmlFromAssets() async {
@@ -227,11 +226,6 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
     _debounceTimer = Timer(const Duration(milliseconds: 250), () {
       _parseAndUpdateMap(text);
     });
-  }
-
-  void _onFormFieldChanged() {
-    // Trigger rebuild supaya status tombol (warna & enabled) ikut berubah
-    if (mounted) setState(() {});
   }
 
   String _facilityKey(String raw) {
@@ -439,16 +433,12 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
               (element) => element.id_auth == penghubung.id_authnya);
 
       if (penghubung2 != null) {
-        print("pemisah");
-        print("akhirnya kebaca");
         if (cek != null) {
-          print("data aman");
           _namapemilik.text = cek.username ?? "";
           if (terima != null) {
             final pakai = Provider.of<KostProvider>(context, listen: false)
                 .kostpemilik
                 .firstWhereOrNull((element) => element.id_kost == terima);
-            print("test berjalan kah?");
 
             if (pakai != null) {
               _namapemilik.text = pakai.pemilik_kost ?? "";
@@ -462,7 +452,6 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
               _lebar.text = pakai.lebar.toString() ?? "00";
               _koordinatController.text =
                   "${pakai.garis_lintang},${pakai.garis_bujur}";
-              print("test kedua");
 
               // penghubung.namanya = pakai.pemilik_kost ?? "Pilih";
               penghubung.jeniskosts = pakai.jenis_kost ?? "Pilih";
@@ -479,7 +468,29 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
 
               // Jika subkriteria terkait sudah dihapus, paksa kembali ke default.
               _coerceDeletedSubkriteriaSelections(penghubung);
-              print("test ketiga");
+
+              // Hydrate fasilitas dari data kost (edit mode) tanpa mutasi di build().
+              for (final item in _listini) {
+                item.bersih();
+              }
+              _listini.clear();
+
+              final String manafasilitas = (pakai.fasilitas ?? '').trim();
+              if (manafasilitas.isNotEmpty) {
+                final List<String> inisaja = manafasilitas
+                    .split(',')
+                    .map((e) => e.trim())
+                    .where((e) => e.isNotEmpty)
+                    .toList();
+                for (final hanyasaja in inisaja) {
+                  final namanya = inputanlist();
+                  namanya.fasilitas.text = hanyasaja;
+                  _listini.add(namanya);
+                }
+              }
+
+              _editingFacilityIndex = null;
+              _facilityInputController.clear();
 
               // fasilitas lama
               // final cekker = Provider.of<KostProvider>(context, listen: false);
@@ -499,9 +510,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
               //     penghubung.inputan.dapur_dalam = cekker.dapur_dalam;
               //     penghubung.inputan.wifi = cekker.wifi;
               //   }
-            } else {
-              print("id tidak ditemukan $terima di didchangedpendencies");
-            }
+            } else {}
 
             // if (pakai != null) {
             //
@@ -520,18 +529,6 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
 
     // Remove semua listeners sebelum dispose
     _koordinatController.removeListener(_onKoordinatChanged);
-    for (final controller in [
-      _namapemilik,
-      _namakost,
-      _notlpn,
-      _alamat,
-      _harga,
-      _panjang,
-      _lebar,
-      _koordinatController,
-    ]) {
-      controller.removeListener(_onFormFieldChanged);
-    }
 
     // Dispose controllers
     _namakost.dispose();
@@ -586,38 +583,6 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
     pakai = Provider.of<KostProvider>(context, listen: false)
         .kostpemilik
         .firstWhereOrNull((element) => element.id_kost == terima);
-
-    if (allstatus) {
-      final int? terima = ModalRoute.of(context)?.settings.arguments as int?;
-      KostModel? pakai;
-      if (terima != null) {
-        pakai = Provider.of<KostProvider>(context, listen: false)
-            .kostpemilik
-            .firstWhereOrNull((element) => element.id_kost == terima);
-
-        _listini.clear();
-
-        if (pakai != null) {
-          final String manafasilitas = (pakai.fasilitas ?? '').trim();
-          if (manafasilitas.isNotEmpty) {
-            final List<String> inisaja = manafasilitas
-                .split(',')
-                .map((e) => e.trim())
-                .where((e) => e.isNotEmpty)
-                .toList();
-            for (final hanyasaja in inisaja) {
-              final namanya = inputanlist();
-              namanya.fasilitas.text = hanyasaja;
-              _listini.add(namanya);
-            }
-          }
-        }
-
-        _editingFacilityIndex = null;
-        _facilityInputController.clear();
-        allstatus = false;
-      }
-    }
 
     int? _parseHarga() =>
         ThousandsSeparatorInputFormatter.tryParseInt(_harga.text);
@@ -1572,202 +1537,215 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                 bottomNavigationBar: Consumer<KostProvider>(
                   builder: (context, value, child) {
                     final bool isEdit = terima != null;
-                    final bool isReady =
-                        _isFormReadyPemilik(penghubung, isEdit: isEdit);
-                    final bool canSubmit = isReady && !_isSubmitting;
-
                     return terima != null
                         ? Padding(
                             padding: EdgeInsets.all(lebarLayar * 0.05),
                             child: SizedBox(
                               height: tinggiLayar * 0.065,
                               width: double.infinity,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: canSubmit
-                                      ? warnaTombol
-                                      : Colors.grey.shade400,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(50),
-                                  ),
-                                ),
-                                onPressed: !canSubmit
-                                    ? null
-                                    : () async {
-                                        setState(() {
-                                          _isSubmitting = true;
-                                        });
-                                        final String? errorMessage =
-                                            _validateFormPemilik(
-                                          penghubung,
-                                          isEdit: true,
-                                          currentKostId: pakai!.id_kost,
-                                        );
+                              child: AnimatedBuilder(
+                                animation: _formFieldsListenable,
+                                builder: (context, _) {
+                                  final bool isReady = _isFormReadyPemilik(
+                                    penghubung,
+                                    isEdit: isEdit,
+                                  );
+                                  final bool canSubmit =
+                                      isReady && !_isSubmitting;
 
-                                        if (errorMessage != null) {
-                                          showDialog(
-                                            context: context,
-                                            builder: (context) {
-                                              return ShowdialogEror(
-                                                  label: errorMessage);
-                                            },
-                                          );
-
-                                          if (mounted) {
+                                  return ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: canSubmit
+                                          ? warnaTombol
+                                          : Colors.grey.shade400,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(50),
+                                      ),
+                                    ),
+                                    onPressed: !canSubmit
+                                        ? null
+                                        : () async {
                                             setState(() {
-                                              _isSubmitting = false;
+                                              _isSubmitting = true;
                                             });
-                                          }
-                                          return;
-                                        }
 
-                                        try {
-                                          // await penghubung.updateddatapemilik(
-                                          //   penghubung.token!,
-                                          //   penghubung.id_authnya!,
-                                          //   pakai!.id_fasilitas!,
-                                          //   pakai.id_kost!,
-                                          //   pakai.gambar_kost!,
-                                          //   penghubung.foto,
-                                          //   penghubung.inputan.tempat_tidur,
-                                          //   penghubung
-                                          //       .inputan.kamar_mandi_dalam,
-                                          //   penghubung.inputan.meja,
-                                          //   penghubung.inputan.tempat_parkir,
-                                          //   penghubung.inputan.lemari,
-                                          //   penghubung.inputan.ac,
-                                          //   penghubung.inputan.tv,
-                                          //   penghubung.inputan.dapur_dalam,
-                                          //   penghubung.inputan.wifi,
-                                          //   _namapemilik.text,
-                                          //   _namakost.text,
-                                          //   int.parse(_notlpn.text),
-                                          //   _alamat.text,
-                                          //   _parseHarga() ?? 0,
-                                          //   penghubung.jeniskosts,
-                                          //   penghubung.jeniskeamanans,
-                                          //   int.parse(_panjang.text),
-                                          //   int.parse(_lebar.text),
-                                          //   penghubung.batasjammalams,
-                                          //   penghubung.jenispembayaranairs,
-                                          //   penghubung.jenislistriks,
-                                          //   _koordinatController.text,
-                                          //   penghubung.pernama,
-                                          // );
-
-                                          // Parse dimensions with error handling
-                                          num? panjangValue;
-                                          num? lebarValue;
-                                          try {
-                                            panjangValue = num.parse(_panjang
-                                                .text
-                                                .replaceAll(',', '.'));
-                                            lebarValue = num.parse(_lebar.text
-                                                .replaceAll(',', '.'));
-                                          } catch (e) {
-                                            if (mounted) {
-                                              setState(() {
-                                                _isSubmitting = false;
-                                              });
-                                            }
-                                            showDialog(
-                                              context: context,
-                                              builder: (context) {
-                                                return ShowdialogEror(
-                                                  label:
-                                                      "Format angka tidak valid untuk panjang/lebar kamar.",
-                                                );
-                                              },
+                                            final String? errorMessage =
+                                                _validateFormPemilik(
+                                              penghubung,
+                                              isEdit: true,
+                                              currentKostId: pakai!.id_kost,
                                             );
-                                            return;
-                                          }
 
-                                          await penghubung
-                                              .konversiupdateddatapemilik(
-                                            penghubung.token!,
-                                            penghubung.id_authnya!,
-                                            pakai.id_kost!,
-                                            pakai.gambar_kost!,
-                                            penghubung.foto,
-                                            _namapemilik.text,
-                                            _namakost.text,
-                                            _notlpn.text.trim().isEmpty
-                                                ? '0'
-                                                : _notlpn.text.trim(),
-                                            _alamat.text,
-                                            ThousandsSeparatorInputFormatter
-                                                    .tryParseInt(_harga.text) ??
-                                                0,
-                                            penghubung.jeniskosts,
-                                            penghubung.penghunis,
-                                            penghubung.jeniskeamanans,
-                                            panjangValue,
-                                            lebarValue,
-                                            penghubung.batasjammalams,
-                                            penghubung.jenispembayaranairs,
-                                            penghubung.jenislistriks,
-                                            _koordinatController.text,
-                                            penghubung.pernama,
-                                            _listini,
-                                          );
+                                            if (errorMessage != null) {
+                                              showDialog(
+                                                context: context,
+                                                builder: (context) {
+                                                  return ShowdialogEror(
+                                                      label: errorMessage);
+                                                },
+                                              );
 
-                                          setState(() {
-                                            penghubung.resetpilihan();
-                                            penghubung.inputan.resetcheckbox();
-                                          });
+                                              if (mounted) {
+                                                setState(() {
+                                                  _isSubmitting = false;
+                                                });
+                                              }
+                                              return;
+                                            }
 
-                                          Navigator.of(context).pop();
-                                        } catch (e) {
-                                          showDialog(
-                                            context: context,
-                                            builder: (context) {
-                                              return ShowdialogEror(
-                                                  label: "${e.toString()}");
-                                            },
-                                          );
-                                        } finally {
-                                          if (mounted) {
-                                            setState(() {
-                                              _isSubmitting = false;
-                                            });
-                                          }
-                                        }
-                                      },
-                                child: _isSubmitting
-                                    ? Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              valueColor:
-                                                  AlwaysStoppedAnimation<Color>(
-                                                      Colors.white),
-                                            ),
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            'Menyimpan...',
+                                            try {
+                                              // await penghubung.updateddatapemilik(
+                                              //   penghubung.token!,
+                                              //   penghubung.id_authnya!,
+                                              //   pakai!.id_fasilitas!,
+                                              //   pakai.id_kost!,
+                                              //   pakai.gambar_kost!,
+                                              //   penghubung.foto,
+                                              //   penghubung.inputan.tempat_tidur,
+                                              //   penghubung
+                                              //       .inputan.kamar_mandi_dalam,
+                                              //   penghubung.inputan.meja,
+                                              //   penghubung.inputan.tempat_parkir,
+                                              //   penghubung.inputan.lemari,
+                                              //   penghubung.inputan.ac,
+                                              //   penghubung.inputan.tv,
+                                              //   penghubung.inputan.dapur_dalam,
+                                              //   penghubung.inputan.wifi,
+                                              //   _namapemilik.text,
+                                              //   _namakost.text,
+                                              //   int.parse(_notlpn.text),
+                                              //   _alamat.text,
+                                              //   _parseHarga() ?? 0,
+                                              //   penghubung.jeniskosts,
+                                              //   penghubung.jeniskeamanans,
+                                              //   int.parse(_panjang.text),
+                                              //   int.parse(_lebar.text),
+                                              //   penghubung.batasjammalams,
+                                              //   penghubung.jenispembayaranairs,
+                                              //   penghubung.jenislistriks,
+                                              //   _koordinatController.text,
+                                              //   penghubung.pernama,
+                                              // );
+
+                                              // Parse dimensions with error handling
+                                              num? panjangValue;
+                                              num? lebarValue;
+                                              try {
+                                                panjangValue = num.parse(
+                                                    _panjang.text
+                                                        .replaceAll(',', '.'));
+                                                lebarValue = num.parse(_lebar
+                                                    .text
+                                                    .replaceAll(',', '.'));
+                                              } catch (e) {
+                                                if (mounted) {
+                                                  setState(() {
+                                                    _isSubmitting = false;
+                                                  });
+                                                }
+                                                showDialog(
+                                                  context: context,
+                                                  builder: (context) {
+                                                    return ShowdialogEror(
+                                                      label:
+                                                          "Format angka tidak valid untuk panjang/lebar kamar.",
+                                                    );
+                                                  },
+                                                );
+                                                return;
+                                              }
+
+                                              await penghubung
+                                                  .konversiupdateddatapemilik(
+                                                penghubung.token!,
+                                                penghubung.id_authnya!,
+                                                pakai.id_kost!,
+                                                pakai.gambar_kost!,
+                                                penghubung.foto,
+                                                _namapemilik.text,
+                                                _namakost.text,
+                                                _notlpn.text.trim().isEmpty
+                                                    ? '0'
+                                                    : _notlpn.text.trim(),
+                                                _alamat.text,
+                                                ThousandsSeparatorInputFormatter
+                                                        .tryParseInt(
+                                                            _harga.text) ??
+                                                    0,
+                                                penghubung.jeniskosts,
+                                                penghubung.penghunis,
+                                                penghubung.jeniskeamanans,
+                                                panjangValue,
+                                                lebarValue,
+                                                penghubung.batasjammalams,
+                                                penghubung.jenispembayaranairs,
+                                                penghubung.jenislistriks,
+                                                _koordinatController.text,
+                                                penghubung.pernama,
+                                                _listini,
+                                              );
+
+                                              setState(() {
+                                                penghubung.resetpilihan();
+                                                penghubung.inputan
+                                                    .resetcheckbox();
+                                              });
+
+                                              Navigator.of(context).pop();
+                                            } catch (e) {
+                                              showDialog(
+                                                context: context,
+                                                builder: (context) {
+                                                  return ShowdialogEror(
+                                                      label: "${e.toString()}");
+                                                },
+                                              );
+                                            } finally {
+                                              if (mounted) {
+                                                setState(() {
+                                                  _isSubmitting = false;
+                                                });
+                                              }
+                                            }
+                                          },
+                                    child: _isSubmitting
+                                        ? Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              SizedBox(
+                                                width: 20,
+                                                height: 20,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  valueColor:
+                                                      AlwaysStoppedAnimation<
+                                                          Color>(Colors.white),
+                                                ),
+                                              ),
+                                              SizedBox(width: 8),
+                                              Text(
+                                                'Menyimpan...',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: lebarLayar * 0.04,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        : Text(
+                                            'Simpan Perubahan',
                                             style: TextStyle(
                                               color: Colors.white,
                                               fontSize: lebarLayar * 0.04,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
-                                        ],
-                                      )
-                                    : Text(
-                                        'Simpan Perubahan',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: lebarLayar * 0.04,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                                  );
+                                },
                               ),
                             ),
                           )
@@ -1776,188 +1754,205 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                             child: SizedBox(
                               height: tinggiLayar * 0.065,
                               width: double.infinity,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: canSubmit
-                                      ? warnaTombol
-                                      : Colors.grey.shade400,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(50),
-                                  ),
-                                ),
-                                onPressed: !canSubmit
-                                    ? null
-                                    : () async {
-                                        if (!mounted) return;
-                                        setState(() {
-                                          _isSubmitting = true;
-                                        });
-                                        final String? errorMessage =
-                                            _validateFormPemilik(
-                                          penghubung,
-                                          isEdit: false,
-                                        );
+                              child: AnimatedBuilder(
+                                animation: _formFieldsListenable,
+                                builder: (context, _) {
+                                  final bool isReady = _isFormReadyPemilik(
+                                    penghubung,
+                                    isEdit: isEdit,
+                                  );
+                                  final bool canSubmit =
+                                      isReady && !_isSubmitting;
 
-                                        if (errorMessage != null) {
-                                          showDialog(
-                                            context: context,
-                                            builder: (context) {
-                                              return ShowdialogEror(
-                                                  label: errorMessage);
-                                            },
-                                          );
-
-                                          if (mounted) {
+                                  return ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: canSubmit
+                                          ? warnaTombol
+                                          : Colors.grey.shade400,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(50),
+                                      ),
+                                    ),
+                                    onPressed: !canSubmit
+                                        ? null
+                                        : () async {
+                                            if (!mounted) return;
                                             setState(() {
-                                              _isSubmitting = false;
+                                              _isSubmitting = true;
                                             });
-                                          }
-                                          return;
-                                        }
 
-                                        try {
-                                          // await penghubung.createdatapemilik(
-                                          //   penghubung.token!,
-                                          //   penghubung.foto!,
-                                          //   penghubung.id_authnya!,
-                                          //   penghubung.inputan.tempat_tidur,
-                                          //   penghubung
-                                          //       .inputan.kamar_mandi_dalam,
-                                          //   penghubung.inputan.meja,
-                                          //   penghubung.inputan.tempat_parkir,
-                                          //   penghubung.inputan.lemari,
-                                          //   penghubung.inputan.ac,
-                                          //   penghubung.inputan.tv,
-                                          //   penghubung.inputan.kipas,
-                                          //   penghubung.inputan.dapur_dalam,
-                                          //   penghubung.inputan.wifi,
-                                          //   _koordinatController.text,
-                                          //   _namapemilik.text,
-                                          //   _namakost.text,
-                                          //   _alamat.text,
-                                          //   int.parse(_notlpn.text),
-                                          //   _parseHarga() ?? 0,
-                                          //   penghubung.jeniskosts,
-                                          //   penghubung.jeniskeamanans,
-                                          //   int.parse(_panjang.text),
-                                          //   int.parse(_lebar.text),
-                                          //   penghubung.batasjammalams,
-                                          //   penghubung.jenispembayaranairs,
-                                          //   penghubung.jenislistriks,
-                                          //   penghubung.pernama,
-                                          // );
-
-                                          // Parse dimensions with error handling
-                                          num? panjangValue;
-                                          num? lebarValue;
-                                          try {
-                                            panjangValue = num.parse(_panjang
-                                                .text
-                                                .replaceAll(',', '.'));
-                                            lebarValue = num.parse(_lebar.text
-                                                .replaceAll(',', '.'));
-                                          } catch (e) {
-                                            if (mounted) {
-                                              setState(() {
-                                                _isSubmitting = false;
-                                              });
-                                            }
-                                            showDialog(
-                                              context: context,
-                                              builder: (context) {
-                                                return ShowdialogEror(
-                                                  label:
-                                                      "Format angka tidak valid untuk panjang/lebar kamar.",
-                                                );
-                                              },
+                                            final String? errorMessage =
+                                                _validateFormPemilik(
+                                              penghubung,
+                                              isEdit: false,
                                             );
-                                            return;
-                                          }
 
-                                          await penghubung
-                                              .konversicreateddatapemilik(
-                                            penghubung.token!,
-                                            penghubung.foto!,
-                                            penghubung.id_authnya!,
-                                            _koordinatController.text,
-                                            _namapemilik.text,
-                                            _namakost.text,
-                                            _alamat.text,
-                                            _notlpn.text.trim().isEmpty
-                                                ? '0'
-                                                : _notlpn.text.trim(),
-                                            ThousandsSeparatorInputFormatter
-                                                    .tryParseInt(_harga.text) ??
-                                                0,
-                                            penghubung.jeniskosts,
-                                            penghubung.penghunis,
-                                            penghubung.jeniskeamanans,
-                                            panjangValue,
-                                            lebarValue,
-                                            penghubung.batasjammalams,
-                                            penghubung.jenispembayaranairs,
-                                            penghubung.jenislistriks,
-                                            penghubung.pernama,
-                                            _listini,
-                                          );
+                                            if (errorMessage != null) {
+                                              showDialog(
+                                                context: context,
+                                                builder: (context) {
+                                                  return ShowdialogEror(
+                                                      label: errorMessage);
+                                                },
+                                              );
 
-                                          setState(() {
-                                            penghubung.inputan.resetcheckbox();
-                                            penghubung.resetpilihan();
-                                          });
+                                              if (mounted) {
+                                                setState(() {
+                                                  _isSubmitting = false;
+                                                });
+                                              }
+                                              return;
+                                            }
 
-                                          Navigator.of(context).pop();
-                                        } catch (e) {
-                                          showDialog(
-                                            context: context,
-                                            builder: (context) {
-                                              return ShowdialogEror(
-                                                  label: "${e.toString()}");
-                                            },
-                                          );
-                                        } finally {
-                                          if (mounted) {
-                                            setState(() {
-                                              _isSubmitting = false;
-                                            });
-                                          }
-                                        }
-                                      },
-                                child: _isSubmitting
-                                    ? Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              valueColor:
-                                                  AlwaysStoppedAnimation<Color>(
-                                                      Colors.white),
-                                            ),
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            'Menyimpan...',
+                                            try {
+                                              // await penghubung.createdatapemilik(
+                                              //   penghubung.token!,
+                                              //   penghubung.foto!,
+                                              //   penghubung.id_authnya!,
+                                              //   penghubung.inputan.tempat_tidur,
+                                              //   penghubung
+                                              //       .inputan.kamar_mandi_dalam,
+                                              //   penghubung.inputan.meja,
+                                              //   penghubung.inputan.tempat_parkir,
+                                              //   penghubung.inputan.lemari,
+                                              //   penghubung.inputan.ac,
+                                              //   penghubung.inputan.tv,
+                                              //   penghubung.inputan.kipas,
+                                              //   penghubung.inputan.dapur_dalam,
+                                              //   penghubung.inputan.wifi,
+                                              //   _koordinatController.text,
+                                              //   _namapemilik.text,
+                                              //   _namakost.text,
+                                              //   _alamat.text,
+                                              //   int.parse(_notlpn.text),
+                                              //   _parseHarga() ?? 0,
+                                              //   penghubung.jeniskosts,
+                                              //   penghubung.jeniskeamanans,
+                                              //   int.parse(_panjang.text),
+                                              //   int.parse(_lebar.text),
+                                              //   penghubung.batasjammalams,
+                                              //   penghubung.jenispembayaranairs,
+                                              //   penghubung.jenislistriks,
+                                              //   penghubung.pernama,
+                                              // );
+
+                                              // Parse dimensions with error handling
+                                              num? panjangValue;
+                                              num? lebarValue;
+                                              try {
+                                                panjangValue = num.parse(
+                                                    _panjang.text
+                                                        .replaceAll(',', '.'));
+                                                lebarValue = num.parse(_lebar
+                                                    .text
+                                                    .replaceAll(',', '.'));
+                                              } catch (e) {
+                                                if (mounted) {
+                                                  setState(() {
+                                                    _isSubmitting = false;
+                                                  });
+                                                }
+                                                showDialog(
+                                                  context: context,
+                                                  builder: (context) {
+                                                    return ShowdialogEror(
+                                                      label:
+                                                          "Format angka tidak valid untuk panjang/lebar kamar.",
+                                                    );
+                                                  },
+                                                );
+                                                return;
+                                              }
+
+                                              await penghubung
+                                                  .konversicreateddatapemilik(
+                                                penghubung.token!,
+                                                penghubung.foto!,
+                                                penghubung.id_authnya!,
+                                                _koordinatController.text,
+                                                _namapemilik.text,
+                                                _namakost.text,
+                                                _alamat.text,
+                                                _notlpn.text.trim().isEmpty
+                                                    ? '0'
+                                                    : _notlpn.text.trim(),
+                                                ThousandsSeparatorInputFormatter
+                                                        .tryParseInt(
+                                                            _harga.text) ??
+                                                    0,
+                                                penghubung.jeniskosts,
+                                                penghubung.penghunis,
+                                                penghubung.jeniskeamanans,
+                                                panjangValue,
+                                                lebarValue,
+                                                penghubung.batasjammalams,
+                                                penghubung.jenispembayaranairs,
+                                                penghubung.jenislistriks,
+                                                penghubung.pernama,
+                                                _listini,
+                                              );
+
+                                              setState(() {
+                                                penghubung.inputan
+                                                    .resetcheckbox();
+                                                penghubung.resetpilihan();
+                                              });
+
+                                              Navigator.of(context).pop();
+                                            } catch (e) {
+                                              showDialog(
+                                                context: context,
+                                                builder: (context) {
+                                                  return ShowdialogEror(
+                                                      label: "${e.toString()}");
+                                                },
+                                              );
+                                            } finally {
+                                              if (mounted) {
+                                                setState(() {
+                                                  _isSubmitting = false;
+                                                });
+                                              }
+                                            }
+                                          },
+                                    child: _isSubmitting
+                                        ? Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              SizedBox(
+                                                width: 20,
+                                                height: 20,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  valueColor:
+                                                      AlwaysStoppedAnimation<
+                                                          Color>(Colors.white),
+                                                ),
+                                              ),
+                                              SizedBox(width: 8),
+                                              Text(
+                                                'Menyimpan...',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: lebarLayar * 0.04,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        : Text(
+                                            'Simpan Data',
                                             style: TextStyle(
                                               color: Colors.white,
                                               fontSize: lebarLayar * 0.04,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
-                                        ],
-                                      )
-                                    : Text(
-                                        'Simpan Data',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: lebarLayar * 0.04,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                                  );
+                                },
                               ),
                             ),
                           );
