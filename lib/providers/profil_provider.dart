@@ -228,7 +228,8 @@ class ProfilProvider with ChangeNotifier {
   Future<void> adminUpdateUserProfil({
     required int idProfil,
     String? jkl,
-    num? kontak,
+    String? kontak,
+    bool setKontak = false,
     DateTime? tgllahir,
   }) async {
     try {
@@ -236,6 +237,7 @@ class ProfilProvider with ChangeNotifier {
         idProfil: idProfil,
         jkl: jkl,
         kontak: kontak,
+        setKontak: setKontak,
         tgllahir: tgllahir,
       );
     } catch (e) {

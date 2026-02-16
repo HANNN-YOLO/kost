@@ -50,12 +50,14 @@ class ProfilModel {
       if (json['kontak'] is String) {
         kontakValue = json['kontak'] as String;
       } else if (json['kontak'] is num) {
-        // Convert number to string, handling integers without decimal point
+        // NOTE: Jika kolom database bertipe numeric, leading zero memang sudah hilang
+        // sebelum sampai ke aplikasi. Di sisi aplikasi, kita pastikan tidak ada
+        // konversi tambahan yang mengubah string (mis. toInt()).
         final num kontakNum = json['kontak'] as num;
-        if (kontakNum == 0) {
-          kontakValue = '0';
+        if (kontakNum.isFinite && kontakNum % 1 == 0) {
+          kontakValue = kontakNum.toStringAsFixed(0);
         } else {
-          kontakValue = kontakNum.toInt().toString();
+          kontakValue = kontakNum.toString();
         }
       }
     }

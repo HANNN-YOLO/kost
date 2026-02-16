@@ -95,13 +95,16 @@ class KostModel {
     String? notlpValue;
     if (json['notlp_kost'] != null) {
       if (json['notlp_kost'] is String) {
-        notlpValue = json['notlp_kost'] as String;
+        final v = (json['notlp_kost'] as String).trim();
+        notlpValue = (v.isEmpty || v == '0') ? null : v;
       } else if (json['notlp_kost'] is num) {
         final num notlpNum = json['notlp_kost'] as num;
-        if (notlpNum == 0) {
-          notlpValue = '0';
+        if (!notlpNum.isFinite || notlpNum == 0) {
+          notlpValue = null;
+        } else if (notlpNum % 1 == 0) {
+          notlpValue = notlpNum.toStringAsFixed(0);
         } else {
-          notlpValue = notlpNum.toInt().toString();
+          notlpValue = notlpNum.toString();
         }
       }
     }

@@ -55,6 +55,18 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
   bool keadaan = true;
   bool _isSubmitting = false;
 
+  String? _initialEditSignature;
+
+  Future<void> _showErrorDialog(String message) async {
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return ShowdialogEror(label: message);
+      },
+    );
+  }
+
   late final Listenable _formFieldsListenable;
 
   List<inputanlist> _listini = [];
@@ -64,8 +76,9 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
   final FocusNode _facilityFocusNode = FocusNode();
   int? _editingFacilityIndex;
 
-  // Key untuk WebView container
-  final GlobalKey _webViewKey = GlobalKey();
+  // Key untuk WebView container - generate unique key untuk menghindari collision
+  late final Key _webViewKey =
+      ValueKey('pemilik_webview_${DateTime.now().microsecondsSinceEpoch}');
 
   // Opsi lokasi untuk titik koordinat (mirip halaman rekomendasi penyewa)
   String _selectedLocationOption = 'Lokasi Tujuan';
@@ -230,6 +243,61 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
 
   String _facilityKey(String raw) {
     return raw.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  String? _normalizedCoordKey(String raw) {
+    final text = raw.trim();
+    if (text.isEmpty) return null;
+    final parts = text.split(',');
+    if (parts.length != 2) return null;
+    final lat = double.tryParse(parts[0].trim());
+    final lng = double.tryParse(parts[1].trim());
+    if (lat == null || lng == null) return null;
+    return '${lat.toStringAsFixed(6)},${lng.toStringAsFixed(6)}';
+  }
+
+  String _normalizedTextKey(String raw) {
+    return raw.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  String _facilitySignaturePemilik() {
+    final facilities = _listini
+        .map((e) => _facilityKey(e.fasilitas.text))
+        .where((e) => e.isNotEmpty)
+        .toList()
+      ..sort();
+    return facilities.join('|');
+  }
+
+  String _currentEditSignaturePemilik(KostProvider penghubung) {
+    final harga = ThousandsSeparatorInputFormatter.tryParseInt(_harga.text);
+    final panjang = num.tryParse(_panjang.text.trim().replaceAll(',', '.'));
+    final lebar = num.tryParse(_lebar.text.trim().replaceAll(',', '.'));
+    final coordKey = _normalizedCoordKey(_koordinatController.text) ??
+        _koordinatController.text.trim();
+
+    return <String, String>{
+      'namaKost': _normalizedTextKey(_namakost.text),
+      'alamat': _normalizedTextKey(_alamat.text),
+      'harga': (harga ?? 0).toString(),
+      'panjang': (panjang ?? 0).toStringAsFixed(3),
+      'lebar': (lebar ?? 0).toStringAsFixed(3),
+      'koordinat': coordKey,
+      'jenisKost': _normalizedTextKey(penghubung.jeniskosts),
+      'penghuni': _normalizedTextKey(penghubung.penghunis),
+      'keamanan': _normalizedTextKey(penghubung.jeniskeamanans),
+      'jamMalam': _normalizedTextKey(penghubung.batasjammalams),
+      'air': _normalizedTextKey(penghubung.jenispembayaranairs),
+      'listrik': _normalizedTextKey(penghubung.jenislistriks),
+      'periode': _normalizedTextKey(penghubung.pernama),
+      'fasilitas': _facilitySignaturePemilik(),
+      'fotoChanged': (penghubung.foto != null).toString(),
+    }.entries.map((e) => '${e.key}=${e.value}').join(';');
+  }
+
+  bool _hasEditChangesPemilik(KostProvider penghubung) {
+    if (_initialEditSignature == null) return true;
+    return _currentEditSignaturePemilik(penghubung) != _initialEditSignature;
   }
 
   void _startEditFacility(int index) {
@@ -424,6 +492,11 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
     if (keadaan) {
       final int? terima = ModalRoute.of(context)?.settings.arguments as int?;
       final penghubung = Provider.of<KostProvider>(context, listen: false);
+
+      // Pastikan tidak ada foto "tersisa" dari form sebelumnya.
+      // Jangan notify saat didChangeDependencies (fase build) untuk menghindari
+      // error: markNeedsBuild called during build.
+      penghubung.clearFoto(notify: false);
       final penghubung2 = Provider.of<ProfilProvider>(context, listen: false)
           .readdata(penghubung.token!, penghubung.id_authnya!);
 
@@ -491,6 +564,9 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
 
               _editingFacilityIndex = null;
               _facilityInputController.clear();
+
+              // Ambil snapshot awal untuk deteksi perubahan pada mode edit.
+              _initialEditSignature = _currentEditSignaturePemilik(penghubung);
 
               // fasilitas lama
               // final cekker = Provider.of<KostProvider>(context, listen: false);
@@ -1550,8 +1626,10 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                     penghubung,
                                     isEdit: isEdit,
                                   );
+                                  final bool hasChanges =
+                                      !isEdit || _hasEditChangesPemilik(value);
                                   final bool canSubmit =
-                                      isReady && !_isSubmitting;
+                                      isReady && !_isSubmitting && hasChanges;
 
                                   return ElevatedButton(
                                     style: ElevatedButton.styleFrom(
@@ -1577,12 +1655,8 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                             );
 
                                             if (errorMessage != null) {
-                                              showDialog(
-                                                context: context,
-                                                builder: (context) {
-                                                  return ShowdialogEror(
-                                                      label: errorMessage);
-                                                },
+                                              await _showErrorDialog(
+                                                errorMessage,
                                               );
 
                                               if (mounted) {
@@ -1643,14 +1717,8 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                                     _isSubmitting = false;
                                                   });
                                                 }
-                                                showDialog(
-                                                  context: context,
-                                                  builder: (context) {
-                                                    return ShowdialogEror(
-                                                      label:
-                                                          "Format angka tidak valid untuk panjang/lebar kamar.",
-                                                    );
-                                                  },
+                                                await _showErrorDialog(
+                                                  "Format angka tidak valid untuk panjang/lebar kamar.",
                                                 );
                                                 return;
                                               }
@@ -1665,7 +1733,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                                 _namapemilik.text,
                                                 _namakost.text,
                                                 _notlpn.text.trim().isEmpty
-                                                    ? '0'
+                                                    ? null
                                                     : _notlpn.text.trim(),
                                                 _alamat.text,
                                                 ThousandsSeparatorInputFormatter
@@ -1693,12 +1761,8 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
 
                                               Navigator.of(context).pop();
                                             } catch (e) {
-                                              showDialog(
-                                                context: context,
-                                                builder: (context) {
-                                                  return ShowdialogEror(
-                                                      label: "${e.toString()}");
-                                                },
+                                              await _showErrorDialog(
+                                                e.toString(),
                                               );
                                             } finally {
                                               if (mounted) {
@@ -1761,8 +1825,10 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                     penghubung,
                                     isEdit: isEdit,
                                   );
+                                  final bool hasChanges =
+                                      !isEdit || _hasEditChangesPemilik(value);
                                   final bool canSubmit =
-                                      isReady && !_isSubmitting;
+                                      isReady && !_isSubmitting && hasChanges;
 
                                   return ElevatedButton(
                                     style: ElevatedButton.styleFrom(
@@ -1788,12 +1854,8 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                             );
 
                                             if (errorMessage != null) {
-                                              showDialog(
-                                                context: context,
-                                                builder: (context) {
-                                                  return ShowdialogEror(
-                                                      label: errorMessage);
-                                                },
+                                              await _showErrorDialog(
+                                                errorMessage,
                                               );
 
                                               if (mounted) {
@@ -1852,14 +1914,8 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                                     _isSubmitting = false;
                                                   });
                                                 }
-                                                showDialog(
-                                                  context: context,
-                                                  builder: (context) {
-                                                    return ShowdialogEror(
-                                                      label:
-                                                          "Format angka tidak valid untuk panjang/lebar kamar.",
-                                                    );
-                                                  },
+                                                await _showErrorDialog(
+                                                  "Format angka tidak valid untuk panjang/lebar kamar.",
                                                 );
                                                 return;
                                               }
@@ -1874,7 +1930,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                                                 _namakost.text,
                                                 _alamat.text,
                                                 _notlpn.text.trim().isEmpty
-                                                    ? '0'
+                                                    ? null
                                                     : _notlpn.text.trim(),
                                                 ThousandsSeparatorInputFormatter
                                                         .tryParseInt(
@@ -1900,12 +1956,8 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
 
                                               Navigator.of(context).pop();
                                             } catch (e) {
-                                              showDialog(
-                                                context: context,
-                                                builder: (context) {
-                                                  return ShowdialogEror(
-                                                      label: "${e.toString()}");
-                                                },
+                                              await _showErrorDialog(
+                                                e.toString(),
                                               );
                                             } finally {
                                               if (mounted) {
@@ -2070,7 +2122,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
     // }
 
     // Nomor telepon mengikuti profil dan boleh kosong jika profil belum diisi.
-    if (noTelp.isNotEmpty && noTelp != '0') {
+    if (noTelp.isNotEmpty) {
       if (int.tryParse(noTelp) == null) {
         return "Nomor telepon hanya boleh berisi angka.";
       }
@@ -2140,7 +2192,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
       return k.garis_lintang == lat && k.garis_bujur == lng;
     }).toList();
 
-    if (!isEdit && existingKoordinat.isNotEmpty) {
+    if (existingKoordinat.isNotEmpty) {
       return "Titik koordinat ini sudah digunakan oleh kost lain.";
     }
 

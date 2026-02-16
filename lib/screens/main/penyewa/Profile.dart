@@ -83,7 +83,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
           // profil baru, nilai awal masih kosong
           _initialNoHpText = noHpController.text;
         } else {
-          noHpController.text = '${penghubung2.mydata[index].kontak}';
+          final kontak = penghubung2.mydata[index].kontak;
+          noHpController.text =
+              (kontak == null || kontak.trim().isEmpty || kontak == '0')
+                  ? ''
+                  : kontak;
 
           // simpan nilai awal saat pertama kali berhasil dibaca
           _initialNoHpText = noHpController.text;
@@ -754,30 +758,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       final String hpText = noHpController.text.trim();
                       String? hp;
                       if (hpText.isEmpty) {
-                        // Jika sebelumnya sudah ada nomor HP tersimpan, jangan izinkan dikosongkan.
-                        final String? existingHp = penghubung2.mydata.isNotEmpty
-                            ? penghubung2.mydata[index].kontak
-                            : null;
-
-                        if (existingHp != null &&
-                            existingHp != '0' &&
-                            existingHp.isNotEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Nomor HP tidak boleh dikosongkan karena sudah pernah disimpan.',
-                              ),
-                            ),
-                          );
-                          return;
-                        }
-
-                        // Profil baru / belum pernah isi no hp: boleh kosong
-                        // "0" = "Tidak di publish"
-                        hp = '0';
+                        // Boleh kosong: simpan NULL.
+                        hp = null;
                       } else {
                         // Validasi hanya angka
-                        if (int.tryParse(hpText) == null) {
+                        if (!RegExp(r'^\d+$').hasMatch(hpText)) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Nomor HP harus berupa angka.'),
@@ -844,6 +829,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           setState(() {
                             noHpController.text =
                                 '${penghubung2.mydata[index].kontak ?? ''}';
+                            if (noHpController.text == '0' ||
+                                noHpController.text == 'null') {
+                              noHpController.text = '';
+                            }
                             mesaage = 'Profil berhasil dibuat';
                             _initialNoHpText = noHpController.text;
                             _hasChanges = false;
@@ -851,8 +840,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           if (mounted) {
                             // Pemilik: setelah profil diisi, update semua kost pemilik agar mengikuti no HP profil.
                             if ((penghubung.mydata[index].role ?? '') ==
-                                    'Pemilik' &&
-                                (hpToSave != null && hpToSave != '0')) {
+                                'Pemilik') {
                               try {
                                 final kostService = KostService();
                                 await kostService.updateNoTelpKostPemilikSemua(
@@ -879,8 +867,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           }
                         } else {
                           // Mode update - gunakan data lama jika field tidak diubah
-                          final String? hpToSave =
-                              hp ?? penghubung2.mydata[index].kontak;
+                          final String? hpToSave = hp;
 
                           await penghubung2.updateprofil(
                             penghubung2.isinya,
@@ -891,6 +878,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           setState(() {
                             noHpController.text =
                                 '${penghubung2.mydata[index].kontak ?? ''}';
+                            if (noHpController.text == '0' ||
+                                noHpController.text == 'null') {
+                              noHpController.text = '';
+                            }
                             mesaage = 'Profil berhasil diperbarui';
                             _initialNoHpText = noHpController.text;
                             _hasChanges = false;
@@ -898,8 +889,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           if (mounted) {
                             // Pemilik: setiap perubahan no HP profil harus mengubah no HP semua kost.
                             if ((penghubung.mydata[index].role ?? '') ==
-                                    'Pemilik' &&
-                                (hpToSave != null && hpToSave != '0')) {
+                                'Pemilik') {
                               try {
                                 final kostService = KostService();
                                 await kostService.updateNoTelpKostPemilikSemua(

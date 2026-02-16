@@ -30,13 +30,13 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
   final GlobalKey _fieldKey = GlobalKey();
   Size _fieldSize = Size.zero;
 
-  String _selectedLocation = "Lokasi Tujuan";
+  String _selectedLocation = "Pilih Tempat (Lewat Peta)";
   String _coordinateText = "Klik 2x pada peta";
 
   late final TextEditingController _coordinateController;
 
   static const String _optLokasiSekarang = "Lokasi Sekarang";
-  static const String _optLokasiTujuan = "Lokasi Tujuan";
+  static const String _optLokasiTujuan = "Pilih Tempat (Lewat Peta)";
   static const String _optManualKoordinat = "Masukkan Titik Koordinat";
 
   // -------- Icon Toggle untuk Dropdown ----------
@@ -562,7 +562,7 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
           await _mapController.runJavaScript("clearDestination();");
           await _goToMyLocation();
         } else if (text == _optLokasiTujuan) {
-          // Lokasi Tujuan: bersihkan marker lokasi sekarang dan ganti mode ke destination (butuh dblclick)
+          // Pilih Tempat (Lewat Peta): bersihkan marker lokasi sekarang dan ganti mode ke destination (butuh dblclick)
           await _mapController.runJavaScript("clearMyLocation();");
           await _mapController.runJavaScript("clearDestination();");
           await _mapController.runJavaScript("setMode('destination');");
@@ -651,7 +651,7 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
   // =================================================
   // OSRM: Jarak routing satu arah (km)
   // Catatan:
-  // - Menggunakan jarak jalan (routing), bukan Haversine.
+  // - Menggunakan jarak jalan (routing) via OSRM.
   // - Arah akan ditentukan oleh caller (di halaman ini: Tujuan → Kost).
   // =================================================
   Future<double?> _osrmRouteOneWayKm({

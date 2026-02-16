@@ -271,28 +271,8 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
     return null;
   }
 
-  double _deg2rad(double deg) => deg * (3.141592653589793 / 180.0);
-
-  double? _haversineKm({
-    required double? lat1,
-    required double? lng1,
-    required double? lat2,
-    required double? lng2,
-  }) {
-    if (lat1 == null || lng1 == null || lat2 == null || lng2 == null) {
-      return null;
-    }
-    const double R = 6371.0;
-    final double dLat = _deg2rad(lat2 - lat1);
-    final double dLng = _deg2rad(lng2 - lng1);
-    final double a = (math.sin(dLat / 2) * math.sin(dLat / 2)) +
-        (math.cos(_deg2rad(lat1)) *
-            math.cos(_deg2rad(lat2)) *
-            math.sin(dLng / 2) *
-            math.sin(dLng / 2));
-    final double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    return R * c;
-  }
+  // Jarak untuk rekomendasi harus berasal dari perhitungan jarak jalan (OSRM)
+  // yang sudah di-pass dari halaman sebelumnya melalui `kostData`.
 
   void _showSkippedDetail(
     BuildContext context,
@@ -747,13 +727,8 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
 
             if (_jarakMaxKm != null) {
               double? d = _getDistanceKmFromArgs(ranking.idKost);
-              d ??= _haversineKm(
-                lat1: widget.destinationLat,
-                lng1: widget.destinationLng,
-                lat2: kost.garis_lintang,
-                lng2: kost.garis_bujur,
-              );
-              if (d == null) return false;
+              // Jika jarak tidak tersedia, jangan drop item hanya karena filter jarak.
+              if (d == null) return true;
               if (d > _jarakMaxKm!) return false;
             }
 
@@ -1085,12 +1060,6 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
                               double? distanceKm;
                               distanceKm =
                                   _getDistanceKmFromArgs(ranking.idKost);
-                              distanceKm ??= _haversineKm(
-                                lat1: widget.destinationLat,
-                                lng1: widget.destinationLng,
-                                lat2: kost.garis_lintang,
-                                lng2: kost.garis_bujur,
-                              );
 
                               return _RankingCard(
                                 rank: ranking.peringkat,
@@ -1912,7 +1881,7 @@ class _RankingCard extends StatelessWidget {
                       child: _infoChip(
                         icon: Icons.analytics_rounded,
                         label: 'Skor',
-                        value: skor.toStringAsFixed(2),
+                        value: skor.toStringAsFixed(4),
                         color: const Color(0xFF4CAF50),
                       ),
                     ),

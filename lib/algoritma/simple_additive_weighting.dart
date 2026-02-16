@@ -132,8 +132,15 @@ class HasilRanking {
 }
 
 class SimpleAdditiveWeighting {
+  static const int _excelLikePrecision = 4;
+
+  static double _roundExcel(double value) {
+    return double.parse(value.toStringAsFixed(_excelLikePrecision));
+  }
+
   /// ============================================
-  /// RUMUS HAVERSINE - Menghitung Jarak 2 Titik Koordinat
+  /// DEPRECATED: Perhitungan Haversine tidak digunakan lagi untuk jarak rekomendasi.
+  /// Jarak harus berasal dari jarak jalan (OSRM) yang dikirim lewat `jarakKostMap`.
   /// ============================================
   /// Rumus: a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlng/2)
   ///        c = 2 × atan2(√a, √(1-a))
@@ -495,34 +502,13 @@ class SimpleAdditiveWeighting {
               idKriteria,
               listSubkriteria,
             );
-          }
-          // Prioritas 2: Hitung jarak menggunakan Haversine sebagai fallback
-          else if (userLat != null &&
-              userLng != null &&
-              kost.garis_lintang != null &&
-              kost.garis_bujur != null) {
-            print(
-                "      📍 Menggunakan HAVERSINE: user=($userLat, $userLng), kost=(${kost.garis_lintang}, ${kost.garis_bujur})");
-            nilaiAsli = hitungJarakKm(
-              userLat,
-              userLng,
-              kost.garis_lintang!,
-              kost.garis_bujur!,
-            );
-
-            // Konversi jarak ke nilai subkriteria berdasarkan range
-            nilaiNumerik = _konversiJarakKeSubkriteria(
-              nilaiAsli,
-              idKriteria,
-              listSubkriteria,
-            );
           } else {
             print(
-                "      ⚠️ Tidak ada data jarak! jarakKostMap=${jarakKostMap != null}, userLat=$userLat, userLng=$userLng");
+                "      ⚠️ Tidak ada data jarak jalan (OSRM) untuk kost id=${kost.id_kost}. jarakKostMap=${jarakKostMap != null}");
             nilaiAsli = null;
             nilaiNumerik = 0.0;
             alasanTerskip.add(
-              '$namaKritAsli: lokasi/koordinat tidak lengkap untuk menghitung jarak.',
+              '$namaKritAsli: jarak jalan tidak tersedia.',
             );
           }
         } else {
@@ -633,7 +619,7 @@ class SimpleAdditiveWeighting {
   /// - Biaya → harga_kost (Cost)
   /// - Fasilitas → jumlah fasilitas true (Benefit)
   /// - Luas Kamar → panjang × lebar (Benefit)
-  /// - Jarak → dihitung dengan Haversine (Benefit)
+  /// - Jarak → berasal dari OSRM (jarak jalan)
   /// - Keamanan → keamanan (Benefit)
   /// - Batas Jam Malam → batas_jam_malam (Cost)
   /// - Jenis Kost → jenis_kost (Benefit)
@@ -760,7 +746,7 @@ class SimpleAdditiveWeighting {
       return luas;
     }
 
-    // ========== C4: JARAK - ditangani terpisah dengan Haversine ==========
+    // ========== C4: JARAK - berasal dari OSRM (jarak jalan) ==========
 
     // ========== C5: KEAMANAN (Benefit) ==========
     if (kategori.contains('keamanan')) {
@@ -1236,7 +1222,7 @@ class SimpleAdditiveWeighting {
 
   /// Cek apakah jarak cocok dengan range subkriteria - FLEKSIBEL
   /// Mendukung format apapun dari database: m, km, atau angka biasa
-  /// Haversine menghitung dalam KM, jadi semua nilai dikonversi ke KM
+  /// Jarak dari OSRM sudah dalam KM (diolah di layer pemanggil)
   static bool _jarakCocokDenganRange(double jarakKm, String range) {
     final r = range.toLowerCase().replaceAll(' ', '');
     print(
@@ -1437,7 +1423,7 @@ class SimpleAdditiveWeighting {
           if (nilai <= 0 || minKolom <= 0) {
             matriksNormal[i][j] = 0.0;
           } else {
-            matriksNormal[i][j] = minKolom / nilai;
+            matriksNormal[i][j] = _roundExcel(minKolom / nilai);
           }
           print(
               "│  r${i + 1}${j + 1} = min(x${j + 1}) / x${i + 1}${j + 1} = $minKolom / $nilai = ${matriksNormal[i][j].toStringAsFixed(4)}");
@@ -1446,7 +1432,7 @@ class SimpleAdditiveWeighting {
           if (nilai <= 0 || maxKolom <= 0) {
             matriksNormal[i][j] = 0.0;
           } else {
-            matriksNormal[i][j] = nilai / maxKolom;
+            matriksNormal[i][j] = _roundExcel(nilai / maxKolom);
           }
           print(
               "│  r${i + 1}${j + 1} = x${i + 1}${j + 1} / max(x${j + 1}) = $nilai / $maxKolom = ${matriksNormal[i][j].toStringAsFixed(4)}");
@@ -1506,7 +1492,7 @@ class SimpleAdditiveWeighting {
       print("│ A${i + 1}:");
       for (int j = 0; j < jumlahKriteria; j++) {
         double w = j < bobot.length ? bobot[j] : 0.0;
-        matriksTerbobot[i][j] = matriksNormal[i][j] * w;
+        matriksTerbobot[i][j] = _roundExcel(matriksNormal[i][j] * w);
         String namaKrit =
             j < namaKriteria.length ? namaKriteria[j] : 'C${j + 1}';
         print(
@@ -1550,6 +1536,7 @@ class SimpleAdditiveWeighting {
 
       // V_i = Σ(w_j * r_ij)
       double total = nilaiPerKriteria.fold(0.0, (sum, val) => sum + val);
+      total = _roundExcel(total);
 
       // Buat string formula detail
       List<String> komponenRumus = [];

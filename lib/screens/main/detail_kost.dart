@@ -147,9 +147,10 @@ class DetailKost extends StatelessWidget {
                           icon: Icons.phone_outlined,
                           label: 'Kontak',
                           value: (kost.notlp_kost == null ||
-                                  '${kost.notlp_kost}' == '0')
+                                  (kost.notlp_kost ?? '').trim().isEmpty ||
+                                  (kost.notlp_kost ?? '').trim() == '0')
                               ? '-'
-                              : kost.notlp_kost.toString(),
+                              : (kost.notlp_kost ?? '').trim(),
                         ),
                         _InfoTile(
                           icon: Icons.king_bed_outlined,
@@ -240,7 +241,7 @@ class DetailKost extends StatelessWidget {
                         if (distanceKm != null) ...[
                           const SizedBox(height: 8),
                           Text(
-                            'Jarak dari tujuan ke kost: '
+                            'Jarak dari tempat ke kost: '
                             '${distanceKm.toStringAsFixed(2)} km',
                             style: const TextStyle(
                               fontSize: 13,

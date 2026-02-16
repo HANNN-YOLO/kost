@@ -370,20 +370,9 @@ class DetailUser extends StatelessWidget {
                           onPressed: isSaving
                               ? null
                               : () async {
-                                  if (noHpController.text.isEmpty) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Nomor handphone tidak boleh kosong.',
-                                        ),
-                                      ),
-                                    );
-                                    return;
-                                  }
-
-                                  final hp =
-                                      int.tryParse(noHpController.text.trim());
-                                  if (hp == null) {
+                                  final hp = noHpController.text.trim();
+                                  if (hp.isNotEmpty &&
+                                      !RegExp(r'^\d+$').hasMatch(hp)) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
                                         content: Text(
@@ -400,7 +389,9 @@ class DetailUser extends StatelessWidget {
                                   try {
                                     await profilProvider.adminUpdateUserProfil(
                                       idProfil: pakai.id_profil!,
-                                      kontak: hp,
+                                      // Jika dikosongkan, clear jadi NULL.
+                                      setKontak: true,
+                                      kontak: hp.isEmpty ? null : hp,
                                     );
 
                                     if (context.mounted) {

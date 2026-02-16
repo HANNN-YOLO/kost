@@ -87,6 +87,13 @@ class KostProvider with ChangeNotifier {
   XFile? _foto;
   XFile? get foto => _foto;
 
+  void clearFoto({bool notify = true}) {
+    _foto = null;
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
   // Flag untuk mencegah multiple image picker calls
   bool _isPickingImage = false;
   bool get isPickingImage => _isPickingImage;

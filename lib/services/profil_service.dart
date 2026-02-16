@@ -185,11 +185,15 @@ class ProfilService {
         "${SupabaseApiConfig.masterurl}/rest/v1/profil?id_profil=eq.$Id_profil");
     print("ubah data 1 profil");
 
-    final isian = ProfilModel(
-      foto: link,
-      kontak: kontak,
-      updatedAt: edit,
-    );
+    // NOTE: kontak boleh NULL. Untuk bisa clear kontak di Supabase,
+    // field harus dikirim eksplisit (kontak: null).
+    final Map<String, dynamic> body = <String, dynamic>{
+      'updatedAt': edit.toIso8601String(),
+      'kontak': kontak,
+    };
+    if (link != null) {
+      body['foto'] = link;
+    }
     print("ubah data 2 profil");
 
     var pengsian = await htpp.patch(
@@ -199,7 +203,7 @@ class ProfilService {
         'apikey': '${SupabaseApiConfig.apipublic}',
         'Authorization': 'Bearer $token',
       },
-      body: json.encode(isian.toJson()),
+      body: json.encode(body),
     );
     print("ubah data 3 profil");
 
@@ -280,14 +284,20 @@ class ProfilService {
   Future<void> adminUpdateProfil({
     required int idProfil,
     String? jkl,
-    num? kontak,
+    String? kontak,
+    bool setKontak = false,
     DateTime? tgllahir,
   }) async {
     print("inisiasi update profil oleh admin");
 
     final Map<String, dynamic> body = {};
     if (jkl != null) body['jkl'] = jkl;
-    if (kontak != null) body['kontak'] = kontak;
+    if (setKontak) {
+      // kontak boleh null untuk clear.
+      body['kontak'] = kontak;
+    } else if (kontak != null) {
+      body['kontak'] = kontak;
+    }
     if (tgllahir != null) {
       body['tgllahir'] = tgllahir.toIso8601String();
     }
