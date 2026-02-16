@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../custom/custom_dropdown_searhc_v3.dart';
 import '../../../providers/kriteria_provider.dart';
+import '../../../providers/kost_provider.dart';
 
 class SubcriteriaItem {
   final int? id_subkriteria;
@@ -406,155 +407,161 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
 
     await showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (dialogContext) {
         bool isDeleting = false;
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             final messenger = ScaffoldMessenger.of(dialogContext);
             final nav = Navigator.of(dialogContext);
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-              backgroundColor: Colors.white,
-              titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-              contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
-              title: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFE8E8),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.delete_outline,
-                      color: Color(0xFFB42318),
-                      size: 22,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Hapus Subkriteria?',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
+            return WillPopScope(
+              onWillPop: () async => !isDeleting,
+              child: AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                backgroundColor: Colors.white,
+                titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+                contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+                title: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFE8E8),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.delete_outline,
+                        color: Color(0xFFB42318),
+                        size: 22,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Subkriteria ini akan dihapus dan tidak bisa dikembalikan.',
-                    style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F7FB),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE6E9F2)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          kategoriDisplay.title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                          ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Hapus Subkriteria?',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
                         ),
-                        if (kategoriDisplay.subtitle != null)
+                      ),
+                    ),
+                  ],
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Subkriteria ini akan dihapus dan tidak bisa dikembalikan.',
+                      style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF5F7FB),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE6E9F2)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            kategoriDisplay.subtitle!,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[700],
+                            kategoriDisplay.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
-                      ],
+                          if (kategoriDisplay.subtitle != null)
+                            Text(
+                              kategoriDisplay.subtitle!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
+                  ],
+                ),
+                actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                actions: [
+                  TextButton(
+                    onPressed: isDeleting
+                        ? null
+                        : () => Navigator.of(dialogContext).pop(),
+                    child: const Text('Batal'),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFB42318),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 10,
+                      ),
+                    ),
+                    onPressed: isDeleting
+                        ? null
+                        : () async {
+                            setStateDialog(() {
+                              isDeleting = true;
+                            });
+
+                            try {
+                              if (item.id_subkriteria != null) {
+                                await penghubung.deletedatasubkriteria(
+                                  item.id_subkriteria!,
+                                );
+                              }
+
+                              if (!mounted) return;
+                              setState(() {
+                                _isinya.removeAt(index);
+                                _hasChanges = true;
+                              });
+                              nav.pop();
+                            } catch (e) {
+                              setStateDialog(() {
+                                isDeleting = false;
+                              });
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Gagal menghapus subkriteria: ${e.toString()}',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                    child: isDeleting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text(
+                            'Hapus',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                   ),
                 ],
               ),
-              actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              actions: [
-                TextButton(
-                  onPressed: isDeleting
-                      ? null
-                      : () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Batal'),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFB42318),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 18, vertical: 10),
-                  ),
-                  onPressed: isDeleting
-                      ? null
-                      : () async {
-                          setStateDialog(() {
-                            isDeleting = true;
-                          });
-
-                          try {
-                            if (item.id_subkriteria != null) {
-                              await penghubung.deletedatasubkriteria(
-                                item.id_subkriteria!,
-                              );
-                            }
-
-                            if (!mounted) return;
-                            setState(() {
-                              _isinya.removeAt(index);
-                              _hasChanges = true;
-                            });
-                            nav.pop();
-                          } catch (e) {
-                            setStateDialog(() {
-                              isDeleting = false;
-                            });
-                            messenger.showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Gagal menghapus subkriteria: ${e.toString()}',
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                  child: isDeleting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Text(
-                          'Hapus',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                ),
-              ],
             );
           },
         );
@@ -804,6 +811,8 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                               _strictMin = false;
                               _strictMax = false;
 
+                              String? dialogError;
+
                               showDialog(
                                   context: context,
                                   builder: (_) => StatefulBuilder(
@@ -875,6 +884,36 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                               child: Column(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
+                                                  if (dialogError != null) ...[
+                                                    Container(
+                                                      width: double.infinity,
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                              12),
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(
+                                                            0xFFFFF1F1),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(12),
+                                                        border: Border.all(
+                                                          color: const Color(
+                                                              0xFFFCA5A5),
+                                                        ),
+                                                      ),
+                                                      child: Text(
+                                                        dialogError!,
+                                                        style: const TextStyle(
+                                                          fontSize: 12,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          color:
+                                                              Color(0xFFB42318),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 12),
+                                                  ],
                                                   TextField(
                                                     controller: namacontroller,
                                                     decoration: InputDecoration(
@@ -1464,6 +1503,10 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                         vertical: 10),
                                               ),
                                               onPressed: () {
+                                                setStateDialog(() {
+                                                  dialogError = null;
+                                                });
+
                                                 final namaBaru =
                                                     namacontroller.text.trim();
                                                 final bobotRaw =
@@ -1474,13 +1517,10 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
 
                                                 if (namaBaru.isEmpty ||
                                                     bobotParsed == null) {
-                                                  ScaffoldMessenger.of(context)
-                                                      .showSnackBar(
-                                                    SnackBar(
-                                                      content: Text(
-                                                          'Nama dan bobot wajib diisi dengan benar.'),
-                                                    ),
-                                                  );
+                                                  setStateDialog(() {
+                                                    dialogError =
+                                                        'Nama dan bobot wajib diisi dengan benar.';
+                                                  });
                                                   return;
                                                 }
 
@@ -1489,13 +1529,10 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                 final bobotNorm = bobotRaw
                                                     .replaceAll(',', '.');
                                                 if (namaNorm == bobotNorm) {
-                                                  ScaffoldMessenger.of(context)
-                                                      .showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text(
-                                                          'Nama subkriteria tidak boleh sama persis dengan nilai/bobot.'),
-                                                    ),
-                                                  );
+                                                  setStateDialog(() {
+                                                    dialogError =
+                                                        'Nama subkriteria tidak boleh sama persis dengan nilai/bobot.';
+                                                  });
                                                   return;
                                                 }
 
@@ -1520,27 +1557,19 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
 
                                                   if (_noLowerBound &&
                                                       _noUpperBound) {
-                                                    ScaffoldMessenger.of(
-                                                            context)
-                                                        .showSnackBar(
-                                                      const SnackBar(
-                                                        content: Text(
-                                                            'Pilih salah satu: tanpa batas bawah ATAU tanpa batas atas.'),
-                                                      ),
-                                                    );
+                                                    setStateDialog(() {
+                                                      dialogError =
+                                                          'Pilih salah satu: tanpa batas bawah ATAU tanpa batas atas.';
+                                                    });
                                                     return;
                                                   }
 
                                                   if (!minFilled &&
                                                       !maxFilled) {
-                                                    ScaffoldMessenger.of(
-                                                            context)
-                                                        .showSnackBar(
-                                                      const SnackBar(
-                                                        content: Text(
-                                                            'Untuk kriteria range, isi Min & Max atau pilih salah satu mode tanpa batas.'),
-                                                      ),
-                                                    );
+                                                    setStateDialog(() {
+                                                      dialogError =
+                                                          'Untuk kriteria range, isi Min & Max atau pilih salah satu mode tanpa batas.';
+                                                    });
                                                     return;
                                                   }
 
@@ -1553,25 +1582,17 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                             maxText);
                                                     if (minVal == null ||
                                                         maxVal == null) {
-                                                      ScaffoldMessenger.of(
-                                                              context)
-                                                          .showSnackBar(
-                                                        const SnackBar(
-                                                          content: Text(
-                                                              'Min dan Max harus berupa angka.'),
-                                                        ),
-                                                      );
+                                                      setStateDialog(() {
+                                                        dialogError =
+                                                            'Min dan Max harus berupa angka.';
+                                                      });
                                                       return;
                                                     }
                                                     if (minVal > maxVal) {
-                                                      ScaffoldMessenger.of(
-                                                              context)
-                                                          .showSnackBar(
-                                                        const SnackBar(
-                                                          content: Text(
-                                                              'Min tidak boleh lebih besar dari Max.'),
-                                                        ),
-                                                      );
+                                                      setStateDialog(() {
+                                                        dialogError =
+                                                            'Min tidak boleh lebih besar dari Max.';
+                                                      });
                                                       return;
                                                     }
                                                     nilaiMin = minVal;
@@ -1579,28 +1600,20 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                   } else if (minFilled &&
                                                       !maxFilled) {
                                                     if (!_noUpperBound) {
-                                                      ScaffoldMessenger.of(
-                                                              context)
-                                                          .showSnackBar(
-                                                        const SnackBar(
-                                                          content: Text(
-                                                              'Isi nilai Max atau centang "Tanpa batas maksimum".'),
-                                                        ),
-                                                      );
+                                                      setStateDialog(() {
+                                                        dialogError =
+                                                            'Isi nilai Max atau centang "Tanpa batas maksimum".';
+                                                      });
                                                       return;
                                                     }
                                                     final minVal =
                                                         _tryParseNumFlexible(
                                                             minText);
                                                     if (minVal == null) {
-                                                      ScaffoldMessenger.of(
-                                                              context)
-                                                          .showSnackBar(
-                                                        const SnackBar(
-                                                          content: Text(
-                                                              'Min harus berupa angka.'),
-                                                        ),
-                                                      );
+                                                      setStateDialog(() {
+                                                        dialogError =
+                                                            'Min harus berupa angka.';
+                                                      });
                                                       return;
                                                     }
                                                     nilaiMin = minVal;
@@ -1608,46 +1621,24 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                   } else if (!minFilled &&
                                                       maxFilled) {
                                                     if (!_noLowerBound) {
-                                                      ScaffoldMessenger.of(
-                                                              context)
-                                                          .showSnackBar(
-                                                        const SnackBar(
-                                                          content: Text(
-                                                              'Isi nilai Min atau centang "Tanpa batas minimum".'),
-                                                        ),
-                                                      );
+                                                      setStateDialog(() {
+                                                        dialogError =
+                                                            'Isi nilai Min atau centang "Tanpa batas minimum".';
+                                                      });
                                                       return;
                                                     }
                                                     final maxVal =
                                                         _tryParseNumFlexible(
                                                             maxText);
                                                     if (maxVal == null) {
-                                                      ScaffoldMessenger.of(
-                                                              context)
-                                                          .showSnackBar(
-                                                        const SnackBar(
-                                                          content: Text(
-                                                              'Max harus berupa angka.'),
-                                                        ),
-                                                      );
+                                                      setStateDialog(() {
+                                                        dialogError =
+                                                            'Max harus berupa angka.';
+                                                      });
                                                       return;
                                                     }
                                                     nilaiMin = null;
                                                     nilaiMax = maxVal;
-                                                  }
-
-                                                  // Simpan operator sebagai string terpisah (tidak di-encode ke kategori)
-                                                  // Format operator: '>' strict, '>=' inclusive
-                                                  String? minOpToSave;
-                                                  String? maxOpToSave;
-
-                                                  if (nilaiMin != null) {
-                                                    minOpToSave =
-                                                        _strictMin ? '>' : '>=';
-                                                  }
-                                                  if (nilaiMax != null) {
-                                                    maxOpToSave =
-                                                        _strictMax ? '<' : '<=';
                                                   }
 
                                                   // Kategori tetap bersih (tidak ada encoding)
@@ -1657,25 +1648,18 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
 
                                                 if (_isDuplicateNama(
                                                     kategoriLabel)) {
-                                                  ScaffoldMessenger.of(context)
-                                                      .showSnackBar(
-                                                    SnackBar(
-                                                      content: Text(
-                                                        'Nama subkriteria tidak boleh sama: "$kategoriLabel"',
-                                                      ),
-                                                    ),
-                                                  );
+                                                  setStateDialog(() {
+                                                    dialogError =
+                                                        'Nama subkriteria tidak boleh sama: "$kategoriLabel"';
+                                                  });
                                                   return;
                                                 }
 
                                                 if (bobotParsed <= 0) {
-                                                  ScaffoldMessenger.of(context)
-                                                      .showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text(
-                                                          'Bobot subkriteria tidak boleh 0 atau negatif.'),
-                                                    ),
-                                                  );
+                                                  setStateDialog(() {
+                                                    dialogError =
+                                                        'Bobot subkriteria tidak boleh 0 atau negatif.';
+                                                  });
                                                   return;
                                                 }
 
@@ -1689,13 +1673,10 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                         bobotParsed);
 
                                                 if (sudahAdaBobotSama) {
-                                                  ScaffoldMessenger.of(context)
-                                                      .showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text(
-                                                          'Bobot subkriteria tidak boleh ada yang sama.'),
-                                                    ),
-                                                  );
+                                                  setStateDialog(() {
+                                                    dialogError =
+                                                        'Bobot subkriteria tidak boleh ada yang sama.';
+                                                  });
                                                   return;
                                                 }
 
@@ -2131,6 +2112,7 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                           }
                                                         }
                                                         // Tampilkan dialog yang sama
+                                                        String? dialogError;
                                                         showDialog(
                                                             context: context,
                                                             builder: (_) =>
@@ -2229,6 +2211,29 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                           mainAxisSize:
                                                                               MainAxisSize.min,
                                                                           children: [
+                                                                            if (dialogError !=
+                                                                                null) ...[
+                                                                              Container(
+                                                                                width: double.infinity,
+                                                                                padding: const EdgeInsets.all(12),
+                                                                                decoration: BoxDecoration(
+                                                                                  color: const Color(0xFFFFF1F1),
+                                                                                  borderRadius: BorderRadius.circular(12),
+                                                                                  border: Border.all(
+                                                                                    color: const Color(0xFFFCA5A5),
+                                                                                  ),
+                                                                                ),
+                                                                                child: Text(
+                                                                                  dialogError!,
+                                                                                  style: const TextStyle(
+                                                                                    fontSize: 12,
+                                                                                    fontWeight: FontWeight.w600,
+                                                                                    color: Color(0xFFB42318),
+                                                                                  ),
+                                                                                ),
+                                                                              ),
+                                                                              const SizedBox(height: 12),
+                                                                            ],
                                                                             TextField(
                                                                               controller: namacontroller,
                                                                               decoration: InputDecoration(
@@ -2640,6 +2645,12 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                         ),
                                                                         onPressed:
                                                                             () {
+                                                                          setStateDialog(
+                                                                              () {
+                                                                            dialogError =
+                                                                                null;
+                                                                          });
+
                                                                           final namaBaru = namacontroller
                                                                               .text
                                                                               .trim();
@@ -2652,11 +2663,9 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
 
                                                                           if (namaBaru.isEmpty ||
                                                                               bobotParsed == null) {
-                                                                            ScaffoldMessenger.of(context).showSnackBar(
-                                                                              SnackBar(
-                                                                                content: Text('Nama dan bobot wajib diisi dengan benar.'),
-                                                                              ),
-                                                                            );
+                                                                            setStateDialog(() {
+                                                                              dialogError = 'Nama dan bobot wajib diisi dengan benar.';
+                                                                            });
                                                                             return;
                                                                           }
 
@@ -2668,21 +2677,17 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                               '.');
                                                                           if (namaNorm ==
                                                                               bobotNorm) {
-                                                                            ScaffoldMessenger.of(context).showSnackBar(
-                                                                              const SnackBar(
-                                                                                content: Text('Nama subkriteria tidak boleh sama persis dengan nilai/bobot.'),
-                                                                              ),
-                                                                            );
+                                                                            setStateDialog(() {
+                                                                              dialogError = 'Nama subkriteria tidak boleh sama persis dengan nilai/bobot.';
+                                                                            });
                                                                             return;
                                                                           }
 
                                                                           if (bobotParsed <=
                                                                               0) {
-                                                                            ScaffoldMessenger.of(context).showSnackBar(
-                                                                              const SnackBar(
-                                                                                content: Text('Bobot subkriteria tidak boleh 0 atau negatif.'),
-                                                                              ),
-                                                                            );
+                                                                            setStateDialog(() {
+                                                                              dialogError = 'Bobot subkriteria tidak boleh 0 atau negatif.';
+                                                                            });
                                                                             return;
                                                                           }
 
@@ -2701,11 +2706,9 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                           });
 
                                                                           if (sudahAdaBobotSama) {
-                                                                            ScaffoldMessenger.of(context).showSnackBar(
-                                                                              const SnackBar(
-                                                                                content: Text('Bobot subkriteria tidak boleh ada yang sama.'),
-                                                                              ),
-                                                                            );
+                                                                            setStateDialog(() {
+                                                                              dialogError = 'Bobot subkriteria tidak boleh ada yang sama.';
+                                                                            });
                                                                             return;
                                                                           }
 
@@ -2732,21 +2735,17 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
 
                                                                             if (_noLowerBound &&
                                                                                 _noUpperBound) {
-                                                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                                                const SnackBar(
-                                                                                  content: Text('Pilih salah satu: tanpa batas bawah ATAU tanpa batas atas.'),
-                                                                                ),
-                                                                              );
+                                                                              setStateDialog(() {
+                                                                                dialogError = 'Pilih salah satu: tanpa batas bawah ATAU tanpa batas atas.';
+                                                                              });
                                                                               return;
                                                                             }
 
                                                                             if (!minFilled &&
                                                                                 !maxFilled) {
-                                                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                                                const SnackBar(
-                                                                                  content: Text('Untuk kriteria range, isi Min & Max atau pilih salah satu mode tanpa batas.'),
-                                                                                ),
-                                                                              );
+                                                                              setStateDialog(() {
+                                                                                dialogError = 'Untuk kriteria range, isi Min & Max atau pilih salah satu mode tanpa batas.';
+                                                                              });
                                                                               return;
                                                                             }
 
@@ -2755,19 +2754,15 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                               final minVal = _tryParseNumFlexible(minText);
                                                                               final maxVal = _tryParseNumFlexible(maxText);
                                                                               if (minVal == null || maxVal == null) {
-                                                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                                                  const SnackBar(
-                                                                                    content: Text('Min dan Max harus berupa angka.'),
-                                                                                  ),
-                                                                                );
+                                                                                setStateDialog(() {
+                                                                                  dialogError = 'Min dan Max harus berupa angka.';
+                                                                                });
                                                                                 return;
                                                                               }
                                                                               if (minVal > maxVal) {
-                                                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                                                  const SnackBar(
-                                                                                    content: Text('Min tidak boleh lebih besar dari Max.'),
-                                                                                  ),
-                                                                                );
+                                                                                setStateDialog(() {
+                                                                                  dialogError = 'Min tidak boleh lebih besar dari Max.';
+                                                                                });
                                                                                 return;
                                                                               }
                                                                               nilaiMin = minVal;
@@ -2775,20 +2770,16 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                             } else if (minFilled &&
                                                                                 !maxFilled) {
                                                                               if (!_noUpperBound) {
-                                                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                                                  const SnackBar(
-                                                                                    content: Text('Isi nilai Max atau centang "Tanpa batas maksimum".'),
-                                                                                  ),
-                                                                                );
+                                                                                setStateDialog(() {
+                                                                                  dialogError = 'Isi nilai Max atau centang "Tanpa batas maksimum".';
+                                                                                });
                                                                                 return;
                                                                               }
                                                                               final minVal = _tryParseNumFlexible(minText);
                                                                               if (minVal == null) {
-                                                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                                                  const SnackBar(
-                                                                                    content: Text('Min harus berupa angka.'),
-                                                                                  ),
-                                                                                );
+                                                                                setStateDialog(() {
+                                                                                  dialogError = 'Min harus berupa angka.';
+                                                                                });
                                                                                 return;
                                                                               }
                                                                               nilaiMin = minVal;
@@ -2796,20 +2787,16 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                             } else if (!minFilled &&
                                                                                 maxFilled) {
                                                                               if (!_noLowerBound) {
-                                                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                                                  const SnackBar(
-                                                                                    content: Text('Isi nilai Min atau centang "Tanpa batas minimum".'),
-                                                                                  ),
-                                                                                );
+                                                                                setStateDialog(() {
+                                                                                  dialogError = 'Isi nilai Min atau centang "Tanpa batas minimum".';
+                                                                                });
                                                                                 return;
                                                                               }
                                                                               final maxVal = _tryParseNumFlexible(maxText);
                                                                               if (maxVal == null) {
-                                                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                                                  const SnackBar(
-                                                                                    content: Text('Max harus berupa angka.'),
-                                                                                  ),
-                                                                                );
+                                                                                setStateDialog(() {
+                                                                                  dialogError = 'Max harus berupa angka.';
+                                                                                });
                                                                                 return;
                                                                               }
                                                                               nilaiMin = null;
@@ -2960,6 +2947,14 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                           } else {
                             await penghubung.updatedmassalsubkriteria(_isinya);
                           }
+
+                          // Refresh data kost setelah cascade update subkriteria
+                          final kostProvider = Provider.of<KostProvider>(
+                            context,
+                            listen: false,
+                          );
+                          await kostProvider.fetchSubkriteria();
+                          await kostProvider.readdata();
 
                           // Refresh UI setelah simpan database
                           if (!mounted) return;

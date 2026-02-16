@@ -804,6 +804,28 @@ class KostProvider with ChangeNotifier {
     }
   }
 
+  Future<KostModel?> fetchKostById(int id_kost) async {
+    try {
+      final latest = await _kekost.readById(id_kost);
+      if (latest == null) return null;
+
+      final idxAdmin = _kost.indexWhere((e) => e.id_kost == id_kost);
+      if (idxAdmin != -1) _kost[idxAdmin] = latest;
+
+      final idxPemilik = _kostpemilik.indexWhere((e) => e.id_kost == id_kost);
+      if (idxPemilik != -1) _kostpemilik[idxPemilik] = latest;
+
+      final idxPenyewa = _kostpenyewa.indexWhere((e) => e.id_kost == id_kost);
+      if (idxPenyewa != -1) _kostpenyewa[idxPenyewa] = latest;
+
+      notifyListeners();
+      return latest;
+    } catch (e) {
+      print("⚠️ fetchKostById gagal: $e");
+      return null;
+    }
+  }
+
   Future<void> deletedata(int id_kost, String gambar) async {
     try {
       // final cek = _kost.firstWhere((element) => element.id_kost == id_kost);

@@ -5,6 +5,7 @@ import '../models/kriteria_models.dart';
 import '../models/subkriteria_models.dart';
 import '../services/kriteria_services.dart';
 import '../services/subkriteria_services.dart';
+import '../services/kost_service.dart';
 import 'dart:collection';
 
 class KriteriaProvider with ChangeNotifier {
@@ -453,6 +454,9 @@ class KriteriaProvider with ChangeNotifier {
     final List<Map<String, dynamic>> newdata = [];
     final List<Map<String, dynamic>> lastdata = [];
 
+    // Track perubahan nama subkriteria untuk cascade update
+    final Map<int, Map<String, String>> changedSubkriteria = {};
+
     for (var element in mana) {
       num? nilaiMin;
       num? nilaiMax;
@@ -499,10 +503,25 @@ class KriteriaProvider with ChangeNotifier {
       }
 
       if (element.id_subkriteria != null) {
+        // Deteksi perubahan nama subkriteria untuk cascade update
+        final oldSubkriteria = inidata.firstWhereOrNull(
+          (s) => s.id_subkriteria == element.id_subkriteria,
+        );
+        final newKategori = element.kategori.text.trim();
+
+        if (oldSubkriteria != null && oldSubkriteria.kategori != newKategori) {
+          // Nama berubah, simpan untuk cascade update
+          changedSubkriteria[element.id_subkriteria] = {
+            'old': oldSubkriteria.kategori ?? '',
+            'new': newKategori,
+            'id_kriteria': element.id_kriteria.toString(),
+          };
+        }
+
         final row = <String, dynamic>{
           'id_kriteria': element.id_kriteria,
           'id_subkriteria': element.id_subkriteria,
-          'kategori': element.kategori.text,
+          'kategori': newKategori,
           'bobot': element.bobot.text,
           'updatedAt': editan.toIso8601String(),
         };
@@ -535,6 +554,40 @@ class KriteriaProvider with ChangeNotifier {
     if (lastdata != null) {
       await updateddatasubkritera(lastdata);
       await readdatasubkriteria();
+
+      // Cascade update: update data kost yang menggunakan subkriteria yang namanya berubah
+      if (changedSubkriteria.isNotEmpty) {
+        final kostService = KostService();
+
+        for (final entry in changedSubkriteria.entries) {
+          final data = entry.value;
+          final oldName = data['old']!;
+          final newName = data['new']!;
+          final idKriteria = int.tryParse(data['id_kriteria']!);
+
+          // Cari nama kriteria berdasarkan id_kriteria
+          final kriteria = mydata.firstWhereOrNull(
+            (k) => k.id_kriteria == idKriteria,
+          );
+
+          if (kriteria != null && kriteria.kategori != null) {
+            try {
+              await kostService.cascadeUpdateKostAfterSubkriteriaRename(
+                kriteriaName: kriteria.kategori!,
+                oldSubkriteriaName: oldName,
+                newSubkriteriaName: newName,
+              );
+              print(
+                "✅ Cascade update kost untuk ${kriteria.kategori}: '$oldName' → '$newName'",
+              );
+            } catch (e) {
+              print(
+                "⚠️ Error cascade update kost untuk ${kriteria.kategori}: $e",
+              );
+            }
+          }
+        }
+      }
     }
   }
 

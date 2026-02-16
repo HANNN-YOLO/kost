@@ -181,6 +181,29 @@ class KostService {
     return hasilnya;
   }
 
+  Future<KostModel?> readById(int id_kost) async {
+    final url = Uri.parse(
+      "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_kost=eq.$id_kost&select=*",
+    );
+
+    final simpan = await htpp.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apisecret}',
+        'Authorization': ' Bearer ${SupabaseApiConfig.apisecret}'
+      },
+    );
+
+    if (simpan.statusCode != 200) {
+      throw "error ambil 1 kost ${simpan.body}";
+    }
+
+    final ambil = json.decode(simpan.body) as List<dynamic>;
+    if (ambil.isEmpty) return null;
+    return KostModel.fromJson(ambil.first);
+  }
+
   Future<void> deletedata(int id_kost) async {
     print("inisiasi hapus data kost");
 
@@ -545,5 +568,71 @@ class KostService {
     }
 
     throw "gagal update no tlp semua kost pemilik ${updated.body}";
+  }
+
+  /// Cascade update: saat subkriteria diubah namanya, update semua kost
+  /// yang menggunakan nama subkriteria lama menjadi nama baru.
+  ///
+  /// [kriteriaName] nama kriteria (e.g., "Keamanan", "Batas Jam Malam")
+  /// [oldSubkriteriaName] nama subkriteria lama
+  /// [newSubkriteriaName] nama subkriteria baru
+  Future<void> cascadeUpdateKostAfterSubkriteriaRename({
+    required String kriteriaName,
+    required String oldSubkriteriaName,
+    required String newSubkriteriaName,
+  }) async {
+    if (oldSubkriteriaName == newSubkriteriaName) {
+      return; // Tidak ada perubahan nama
+    }
+
+    // Mapping kriteria ke field di tabel kost
+    final Map<String, String> kriteriaFieldMap = {
+      'keamanan': 'keamanan',
+      'batas jam malam': 'batas_jam_malam',
+      'jenis pembayaran air': 'jenis_pembayaran_air',
+      'jenis listrik': 'jenis_listrik',
+      'jenis kost': 'jenis_kost',
+    };
+
+    final normalizedKriteria = kriteriaName.toLowerCase().trim();
+    final fieldName = kriteriaFieldMap[normalizedKriteria];
+
+    if (fieldName == null) {
+      // Kriteria tidak memiliki field terkait di tabel kost (misal: Jarak, Harga)
+      return;
+    }
+
+    // Update semua kost yang menggunakan nama subkriteria lama
+    // Encode value untuk handle spasi dan karakter khusus
+    final encodedOldName = Uri.encodeComponent(oldSubkriteriaName);
+    final url = Uri.parse(
+      "${SupabaseApiConfig.masterurl}/rest/v1/kost?$fieldName=eq.$encodedOldName",
+    );
+
+    print(
+        "🔄 Cascade update: mencari kost dengan $fieldName='$oldSubkriteriaName'...");
+
+    final updated = await htpp.patch(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apisecret}',
+        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        'Prefer': 'return=minimal',
+      },
+      body: json.encode({
+        fieldName: newSubkriteriaName,
+      }),
+    );
+
+    if (updated.statusCode == 204 ||
+        updated.statusCode == 200 ||
+        updated.statusCode == 201) {
+      print(
+          "✅ Cascade update berhasil: $fieldName '$oldSubkriteriaName' → '$newSubkriteriaName'");
+      return;
+    }
+
+    print("⚠️ Gagal cascade update subkriteria $fieldName: ${updated.body}");
   }
 }

@@ -54,6 +54,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
   int index = 0;
   bool keadaan = true;
   bool _isSubmitting = false;
+  bool _didSyncLatestEditData = false;
 
   String? _initialEditSignature;
 
@@ -567,6 +568,41 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
 
               // Ambil snapshot awal untuk deteksi perubahan pada mode edit.
               _initialEditSignature = _currentEditSignaturePemilik(penghubung);
+
+              // Sinkronkan ulang dengan data terbaru dari database + opsi subkriteria terbaru.
+              // Ini mencegah dropdown jatuh ke "Pilih" saat subkriteria di-rename.
+              if (!_didSyncLatestEditData) {
+                _didSyncLatestEditData = true;
+                WidgetsBinding.instance.addPostFrameCallback((_) async {
+                  if (!mounted) return;
+                  final penghubung =
+                      Provider.of<KostProvider>(context, listen: false);
+
+                  await penghubung.fetchSubkriteria();
+                  final latest = await penghubung.fetchKostById(terima);
+                  if (!mounted || latest == null) return;
+
+                  // Jangan overwrite jika user sudah mulai mengedit.
+                  final currentSig = _currentEditSignaturePemilik(penghubung);
+                  if (_initialEditSignature != null &&
+                      currentSig != _initialEditSignature) {
+                    return;
+                  }
+
+                  penghubung.jeniskosts = latest.jenis_kost ?? "Pilih";
+                  penghubung.penghunis = latest.penghuni ?? "Pilih";
+                  penghubung.jeniskeamanans = latest.keamanan ?? "Pilih";
+                  penghubung.batasjammalams = latest.batas_jam_malam ?? "Pilih";
+                  penghubung.jenispembayaranairs =
+                      latest.jenis_pembayaran_air ?? "Pilih";
+                  penghubung.jenislistriks = latest.jenis_listrik ?? "Pilih";
+
+                  _coerceDeletedSubkriteriaSelections(penghubung);
+
+                  _initialEditSignature =
+                      _currentEditSignaturePemilik(penghubung);
+                });
+              }
 
               // fasilitas lama
               // final cekker = Provider.of<KostProvider>(context, listen: false);
