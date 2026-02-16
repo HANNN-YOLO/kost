@@ -162,6 +162,33 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateUsername(String username) async {
+    try {
+      if (_accesstoken == null || _accesstoken!.isEmpty) {
+        throw "Sesi login tidak valid. Silakan login ulang.";
+      }
+      if (id_auth == null) {
+        throw "Data akun tidak ditemukan. Silakan login ulang.";
+      }
+
+      final trimmed = username.trim();
+      if (trimmed.isEmpty) {
+        throw "Nama tidak boleh kosong.";
+      }
+
+      await _ref.updateUsernameRest(
+        token: _accesstoken!,
+        idAuth: id_auth!,
+        username: trimmed,
+      );
+
+      await readrole();
+    } catch (e) {
+      rethrow;
+    }
+    notifyListeners();
+  }
+
   Future<void> deletedata(int id_auth, String UID) async {
     try {
       // Hapus akun di modul auth (Supabase Auth)
@@ -207,10 +234,10 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> autologout() async {
+    // Nonaktifkan logout otomatis.
+    // User tetap bisa logout manual lewat tombol "Keluar Akun".
     waktunya?.cancel();
-    final saatnya = _expiresIn?.difference(DateTime.now()).inSeconds;
-    waktunya = Timer(Duration(seconds: saatnya!), () => logout());
-    print("saatnya = $saatnya");
+    waktunya = null;
     notifyListeners();
   }
 

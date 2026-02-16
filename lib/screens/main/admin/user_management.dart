@@ -276,7 +276,7 @@ class UserCard extends StatelessWidget {
   final String telepon;
   final String? foto;
   final int id;
-  final VoidCallback? fungsihapus;
+  final Future<void> Function()? fungsihapus;
   final bool hasProfil;
 
   UserCard({
@@ -423,10 +423,6 @@ class UserCard extends StatelessWidget {
                   height: tinggiLayar * 0.055,
                   child: OutlinedButton.icon(
                     onPressed: () async {
-                      final profilProvider = Provider.of<ProfilProvider>(
-                        context,
-                        listen: false,
-                      );
                       final kostProvider = Provider.of<KostProvider>(
                         context,
                         listen: false,
@@ -451,85 +447,128 @@ class UserCard extends StatelessWidget {
 
                       final konfirmasi = await showDialog<bool>(
                         context: context,
+                        barrierDismissible: false,
                         builder: (ctx) {
-                          return AlertDialog(
-                            title: Text('Hapus Pengguna'),
-                            content: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Yakin ingin menghapus pengguna "$nama"? Tindakan ini tidak dapat dibatalkan.',
-                                ),
-                                if (jumlahKost > 0) ...[
-                                  SizedBox(height: 8),
-                                  Text(
-                                    'Pengguna ini memiliki $jumlahKost kost yang terdaftar dalam sistem. Jika pengguna dihapus, seluruh kost tersebut juga akan terhapus.',
-                                    style: TextStyle(
-                                      color: Colors.redAccent,
-                                      fontSize: 13,
-                                    ),
+                          bool isDeleting = false;
+                          String? dialogError;
+
+                          return StatefulBuilder(
+                            builder: (ctx, setStateDialog) {
+                              return WillPopScope(
+                                onWillPop: () async => !isDeleting,
+                                child: AlertDialog(
+                                  title: Text('Hapus Pengguna'),
+                                  content: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Yakin ingin menghapus pengguna "$nama"? Tindakan ini tidak dapat dibatalkan.',
+                                      ),
+                                      if (jumlahKost > 0) ...[
+                                        SizedBox(height: 8),
+                                        Text(
+                                          'Pengguna ini memiliki $jumlahKost kost yang terdaftar dalam sistem. Jika pengguna dihapus, seluruh kost tersebut juga akan terhapus.',
+                                          style: TextStyle(
+                                            color: Colors.redAccent,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                      if (dialogError != null) ...[
+                                        SizedBox(height: 10),
+                                        Text(
+                                          dialogError!,
+                                          style: TextStyle(
+                                            color: Colors.red,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
-                                ],
-                              ],
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.of(ctx).pop(false),
-                                child: Text('Batal'),
-                              ),
-                              TextButton(
-                                onPressed: () async {
-                                  fungsihapus?.call();
-                                  Navigator.of(ctx).pop(true);
-                                },
-                                child: Text(
-                                  'Hapus',
-                                  style: TextStyle(color: Colors.red),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: isDeleting
+                                          ? null
+                                          : () => Navigator.of(ctx).pop(false),
+                                      child: Text('Batal'),
+                                    ),
+                                    TextButton(
+                                      onPressed: isDeleting
+                                          ? null
+                                          : () async {
+                                              setStateDialog(() {
+                                                isDeleting = true;
+                                                dialogError = null;
+                                              });
+                                              try {
+                                                for (final k in kostPemilik) {
+                                                  if (k.id_kost != null) {
+                                                    await kostProvider
+                                                        .deletedata(
+                                                      k.id_kost as int,
+                                                      k.gambar_kost,
+                                                    );
+                                                  }
+                                                }
+
+                                                if (fungsihapus != null) {
+                                                  await fungsihapus!.call();
+                                                }
+
+                                                if (!ctx.mounted) return;
+                                                Navigator.of(ctx).pop(true);
+                                              } catch (e) {
+                                                setStateDialog(() {
+                                                  isDeleting = false;
+                                                  dialogError =
+                                                      'Gagal menghapus pengguna: $e';
+                                                });
+                                              }
+                                            },
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: Colors.red,
+                                      ),
+                                      child: isDeleting
+                                          ? Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                SizedBox(
+                                                  width: 16,
+                                                  height: 16,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                    strokeWidth: 2,
+                                                  ),
+                                                ),
+                                                SizedBox(width: 10),
+                                                Text('Menghapus...'),
+                                              ],
+                                            )
+                                          : Text('Hapus'),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
+                              );
+                            },
                           );
                         },
                       );
 
                       if (konfirmasi != true) return;
 
-                      try {
-                        // Hapus semua kost milik pengguna ini (jika ada)
-                        for (final k in kostPemilik) {
-                          if (k.id_kost != null) {
-                            await kostProvider.deletedata(
-                                k.id_kost as int, k.gambar_kost);
-                          }
-                        }
-
-                        final provider = Provider.of<ProfilProvider>(
-                          context,
-                          listen: false,
-                        );
-                        // await provider.deleteUserByProfilId(id);
-                        fungsihapus?.call();
-
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                jumlahKost > 0
-                                    ? 'Pengguna dan $jumlahKost kost terkait berhasil dihapus dari sistem.'
-                                    : 'Pengguna berhasil dihapus dari sistem.',
-                              ),
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Gagal menghapus pengguna: $e'),
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            jumlahKost > 0
+                                ? 'Pengguna dan $jumlahKost kost terkait berhasil dihapus dari sistem.'
+                                : 'Pengguna berhasil dihapus dari sistem.',
                           ),
-                        );
-                      }
+                        ),
+                      );
                     },
                     icon: Icon(Icons.delete_outline, color: Colors.red),
                     label: Text('Hapus', style: TextStyle(color: Colors.red)),

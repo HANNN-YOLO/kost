@@ -37,6 +37,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   bool _hasChanges = false;
 
   String? _initialNoHpText;
+  String? _initialNamaText;
 
   final TextEditingController namaController = TextEditingController();
   final TextEditingController noHpController = TextEditingController();
@@ -55,16 +56,31 @@ class _UserProfilePageState extends State<UserProfilePage> {
       final penghubung = Provider.of<AuthProvider>(context, listen: false);
       final penghubung2 = Provider.of<ProfilProvider>(context, listen: false);
 
+      if (!mounted) return;
+
+      bool loadingDialogOpen = false;
+      void closeLoadingDialogIfOpen() {
+        if (!mounted) return;
+        if (!loadingDialogOpen) return;
+        Navigator.of(context, rootNavigator: true).pop();
+        loadingDialogOpen = false;
+      }
+
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => Center(
-          child: CircularProgressIndicator(),
+        builder: (context) => WillPopScope(
+          onWillPop: () async => false,
+          child: Center(
+            child: CircularProgressIndicator(),
+          ),
         ),
       );
+      loadingDialogOpen = true;
 
       try {
         namaController.text = penghubung.mydata[index].username ?? 'Default';
+        _initialNamaText = namaController.text;
         emailController.text = penghubung.mydata[index].Email ?? 'Default';
 
         if (penghubung2.accesstoken != null) {
@@ -73,11 +89,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
             penghubung2.id_auth!,
           );
         } else {
-          Navigator.of(context).pop();
+          closeLoadingDialogIfOpen();
           throw Exception('User tidak terautentikasi.');
         }
 
-        Navigator.of(context).pop();
+        closeLoadingDialogIfOpen();
 
         if (penghubung2.mydata.isEmpty) {
           // profil baru, nilai awal masih kosong
@@ -98,7 +114,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
           setState(() {});
         }
       } catch (e) {
-        Navigator.of(context).pop();
+        closeLoadingDialogIfOpen();
       }
     });
   }
@@ -121,8 +137,13 @@ class _UserProfilePageState extends State<UserProfilePage> {
     final profil = Provider.of<ProfilProvider>(context, listen: false);
 
     final currentNoHp = noHpController.text;
+    final currentNama = namaController.text;
 
     bool changed = false;
+
+    if (currentNama.trim() != (_initialNamaText ?? '').trim()) {
+      changed = true;
+    }
 
     if (currentNoHp != (_initialNoHpText ?? '')) {
       changed = true;
@@ -452,505 +473,619 @@ class _UserProfilePageState extends State<UserProfilePage> {
     final penghubung2 = Provider.of<ProfilProvider>(context, listen: false);
     final penghubung3 = Provider.of<KostProvider>(context, listen: false);
 
-    return Scaffold(
-      backgroundColor: Color(0xFFF5F7FB),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.only(bottom: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // HEADER mirip profil pemilik
-              Stack(
+    return WillPopScope(
+      onWillPop: () async => !_isSaving,
+      child: AbsorbPointer(
+        absorbing: _isSaving,
+        child: Scaffold(
+          backgroundColor: Color(0xFFF5F7FB),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.only(bottom: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
-                    height: 180,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    right: -60,
-                    top: -40,
-                    child: Container(
-                      width: 160,
-                      height: 160,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: -40,
-                    bottom: -50,
-                    child: Container(
-                      width: 140,
-                      height: 140,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.06),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(16, 14, 16, 16),
-                    child: Column(
-                      children: [
-                        Center(
-                          child: Text(
-                            'Details',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                            ),
+                  // HEADER mirip profil pemilik
+                  Stack(
+                    children: [
+                      Container(
+                        height: 180,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
                         ),
-                        SizedBox(height: 14),
-                        Container(
-                          width: double.infinity,
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 18),
+                      ),
+                      Positioned(
+                        right: -60,
+                        top: -40,
+                        child: Container(
+                          width: 160,
+                          height: 160,
                           decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.08),
-                                blurRadius: 10,
-                                offset: Offset(0, 6),
-                              )
-                            ],
+                            color: Colors.white.withOpacity(0.08),
+                            shape: BoxShape.circle,
                           ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Consumer<ProfilProvider>(
-                                builder: (context, value, child) {
-                                  final hasFoto = value.mydata.isNotEmpty &&
-                                      value.mydata[index].foto != null &&
-                                      value.mydata[index].foto!.isNotEmpty;
+                        ),
+                      ),
+                      Positioned(
+                        left: -40,
+                        bottom: -50,
+                        child: Container(
+                          width: 140,
+                          height: 140,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.06),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(16, 14, 16, 16),
+                        child: Column(
+                          children: [
+                            Center(
+                              child: Text(
+                                'Details',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 14),
+                            Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 18),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.08),
+                                    blurRadius: 10,
+                                    offset: Offset(0, 6),
+                                  )
+                                ],
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Consumer<ProfilProvider>(
+                                    builder: (context, value, child) {
+                                      final hasFoto = value.mydata.isNotEmpty &&
+                                          value.mydata[index].foto != null &&
+                                          value.mydata[index].foto!.isNotEmpty;
 
-                                  return GestureDetector(
-                                    onTap: () => _openPhotoOptions(
-                                      context,
-                                      value,
-                                      hasFoto,
-                                    ),
-                                    child: Stack(
-                                      alignment: Alignment.bottomRight,
-                                      children: [
-                                        if (!hasFoto)
-                                          CustomUploadfoto(
-                                            tinggi: 70,
-                                            panjang: 70,
-                                            radius: 35,
-                                            fungsi: () {
-                                              _openPhotoOptions(
-                                                context,
-                                                value,
-                                                hasFoto,
-                                              );
-                                            },
-                                            path: value.isinya?.path,
-                                          )
-                                        else
-                                          custom_editfoto(
-                                            fungsi: () {
-                                              _openPhotoOptions(
-                                                context,
-                                                value,
-                                                hasFoto,
-                                              );
-                                            },
-                                            path: value.isinya?.path,
-                                            pathlama: value.mydata[index].foto,
-                                            tinggi: 70,
-                                            panjang: 70,
-                                            radius: 35,
-                                          ),
-                                        Positioned(
-                                          bottom: 2,
-                                          right: 2,
-                                          child: Container(
-                                            width: 24,
-                                            height: 24,
-                                            decoration: BoxDecoration(
-                                              color: Color(0xFF1E3A8A),
-                                              borderRadius:
-                                                  BorderRadius.circular(999),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: Colors.black
-                                                      .withOpacity(0.25),
-                                                  blurRadius: 6,
-                                                  offset: Offset(0, 3),
+                                      return GestureDetector(
+                                        onTap: () => _openPhotoOptions(
+                                          context,
+                                          value,
+                                          hasFoto,
+                                        ),
+                                        child: Stack(
+                                          alignment: Alignment.bottomRight,
+                                          children: [
+                                            if (!hasFoto)
+                                              CustomUploadfoto(
+                                                tinggi: 70,
+                                                panjang: 70,
+                                                radius: 35,
+                                                fungsi: () {
+                                                  _openPhotoOptions(
+                                                    context,
+                                                    value,
+                                                    hasFoto,
+                                                  );
+                                                },
+                                                path: value.isinya?.path,
+                                              )
+                                            else
+                                              custom_editfoto(
+                                                fungsi: () {
+                                                  _openPhotoOptions(
+                                                    context,
+                                                    value,
+                                                    hasFoto,
+                                                  );
+                                                },
+                                                path: value.isinya?.path,
+                                                pathlama:
+                                                    value.mydata[index].foto,
+                                                tinggi: 70,
+                                                panjang: 70,
+                                                radius: 35,
+                                              ),
+                                            Positioned(
+                                              bottom: 2,
+                                              right: 2,
+                                              child: Container(
+                                                width: 24,
+                                                height: 24,
+                                                decoration: BoxDecoration(
+                                                  color: Color(0xFF1E3A8A),
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          999),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black
+                                                          .withOpacity(0.25),
+                                                      blurRadius: 6,
+                                                      offset: Offset(0, 3),
+                                                    ),
+                                                  ],
                                                 ),
-                                              ],
+                                                child: Icon(
+                                                  Icons.edit,
+                                                  size: 14,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
                                             ),
-                                            child: Icon(
-                                              Icons.edit,
-                                              size: 14,
-                                              color: Colors.white,
-                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          penghubung.mydata[index].username ??
+                                              '-',
+                                          style: TextStyle(
+                                            color: Color(0xFF111827),
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          penghubung.mydata[index].Email ?? '-',
+                                          style: TextStyle(
+                                            color: Colors.black54,
+                                            fontSize: 12,
                                           ),
                                         ),
                                       ],
                                     ),
-                                  );
-                                },
+                                  ),
+                                ],
                               ),
-                              SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      penghubung.mydata[index].username ?? '-',
-                                      style: TextStyle(
-                                        color: Color(0xFF111827),
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      penghubung.mydata[index].Email ?? '-',
-                                      style: TextStyle(
-                                        color: Colors.black54,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Informasi Akun',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
                           ),
                         ),
+                        SizedBox(height: 12),
+                        _IconTextField(
+                          controller: namaController,
+                          label: 'Nama',
+                          icon: Icons.person_outline,
+                          readOnly: false,
+                        ),
+                        SizedBox(height: 12),
+                        _IconTextField(
+                          controller: noHpController,
+                          label: 'No. Hp',
+                          icon: Icons.phone_outlined,
+                          readOnly: false,
+                          keyboardType: TextInputType.phone,
+                        ),
+                        _IconTextField(
+                          controller: emailController,
+                          label: 'Email',
+                          icon: Icons.email_outlined,
+                          readOnly: true,
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        if (mesaage != null) ...[
+                          SizedBox(height: 8),
+                          Center(
+                            child: Text(
+                              mesaage!,
+                              style: TextStyle(color: Colors.green),
+                            ),
+                          )
+                        ],
+                        SizedBox(height: 16),
+                        if (widget.showLogoutButton)
+                          ElevatedButton.icon(
+                            onPressed: () async {
+                              try {
+                                await penghubung.logout();
+                                penghubung2.reset();
+                                penghubung3.resetSession();
+                              } catch (e) {
+                                if (!mounted) return;
+                                showDialog(
+                                  context: context,
+                                  builder: (context) {
+                                    return ShowdialogEror(
+                                      label: e.toString(),
+                                    );
+                                  },
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            icon: Icon(Icons.logout),
+                            label: Text(
+                              'Keluar Akun',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ),
                       ],
                     ),
                   ),
                 ],
               ),
+            ),
+          ),
+          bottomNavigationBar: SafeArea(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+              child: SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: _isSaving || !_hasChanges
+                      ? null
+                      : () async {
+                          bool savingDialogOpen = false;
+                          void openSavingDialog() {
+                            if (!mounted) return;
+                            if (savingDialogOpen) return;
+                            showDialog(
+                              context: context,
+                              barrierDismissible: false,
+                              useRootNavigator: true,
+                              builder: (_) => WillPopScope(
+                                onWillPop: () async => false,
+                                child: const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              ),
+                            );
+                            savingDialogOpen = true;
+                          }
 
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Informasi Akun',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    SizedBox(height: 12),
-                    _IconTextField(
-                      controller: namaController,
-                      label: 'Nama',
-                      icon: Icons.person_outline,
-                      readOnly: true,
-                    ),
-                    SizedBox(height: 12),
-                    _IconTextField(
-                      controller: noHpController,
-                      label: 'No. Hp',
-                      icon: Icons.phone_outlined,
-                      readOnly: false,
-                      keyboardType: TextInputType.phone,
-                    ),
-                    _IconTextField(
-                      controller: emailController,
-                      label: 'Email',
-                      icon: Icons.email_outlined,
-                      readOnly: true,
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    if (mesaage != null) ...[
-                      SizedBox(height: 8),
-                      Center(
-                        child: Text(
-                          mesaage!,
-                          style: TextStyle(color: Colors.green),
-                        ),
-                      )
-                    ],
-                    SizedBox(height: 16),
-                    if (widget.showLogoutButton)
-                      ElevatedButton.icon(
-                        onPressed: () async {
+                          void closeSavingDialogIfOpen() {
+                            if (!mounted) return;
+                            if (!savingDialogOpen) return;
+                            Navigator.of(context, rootNavigator: true).pop();
+                            savingDialogOpen = false;
+                          }
+
+                          final String namaBaru = namaController.text.trim();
+                          final bool namaChanged =
+                              namaBaru != (_initialNamaText ?? '').trim();
+                          final bool hpChanged = noHpController.text.trim() !=
+                              (_initialNoHpText ?? '').trim();
+
+                          if (namaChanged) {
+                            if (namaBaru.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Nama tidak boleh kosong.'),
+                                ),
+                              );
+                              return;
+                            }
+                            if (namaBaru.length < 3) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Nama minimal 3 karakter.'),
+                                ),
+                              );
+                              return;
+                            }
+                          }
+
+                          // Validasi fleksibel - tidak wajib semua field diisi
+                          // User bisa update partial data
+                          bool hasValidData = false;
+
+                          if (noHpController.text.isNotEmpty)
+                            hasValidData = true;
+
+                          // Profil baru: minimal isi salah satu (No HP atau Foto)
+                          if (penghubung2.mydata.isEmpty &&
+                              !hasValidData &&
+                              penghubung2.isinya == null &&
+                              !namaChanged) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Minimal isi satu data untuk disimpan.',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+
+                          // Validasi & parsing nomor HP (boleh kosong)
+                          final String hpText = noHpController.text.trim();
+                          String? hp;
+                          if (hpText.isEmpty) {
+                            // Boleh kosong: simpan NULL.
+                            hp = null;
+                          } else {
+                            // Validasi hanya angka
+                            if (!RegExp(r'^\d+$').hasMatch(hpText)) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Nomor HP harus berupa angka.'),
+                                ),
+                              );
+                              return;
+                            }
+
+                            if (hpText.length < 10) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Nomor HP minimal 10 digit.',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+
+                            if (hpText.length > 15) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Nomor HP maksimal 15 digit.',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+
+                            // Validasi format nomor Indonesia (harus dimulai 0 atau 62)
+                            if (!hpText.startsWith('0') &&
+                                !hpText.startsWith('62')) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Nomor HP harus dimulai dengan 0 atau 62.',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+
+                            hp = hpText;
+                          }
+
                           try {
-                            await penghubung.logout();
-                            penghubung2.reset();
-                            penghubung3.resetSession();
+                            setState(() {
+                              _isSaving = true;
+                            });
+
+                            // Kunci seluruh aplikasi selama proses simpan
+                            // (menghindari user pindah halaman / ganti tab saat request berjalan)
+                            openSavingDialog();
+
+                            if (namaChanged) {
+                              await penghubung.updateUsername(namaBaru);
+                              if (mounted) {
+                                setState(() {
+                                  _initialNamaText = namaBaru;
+                                });
+                              }
+                            }
+
+                            if (penghubung2.mydata.isEmpty) {
+                              // Mode buat profil baru
+                              // Foto tidak wajib - bisa dibuat profil tanpa foto
+
+                              final String? hpToSave = hp;
+
+                              // Profil baru: hanya buat row profil jika ada data profil (foto / no hp)
+                              if (penghubung2.isinya != null ||
+                                  hpToSave != null) {
+                                await penghubung2.createprofil(
+                                  penghubung2.isinya,
+                                  hpToSave,
+                                );
+                              }
+
+                              if (penghubung2.mydata.isNotEmpty) {
+                                setState(() {
+                                  noHpController.text =
+                                      '${penghubung2.mydata[index].kontak ?? ''}';
+                                  if (noHpController.text == '0' ||
+                                      noHpController.text == 'null') {
+                                    noHpController.text = '';
+                                  }
+                                  mesaage = 'Profil berhasil dibuat';
+                                  _initialNoHpText = noHpController.text;
+                                  _hasChanges = false;
+                                });
+                              } else {
+                                setState(() {
+                                  mesaage = 'Perubahan berhasil disimpan';
+                                  _hasChanges = false;
+                                });
+                              }
+                              if (mounted) {
+                                // Pemilik: setelah profil diisi, update semua kost pemilik agar mengikuti no HP profil.
+                                if ((penghubung.mydata[index].role ?? '') ==
+                                    'Pemilik') {
+                                  try {
+                                    final kostService = KostService();
+
+                                    if (namaChanged) {
+                                      await kostService
+                                          .updateNamaPemilikKostSemua(
+                                        penghubung2.accesstoken!,
+                                        penghubung2.id_auth!,
+                                        namaBaru,
+                                      );
+                                    }
+
+                                    if (hpChanged) {
+                                      await kostService
+                                          .updateNoTelpKostPemilikSemua(
+                                        penghubung2.accesstoken!,
+                                        penghubung2.id_auth!,
+                                        hpToSave,
+                                      );
+                                    }
+
+                                    await penghubung3.readdatapemilik(
+                                      penghubung2.id_auth!,
+                                      penghubung2.accesstoken!,
+                                    );
+                                  } catch (_) {
+                                    // non-fatal: profil tetap tersimpan
+                                  }
+                                }
+
+                                await _showSuccessDialog(
+                                  context,
+                                  title: 'Profil Tersimpan',
+                                  message:
+                                      'Profil baru kamu berhasil disimpan dan siap digunakan.',
+                                );
+                              }
+                            } else {
+                              // Mode update - gunakan data lama jika field tidak diubah
+                              final String? hpToSave = hp;
+
+                              await penghubung2.updateprofil(
+                                penghubung2.isinya,
+                                penghubung2.mydata[index].foto,
+                                hpToSave,
+                              );
+
+                              setState(() {
+                                noHpController.text =
+                                    '${penghubung2.mydata[index].kontak ?? ''}';
+                                if (noHpController.text == '0' ||
+                                    noHpController.text == 'null') {
+                                  noHpController.text = '';
+                                }
+                                mesaage = 'Profil berhasil diperbarui';
+                                _initialNoHpText = noHpController.text;
+                                _hasChanges = false;
+                              });
+                              if (mounted) {
+                                // Pemilik: setiap perubahan no HP profil harus mengubah no HP semua kost.
+                                if ((penghubung.mydata[index].role ?? '') ==
+                                    'Pemilik') {
+                                  try {
+                                    final kostService = KostService();
+
+                                    if (namaChanged) {
+                                      await kostService
+                                          .updateNamaPemilikKostSemua(
+                                        penghubung2.accesstoken!,
+                                        penghubung2.id_auth!,
+                                        namaBaru,
+                                      );
+                                    }
+
+                                    if (hpChanged) {
+                                      await kostService
+                                          .updateNoTelpKostPemilikSemua(
+                                        penghubung2.accesstoken!,
+                                        penghubung2.id_auth!,
+                                        hpToSave,
+                                      );
+                                    }
+
+                                    await penghubung3.readdatapemilik(
+                                      penghubung2.id_auth!,
+                                      penghubung2.accesstoken!,
+                                    );
+                                  } catch (_) {
+                                    // non-fatal: profil tetap tersimpan
+                                  }
+                                }
+
+                                await _showSuccessDialog(
+                                  context,
+                                  title: 'Perubahan Disimpan',
+                                  message:
+                                      'Perubahan pada profil kamu sudah berhasil disimpan.',
+                                );
+                              }
+                            }
                           } catch (e) {
-                            // ignore: use_build_context_synchronously
+                            closeSavingDialogIfOpen();
+                            mesaage = 'Data gagal diperbarui';
+                            if (!mounted) return;
                             showDialog(
                               context: context,
                               builder: (context) {
-                                return ShowdialogEror(
-                                  label: e.toString(),
-                                );
+                                return ShowdialogEror(label: e.toString());
                               },
                             );
+                          } finally {
+                            if (!mounted) return;
+                            closeSavingDialogIfOpen();
+                            setState(() {
+                              _isSaving = false;
+                            });
                           }
                         },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF1E3A8A),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: _isSaving
+                      ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
-                        ),
-                        icon: Icon(Icons.logout),
-                        label: Text(
-                          'Keluar Akun',
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                  ],
+                        )
+                      : Icon(Icons.save_outlined),
+                  label: Text(
+                    _isSaving ? 'Menyimpan...' : 'Simpan Perubahan Data',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-          child: SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: _isSaving || !_hasChanges
-                  ? null
-                  : () async {
-                      // Validasi fleksibel - tidak wajib semua field diisi
-                      // User bisa update partial data
-                      bool hasValidData = false;
-
-                      if (noHpController.text.isNotEmpty) hasValidData = true;
-
-                      // Profil baru: minimal isi salah satu (No HP atau Foto)
-                      if (penghubung2.mydata.isEmpty &&
-                          !hasValidData &&
-                          penghubung2.isinya == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Minimal isi satu data untuk disimpan.',
-                            ),
-                          ),
-                        );
-                        return;
-                      }
-
-                      // Validasi & parsing nomor HP (boleh kosong)
-                      final String hpText = noHpController.text.trim();
-                      String? hp;
-                      if (hpText.isEmpty) {
-                        // Boleh kosong: simpan NULL.
-                        hp = null;
-                      } else {
-                        // Validasi hanya angka
-                        if (!RegExp(r'^\d+$').hasMatch(hpText)) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Nomor HP harus berupa angka.'),
-                            ),
-                          );
-                          return;
-                        }
-
-                        if (hpText.length < 10) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Nomor HP minimal 10 digit.',
-                              ),
-                            ),
-                          );
-                          return;
-                        }
-
-                        if (hpText.length > 15) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Nomor HP maksimal 15 digit.',
-                              ),
-                            ),
-                          );
-                          return;
-                        }
-
-                        // Validasi format nomor Indonesia (harus dimulai 0 atau 62)
-                        if (!hpText.startsWith('0') &&
-                            !hpText.startsWith('62')) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Nomor HP harus dimulai dengan 0 atau 62.',
-                              ),
-                            ),
-                          );
-                          return;
-                        }
-
-                        hp = hpText;
-                      }
-
-                      try {
-                        setState(() {
-                          _isSaving = true;
-                        });
-
-                        if (penghubung2.mydata.isEmpty) {
-                          // Mode buat profil baru
-                          // Foto tidak wajib - bisa dibuat profil tanpa foto
-
-                          final String? hpToSave = hp;
-
-                          // Profil baru: boleh simpan tanpa upload foto
-                          await penghubung2.createprofil(
-                            penghubung2.isinya,
-                            hpToSave,
-                          );
-
-                          setState(() {
-                            noHpController.text =
-                                '${penghubung2.mydata[index].kontak ?? ''}';
-                            if (noHpController.text == '0' ||
-                                noHpController.text == 'null') {
-                              noHpController.text = '';
-                            }
-                            mesaage = 'Profil berhasil dibuat';
-                            _initialNoHpText = noHpController.text;
-                            _hasChanges = false;
-                          });
-                          if (mounted) {
-                            // Pemilik: setelah profil diisi, update semua kost pemilik agar mengikuti no HP profil.
-                            if ((penghubung.mydata[index].role ?? '') ==
-                                'Pemilik') {
-                              try {
-                                final kostService = KostService();
-                                await kostService.updateNoTelpKostPemilikSemua(
-                                  penghubung2.accesstoken!,
-                                  penghubung2.id_auth!,
-                                  hpToSave,
-                                );
-
-                                await penghubung3.readdatapemilik(
-                                  penghubung2.id_auth!,
-                                  penghubung2.accesstoken!,
-                                );
-                              } catch (_) {
-                                // non-fatal: profil tetap tersimpan
-                              }
-                            }
-
-                            await _showSuccessDialog(
-                              context,
-                              title: 'Profil Tersimpan',
-                              message:
-                                  'Profil baru kamu berhasil disimpan dan siap digunakan.',
-                            );
-                          }
-                        } else {
-                          // Mode update - gunakan data lama jika field tidak diubah
-                          final String? hpToSave = hp;
-
-                          await penghubung2.updateprofil(
-                            penghubung2.isinya,
-                            penghubung2.mydata[index].foto,
-                            hpToSave,
-                          );
-
-                          setState(() {
-                            noHpController.text =
-                                '${penghubung2.mydata[index].kontak ?? ''}';
-                            if (noHpController.text == '0' ||
-                                noHpController.text == 'null') {
-                              noHpController.text = '';
-                            }
-                            mesaage = 'Profil berhasil diperbarui';
-                            _initialNoHpText = noHpController.text;
-                            _hasChanges = false;
-                          });
-                          if (mounted) {
-                            // Pemilik: setiap perubahan no HP profil harus mengubah no HP semua kost.
-                            if ((penghubung.mydata[index].role ?? '') ==
-                                'Pemilik') {
-                              try {
-                                final kostService = KostService();
-                                await kostService.updateNoTelpKostPemilikSemua(
-                                  penghubung2.accesstoken!,
-                                  penghubung2.id_auth!,
-                                  hpToSave,
-                                );
-
-                                await penghubung3.readdatapemilik(
-                                  penghubung2.id_auth!,
-                                  penghubung2.accesstoken!,
-                                );
-                              } catch (_) {
-                                // non-fatal: profil tetap tersimpan
-                              }
-                            }
-
-                            await _showSuccessDialog(
-                              context,
-                              title: 'Perubahan Disimpan',
-                              message:
-                                  'Perubahan pada profil kamu sudah berhasil disimpan.',
-                            );
-                          }
-                        }
-                      } catch (e) {
-                        mesaage = 'Data gagal diperbarui';
-                        // ignore: use_build_context_synchronously
-                        showDialog(
-                          context: context,
-                          builder: (context) {
-                            return ShowdialogEror(label: e.toString());
-                          },
-                        );
-                      } finally {
-                        if (!mounted) return;
-                        setState(() {
-                          _isSaving = false;
-                        });
-                      }
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF1E3A8A),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              icon: _isSaving
-                  ? SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : Icon(Icons.save_outlined),
-              label: Text(
-                _isSaving ? 'Menyimpan...' : 'Simpan Perubahan Data',
-                style: TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
           ),

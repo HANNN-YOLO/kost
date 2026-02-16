@@ -570,6 +570,39 @@ class KostService {
     throw "gagal update no tlp semua kost pemilik ${updated.body}";
   }
 
+  /// Paksa update `pemilik_kost` untuk SEMUA kost milik pemilik.
+  /// Dipakai ketika pemilik mengganti nama di profil agar detail kost
+  /// selalu menampilkan nama pemilik terbaru.
+  Future<void> updateNamaPemilikKostSemua(
+    String token,
+    int id_auth,
+    String namaPemilikBaru,
+  ) async {
+    final url = Uri.parse(
+      "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_auth=eq.$id_auth",
+    );
+
+    final updated = await htpp.patch(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apipublic}',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'pemilik_kost': namaPemilikBaru,
+      }),
+    );
+
+    if (updated.statusCode == 204 ||
+        updated.statusCode == 200 ||
+        updated.statusCode == 201) {
+      return;
+    }
+
+    throw "gagal update nama pemilik semua kost ${updated.body}";
+  }
+
   /// Cascade update: saat subkriteria diubah namanya, update semua kost
   /// yang menggunakan nama subkriteria lama menjadi nama baru.
   ///
