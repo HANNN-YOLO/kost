@@ -1073,13 +1073,12 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
                                     onPressed: _isLoading
                                         ? null
                                         : () async {
-                                            // Parse koordinat tujuan
-                                            final parts = _coordinateText
-                                                .split(',')
-                                                .map((e) => e.trim())
-                                                .toList();
-
-                                            if (parts.length != 2) {
+                                            // Validasi koordinat tujuan (format & range)
+                                            final input =
+                                                _coordinateText.trim();
+                                            if (input.isEmpty ||
+                                                input == 'Klik 2x pada peta' ||
+                                                !input.contains(',')) {
                                               ScaffoldMessenger.of(context)
                                                   .showSnackBar(
                                                 const SnackBar(
@@ -1090,22 +1089,21 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
                                               return;
                                             }
 
-                                            final double? destLat =
-                                                double.tryParse(parts[0]);
-                                            final double? destLng =
-                                                double.tryParse(parts[1]);
-
-                                            if (destLat == null ||
-                                                destLng == null) {
+                                            final parsed =
+                                                _tryParseLatLng(input);
+                                            if (parsed == null) {
                                               ScaffoldMessenger.of(context)
                                                   .showSnackBar(
                                                 const SnackBar(
                                                   content: Text(
-                                                      'Format koordinat tidak valid. Silakan pilih ulang di peta.'),
+                                                      'Koordinat tidak valid. Gunakan format "lat, lng" dengan lat -90..90 dan lng -180..180.'),
                                                 ),
                                               );
                                               return;
                                             }
+
+                                            final destLat = parsed.lat;
+                                            final destLng = parsed.lng;
 
                                             // Update marker dan tampilan peta
                                             await _applyDestinationToMap(

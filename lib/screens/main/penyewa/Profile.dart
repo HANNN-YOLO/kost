@@ -40,6 +40,38 @@ class _UserProfilePageState extends State<UserProfilePage> {
   final TextEditingController noHpController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
 
+  Future<bool> _confirmLogout(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return WillPopScope(
+          onWillPop: () async => false,
+          child: AlertDialog(
+            title: const Text('Konfirmasi Logout'),
+            content: const Text('Anda yakin ingin keluar dari akun?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Batal'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Keluar'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    return result ?? false;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -714,11 +746,46 @@ class _UserProfilePageState extends State<UserProfilePage> {
                         if (widget.showLogoutButton)
                           ElevatedButton.icon(
                             onPressed: () async {
+                              if (_isSaving) return;
+
+                              final shouldLogout =
+                                  await _confirmLogout(context);
+                              if (!shouldLogout) return;
+
+                              bool logoutDialogOpen = false;
+                              void openLogoutDialog() {
+                                if (!mounted) return;
+                                if (logoutDialogOpen) return;
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  useRootNavigator: true,
+                                  builder: (_) => WillPopScope(
+                                    onWillPop: () async => false,
+                                    child: const Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  ),
+                                );
+                                logoutDialogOpen = true;
+                              }
+
+                              void closeLogoutDialogIfOpen() {
+                                if (!mounted) return;
+                                if (!logoutDialogOpen) return;
+                                Navigator.of(context, rootNavigator: true)
+                                    .pop();
+                                logoutDialogOpen = false;
+                              }
+
                               try {
+                                openLogoutDialog();
                                 await penghubung.logout();
                                 penghubung2.reset();
                                 penghubung3.resetSession();
+                                closeLogoutDialogIfOpen();
                               } catch (e) {
+                                closeLogoutDialogIfOpen();
                                 if (!mounted) return;
                                 showDialog(
                                   context: context,

@@ -126,7 +126,10 @@ class DetailKost extends StatelessWidget {
                         _StatChip(
                           icon: Icons.home_work_outlined,
                           label: 'Jenis',
-                          value: kost.jenis_kost.toString(),
+                          value: (kost.penghuni == null ||
+                                  (kost.penghuni ?? '').trim().isEmpty)
+                              ? '-'
+                              : (kost.penghuni ?? '-').toString(),
                         ),
                       ],
                     ),
@@ -160,7 +163,10 @@ class DetailKost extends StatelessWidget {
                         _InfoTile(
                           icon: Icons.home_work_outlined,
                           label: 'Jenis Kost',
-                          value: kost.jenis_kost.toString(),
+                          value: (kost.penghuni == null ||
+                                  (kost.penghuni ?? '').trim().isEmpty)
+                              ? '-'
+                              : (kost.penghuni ?? '-').toString(),
                         ),
                       ],
                     ),

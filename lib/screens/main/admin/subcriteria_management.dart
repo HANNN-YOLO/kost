@@ -2846,9 +2846,37 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                 onPressed: (!_hasChanges || _isSaving)
                     ? null
                     : () async {
+                        bool savingDialogOpen = false;
+                        void openSavingDialog() {
+                          if (!mounted) return;
+                          if (savingDialogOpen) return;
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            useRootNavigator: true,
+                            builder: (_) => WillPopScope(
+                              onWillPop: () async => false,
+                              child: const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            ),
+                          );
+                          savingDialogOpen = true;
+                        }
+
+                        void closeSavingDialogIfOpen() {
+                          if (!mounted) return;
+                          if (!savingDialogOpen) return;
+                          Navigator.of(context, rootNavigator: true).pop();
+                          savingDialogOpen = false;
+                        }
+
                         setState(() {
                           _isSaving = true;
                         });
+
+                        // Kunci seluruh halaman/app selama proses simpan
+                        openSavingDialog();
 
                         try {
                           // Jika data di database (inidata) kosong untuk kriteria ini, panggil savemassal
@@ -2873,12 +2901,14 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
 
                           // Refresh UI setelah simpan database
                           if (!mounted) return;
+                          closeSavingDialogIfOpen();
                           setState(() {
                             keadaan = false;
                             _isSaving = false;
                           });
                         } catch (e) {
                           if (!mounted) return;
+                          closeSavingDialogIfOpen();
                           setState(() {
                             _isSaving = false;
                           });

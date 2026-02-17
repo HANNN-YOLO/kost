@@ -74,7 +74,7 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
 
   final Set<String> _fasilitasWajib = <String>{};
 
-  static const List<String> _opsiJenisKost = <String>[
+  static const List<String> _opsiJenisKostFallback = <String>[
     'Semua',
     'Umum',
     'Khusus Putri',
@@ -82,6 +82,36 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
   ];
 
   static const List<double> _opsiJarakKm = <double>[1, 3, 5, 10];
+
+  static String _norm(String s) => s.trim().toLowerCase();
+
+  static String _canonicalJenisKost(String raw) {
+    final lower = _norm(raw);
+    if (lower.isEmpty) return '';
+    if (lower.contains('putri') || lower.contains('wanita')) {
+      return 'khusus putri';
+    }
+    if (lower.contains('putra') || lower.contains('pria')) {
+      return 'khusus putra';
+    }
+    if (lower.contains('umum') || lower.contains('campur')) {
+      return 'umum';
+    }
+    return lower;
+  }
+
+  static bool _containsNormalized(List<String> items, String value) {
+    final v = _norm(value);
+    return items.any((e) => _norm(e) == v);
+  }
+
+  static String _sanitizeValue(String current, List<String> items) {
+    if (_norm(current) == _norm('Semua')) return 'Semua';
+    for (final e in items) {
+      if (_norm(e) == _norm(current)) return e;
+    }
+    return 'Semua';
+  }
 
   static const List<String> _opsiFasilitas = <String>[
     'Tempat Tidur',
@@ -189,6 +219,7 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
     required Color colorTextPrimary,
     required Color colorWhite,
     required Color shadowColor,
+    required List<String> jenisKostOptions,
     required List<String> keamananOptions,
     required List<String> batasJamMalamOptions,
     required List<String> jenisListrikOptions,
@@ -212,6 +243,7 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
           colorTextPrimary: colorTextPrimary,
           colorWhite: colorWhite,
           shadowColor: shadowColor,
+          jenisKostOptions: jenisKostOptions,
           keamananOptions: keamananOptions,
           batasJamMalamOptions: batasJamMalamOptions,
           jenisListrikOptions: jenisListrikOptions,
@@ -221,11 +253,14 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
           filteredRankings: filteredRankings,
           initialHargaMax: _hargaMaxC.text,
           initialLuasMax: _luasMaxC.text,
-          initialJenisKost: _jenisKostFilter,
-          initialKeamanan: _keamananFilter,
-          initialBatasJamMalam: _batasJamMalamFilter,
-          initialJenisListrik: _jenisListrikFilter,
-          initialJenisPembayaranAir: _jenisPembayaranAirFilter,
+          initialJenisKost: _sanitizeValue(_jenisKostFilter, jenisKostOptions),
+          initialKeamanan: _sanitizeValue(_keamananFilter, keamananOptions),
+          initialBatasJamMalam:
+              _sanitizeValue(_batasJamMalamFilter, batasJamMalamOptions),
+          initialJenisListrik:
+              _sanitizeValue(_jenisListrikFilter, jenisListrikOptions),
+          initialJenisPembayaranAir: _sanitizeValue(
+              _jenisPembayaranAirFilter, jenisPembayaranAirOptions),
           initialJarakMaxKm: _jarakMaxKm,
           initialFasilitasWajib: _fasilitasWajib,
           onResetAll: () => _resetFilter(),
@@ -643,6 +678,9 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
                 ? subKeamanan
                 : _fallbackFromKost((k) => (k.keamanan ?? '').toString())),
           ];
+          // Opsi dropdown "Jenis Kost" selalu tampil lengkap (termasuk Putra)
+          // supaya user bisa memilih meskipun data saat ini belum ada.
+          final List<String> resolvedJenisKostOptions = _opsiJenisKostFallback;
           final List<String> batasJamMalamOptions = <String>[
             'Semua',
             ...((subJamMalam.isNotEmpty)
@@ -691,29 +729,44 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
             final int? hargaMax = _parseIdrToInt(_hargaMaxC.text.trim());
             if (hargaMax != null && harga > hargaMax) return false;
 
-            if (_jenisKostFilter != 'Semua') {
-              final jenis = (kost.jenis_kost ?? '').toString();
-              if (jenis != _jenisKostFilter) return false;
+            final jenisFilter =
+                _sanitizeValue(_jenisKostFilter, resolvedJenisKostOptions);
+            if (_norm(jenisFilter) != _norm('Semua')) {
+              final rawJenis = (kost.penghuni ?? '').toString();
+              if (_canonicalJenisKost(rawJenis) !=
+                  _canonicalJenisKost(jenisFilter)) {
+                return false;
+              }
             }
 
-            if (_keamananFilter != 'Semua') {
+            final keamananFilter =
+                _sanitizeValue(_keamananFilter, keamananOptions);
+            if (_norm(keamananFilter) != _norm('Semua')) {
               final keamanan = (kost.keamanan ?? '').toString();
-              if (keamanan != _keamananFilter) return false;
+              if (_norm(keamanan) != _norm(keamananFilter)) return false;
             }
 
-            if (_batasJamMalamFilter != 'Semua') {
+            final jamMalamFilter =
+                _sanitizeValue(_batasJamMalamFilter, batasJamMalamOptions);
+            if (_norm(jamMalamFilter) != _norm('Semua')) {
               final v = (kost.batas_jam_malam ?? '').toString();
-              if (v != _batasJamMalamFilter) return false;
+              if (_norm(v) != _norm(jamMalamFilter)) return false;
             }
 
-            if (_jenisListrikFilter != 'Semua') {
+            final listrikFilter =
+                _sanitizeValue(_jenisListrikFilter, jenisListrikOptions);
+            if (_norm(listrikFilter) != _norm('Semua')) {
               final v = (kost.jenis_listrik ?? '').toString();
-              if (v != _jenisListrikFilter) return false;
+              if (_norm(v) != _norm(listrikFilter)) return false;
             }
 
-            if (_jenisPembayaranAirFilter != 'Semua') {
+            final airFilter = _sanitizeValue(
+              _jenisPembayaranAirFilter,
+              jenisPembayaranAirOptions,
+            );
+            if (_norm(airFilter) != _norm('Semua')) {
               final v = (kost.jenis_pembayaran_air ?? '').toString();
-              if (v != _jenisPembayaranAirFilter) return false;
+              if (_norm(v) != _norm(airFilter)) return false;
             }
 
             final num? luasMax = num.tryParse(_luasMaxC.text.trim());
@@ -956,6 +1009,7 @@ class _RecommendationSawPageState extends State<RecommendationSawPage> {
                           colorTextPrimary: colorTextPrimary,
                           colorWhite: colorWhite,
                           shadowColor: shadowColor,
+                          jenisKostOptions: resolvedJenisKostOptions,
                           keamananOptions: keamananOptions,
                           batasJamMalamOptions: batasJamMalamOptions,
                           jenisListrikOptions: jenisListrikOptions,
@@ -1218,6 +1272,7 @@ class _SawFilterSheet extends StatefulWidget {
   final Color colorWhite;
   final Color shadowColor;
 
+  final List<String> jenisKostOptions;
   final List<String> keamananOptions;
   final List<String> batasJamMalamOptions;
   final List<String> jenisListrikOptions;
@@ -1257,6 +1312,7 @@ class _SawFilterSheet extends StatefulWidget {
     required this.colorTextPrimary,
     required this.colorWhite,
     required this.shadowColor,
+    required this.jenisKostOptions,
     required this.keamananOptions,
     required this.batasJamMalamOptions,
     required this.jenisListrikOptions,
@@ -1335,18 +1391,26 @@ class _SawFilterSheetState extends State<_SawFilterSheet> {
     final colorTextPrimary = widget.colorTextPrimary;
     final colorWhite = widget.colorWhite;
 
-    final keamananValue =
-        widget.keamananOptions.contains(_keamanan) ? _keamanan : 'Semua';
-    final jamMalamValue = widget.batasJamMalamOptions.contains(_batasJamMalam)
+    final jenisKostValue = _RecommendationSawPageState._containsNormalized(
+            widget.jenisKostOptions, _jenisKost)
+        ? _jenisKost
+        : 'Semua';
+    final keamananValue = _RecommendationSawPageState._containsNormalized(
+            widget.keamananOptions, _keamanan)
+        ? _keamanan
+        : 'Semua';
+    final jamMalamValue = _RecommendationSawPageState._containsNormalized(
+            widget.batasJamMalamOptions, _batasJamMalam)
         ? _batasJamMalam
         : 'Semua';
-    final listrikValue = widget.jenisListrikOptions.contains(_jenisListrik)
+    final listrikValue = _RecommendationSawPageState._containsNormalized(
+            widget.jenisListrikOptions, _jenisListrik)
         ? _jenisListrik
         : 'Semua';
-    final airValue =
-        widget.jenisPembayaranAirOptions.contains(_jenisPembayaranAir)
-            ? _jenisPembayaranAir
-            : 'Semua';
+    final airValue = _RecommendationSawPageState._containsNormalized(
+            widget.jenisPembayaranAirOptions, _jenisPembayaranAir)
+        ? _jenisPembayaranAir
+        : 'Semua';
 
     return SafeArea(
       child: AnimatedPadding(
@@ -1435,8 +1499,8 @@ class _SawFilterSheetState extends State<_SawFilterSheet> {
                     Expanded(
                       child: _filterDropdown(
                         label: 'Jenis Kost',
-                        value: _jenisKost,
-                        items: _RecommendationSawPageState._opsiJenisKost,
+                        value: jenisKostValue,
+                        items: widget.jenisKostOptions,
                         s: s,
                         colorPrimary: colorPrimary,
                         onChanged: (v) {
@@ -1843,7 +1907,7 @@ class _RankingCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(s(10)),
                     ),
                     child: Text(
-                      "${formatCurrency(harga)}",
+                      "${formatCurrency(harga)}${per.trim().isEmpty ? '' : ' / ${per.trim()}'}",
                       style: TextStyle(
                         color: colorWhite,
                         fontWeight: FontWeight.w700,

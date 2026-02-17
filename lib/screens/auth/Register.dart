@@ -205,13 +205,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               });
                               return;
                             }
-                            if (username.contains(' ')) {
-                              setState(() {
-                                message =
-                                    "Username tidak boleh mengandung spasi.";
-                              });
-                              return;
-                            }
+                            // Spasi diperbolehkan pada nama/username.
 
                             // Validasi email format
                             final emailText = email.text.trim();
