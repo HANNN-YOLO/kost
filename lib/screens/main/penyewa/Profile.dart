@@ -4,14 +4,11 @@ import 'package:flutter/cupertino.dart';
 import '../../custom/custom_UploadFoto.dart';
 import '../../custom/custom_editfoto.dart';
 import '../../custom/showdialog_eror.dart';
-import '../../custom/custom_dropdown_search.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/profil_provider.dart';
 import '../../../providers/kost_provider.dart';
-import '../../../services/profil_service.dart';
 import '../../../services/kost_service.dart';
-import 'package:intl/intl.dart';
 
 class UserProfilePage extends StatefulWidget {
   static const arah = "/profil-user";
@@ -1137,7 +1134,7 @@ class _IconTextField extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool readOnly;
-  final VoidCallback? onTap;
+  final VoidCallback? tap;
   final TextInputType? keyboardType;
 
   const _IconTextField({
@@ -1146,7 +1143,7 @@ class _IconTextField extends StatelessWidget {
     required this.label,
     required this.icon,
     this.readOnly = false,
-    this.onTap,
+    this.tap,
     this.keyboardType,
   }) : super(key: key);
 
@@ -1157,7 +1154,7 @@ class _IconTextField extends StatelessWidget {
       child: TextField(
         controller: controller,
         readOnly: readOnly,
-        onTap: onTap,
+        onTap: tap,
         keyboardType: keyboardType,
         decoration: InputDecoration(
           prefixIcon: Icon(

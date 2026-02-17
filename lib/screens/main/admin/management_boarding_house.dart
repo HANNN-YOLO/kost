@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kost_saw/screens/custom/showdialog_eror.dart';
 import 'form_house.dart';
 import 'package:provider/provider.dart';
-import 'package:collection/collection.dart';
+// import 'package:collection/collection.dart';
 import '../../../providers/kost_provider.dart';
 import 'admin_places_page.dart';
 import '../shared/formatCurrency.dart';
@@ -22,7 +22,7 @@ class _ManagementBoardingHouseState extends State<ManagementBoardingHouse> {
   @override
   Widget build(BuildContext context) {
     final penghubung = Provider.of<KostProvider>(context);
-    final penghubung2 = Provider.of<KostProvider>(context);
+    // final penghubung2 = Provider.of<KostProvider>(context);
     final tinggiLayar = MediaQuery.of(context).size.height;
     final lebarLayar = MediaQuery.of(context).size.width;
 
@@ -30,8 +30,8 @@ class _ManagementBoardingHouseState extends State<ManagementBoardingHouse> {
     const warnaLatar = Color(0xFFF5F7FB);
     const warnaKartu = Colors.white;
     const warnaIkonUtama = Color(0xFF1E3A8A);
-    const warnaHarga = Color(0xFF1E3A8A);
-    const warnaAbuTeks = Colors.grey;
+    // const warnaHarga = Color(0xFF1E3A8A);
+    // const warnaAbuTeks = Colors.grey;
 
     return Scaffold(
       backgroundColor: warnaLatar,

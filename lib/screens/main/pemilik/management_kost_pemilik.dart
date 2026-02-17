@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:collection/collection.dart';
+// import 'package:collection/collection.dart';
 // import 'package:kost_saw/providers/profil_provider.dart';
 import '../../../providers/kost_provider.dart';
 import 'package:provider/provider.dart';
@@ -16,10 +16,10 @@ class ManagementKostPemilik extends StatefulWidget {
 
 class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
   static Color warnaLatar = Color(0xFFF5F7FB);
-  static Color warnaKartu = Colors.white;
+  // static Color warnaKartu = Colors.white;
   static Color warnaUtama = Color(0xFF1E3A8A);
-  static Color aksenBiru = Color(0xFF007BFF);
-  bool _isDeleting = false;
+  // static Color aksenBiru = Color(0xFF007BFF);
+  // bool _isDeleting = false;
   bool _isNavigating = false;
 
   @override
@@ -283,15 +283,6 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
     );
   }
 
-  void _tombolBelumTersedia() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("Fitur belum diaktifkan"),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
   // void _bukaFormTambah() {
   //   // Gunakan rootNavigator agar menggunakan routes dari MaterialApp utama
   //   final penghubung = Provider.of<ProfilProvider>(context, listen: false);
@@ -303,15 +294,6 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
   //         .pushNamed('/form-house-pemilik');
   //   }
   // }
-
-  String _formatRupiah(double value) {
-    // Simple formatter for display only
-    return "Rp " +
-        value.toStringAsFixed(0).replaceAllMapped(
-              RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"),
-              (m) => "${m[1]}.",
-            );
-  }
 }
 
 class _OwnerKostCard extends StatelessWidget {
@@ -499,14 +481,6 @@ class _OwnerKostCard extends StatelessWidget {
       ),
     );
   }
-
-  String _formatRupiah(double value) {
-    return "Rp " +
-        value.toStringAsFixed(0).replaceAllMapped(
-              RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"),
-              (m) => "${m[1]}.",
-            );
-  }
 }
 
 class _HeaderBar extends StatelessWidget {
@@ -577,123 +551,6 @@ class _HeaderBar extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _SearchBar extends StatelessWidget {
-  final TextEditingController controller;
-  final VoidCallback? onFilter;
-
-  _SearchBar({
-    required this.controller,
-    this.onFilter,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        // Expanded(
-        //   child: TextField(
-        //     controller: controller,
-        //     decoration: InputDecoration(
-        //       hintText: "Cari kost...",
-        //       prefixIcon:  Icon(Icons.search, color: Colors.black54),
-        //       filled: true,
-        //       fillColor: const Color(0xFFF5F7FB),
-        //       contentPadding: const EdgeInsets.symmetric(vertical: 14),
-        //       border: OutlineInputBorder(
-        //         borderRadius: BorderRadius.circular(12),
-        //         borderSide: BorderSide.none,
-        //       ),
-        //     ),
-        //   ),
-        // ),
-        SizedBox(width: 10),
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: onFilter,
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 6,
-                    offset: Offset(0, 3),
-                  )
-                ],
-              ),
-              child: Icon(Icons.tune, color: Colors.black87),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _FilterChips extends StatelessWidget {
-  final int index;
-  final ValueChanged<int>? onChanged;
-  final Color warnaUtama;
-
-  _FilterChips({
-    required this.index,
-    required this.onChanged,
-    required this.warnaUtama,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final opsi = ["Semua", "Aktif", "Nonaktif"];
-    return SizedBox(
-      height: 36,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemBuilder: (context, i) {
-          final aktif = i == index;
-          return InkWell(
-            borderRadius: BorderRadius.circular(24),
-            onTap: () => onChanged?.call(i),
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 14),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: aktif ? Color(0xFFDDE6FF) : Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: aktif ? warnaUtama : Color(0xFFE6EAF2),
-                ),
-                boxShadow: aktif
-                    ? [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 6,
-                          offset: Offset(0, 3),
-                        )
-                      ]
-                    : [],
-              ),
-              child: Text(
-                opsi[i],
-                style: TextStyle(
-                  color: aktif ? warnaUtama : Colors.black87,
-                  fontWeight: aktif ? FontWeight.w700 : FontWeight.w500,
-                ),
-              ),
-            ),
-          );
-        },
-        separatorBuilder: (_, __) => SizedBox(width: 10),
-        itemCount: opsi.length,
-      ),
     );
   }
 }
@@ -813,43 +670,4 @@ class _InfoCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _InputField extends StatelessWidget {
-  final String label;
-  final TextEditingController controller;
-
-  _InputField({required this.label, required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        filled: true,
-        fillColor: const Color(0xFFF5F7FB),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
-        ),
-      ),
-    );
-  }
-}
-
-class _OwnerKost {
-  final String nama;
-  final String lokasi;
-  final String harga;
-  final String gambar;
-  final double pemasukanBulanIni;
-
-  _OwnerKost({
-    required this.nama,
-    required this.lokasi,
-    required this.harga,
-    required this.gambar,
-    required this.pemasukanBulanIni,
-  });
 }

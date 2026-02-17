@@ -32,7 +32,7 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget build(BuildContext context) {
     final penghubung = Provider.of<AuthProvider>(context, listen: false);
 
-    final tinggiLayar = MediaQuery.of(context).size.height;
+    // final tinggiLayar = MediaQuery.of(context).size.height;
     final lebarLayar = MediaQuery.of(context).size.width;
 
     // Tentukan breakpoint

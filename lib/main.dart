@@ -28,7 +28,7 @@ import 'screens/main/penyewa/Home.dart';
 import 'screens/main/penyewa/Profile.dart';
 import 'screens/main/penyewa/recommendation.dart';
 
-import 'screens/main/pemilik/dashboard_income.dart';
+import 'screens/main/sementara/tidak berguna.dart';
 import 'screens/main/pemilik/management_kost_pemilik.dart';
 import 'screens/main/pemilik/profile_pemilik.dart';
 

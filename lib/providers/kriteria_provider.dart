@@ -6,7 +6,7 @@ import '../models/subkriteria_models.dart';
 import '../services/kriteria_services.dart';
 import '../services/subkriteria_services.dart';
 import '../services/kost_service.dart';
-import 'dart:collection';
+// import 'dart:collection';
 
 class KriteriaProvider with ChangeNotifier {
   // state penting

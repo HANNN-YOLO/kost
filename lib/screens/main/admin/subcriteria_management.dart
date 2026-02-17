@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -157,14 +156,6 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
   }
 
   // Helper: Convert operator string dari DB ke boolean untuk UI
-  bool _operatorToInclusive(String? operator, bool isMin) {
-    if (operator == null) return true; // Default inclusive
-    if (isMin) {
-      return operator == '>=' || operator == '≥';
-    } else {
-      return operator == '<=' || operator == '≤';
-    }
-  }
 
   // Helper: Convert boolean UI ke operator string untuk DB
   String? _inclusiveToOperator(bool inclusive, bool isMin, bool exists) {
@@ -202,13 +193,6 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
         lower.contains('jarak');
   }
 
-  int? _tryParseIntFlexible(String raw) {
-    // Tetap dipakai untuk angka bulat (misal harga) yang boleh ada pemisah.
-    final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.isEmpty) return null;
-    return int.tryParse(digits);
-  }
-
   num? _tryParseNumFlexible(String raw) {
     // Ambil angka pertama dari string, dukung koma/titik sebagai desimal.
     // Contoh: "<=1 km" -> 1, "1.1" -> 1.1, "1,9" -> 1.9
@@ -230,13 +214,6 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
     // Untuk ditampilkan di UI: int pakai pemisah ribuan, desimal tetap apa adanya.
     if (value % 1 == 0) return _formatIntId(value.toInt());
     return _formatNumPlain(value);
-  }
-
-  bool _rawAlreadyContainsUnit(String raw, String unit) {
-    final u = unit.trim().toLowerCase();
-    if (u.isEmpty) return false;
-    final r = raw.toLowerCase();
-    return r.contains(u);
   }
 
   String _formatIntId(int value) {
@@ -309,48 +286,6 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
     return 'Rentang: $opMax ${_formatNumDisplay(maxVal!)}$suffix (centang "tanpa batas bawah")';
   }
 
-  String _normalizeKategoriForCompare(String raw) {
-    var s = raw.trim().toLowerCase();
-    if (s.isEmpty) return '';
-
-    // Samakan simbol unicode ke operator ASCII
-    s = s.replaceAll('≤', '<=').replaceAll('≥', '>=');
-
-    // Range lengkap: >= a-b
-    final matchRange =
-        RegExp(r'^(>=)\s*([0-9\.,\s]+)\s*-\s*([0-9\.,\s]+)\s*$').firstMatch(s);
-    if (matchRange != null) {
-      final a = _tryParseNumFlexible(matchRange.group(2) ?? '');
-      final b = _tryParseNumFlexible(matchRange.group(3) ?? '');
-      if (a != null && b != null)
-        return '>=${_formatNumPlain(a)}-${_formatNumPlain(b)}';
-    }
-
-    // Satu sisi: <= x
-    final matchLe = RegExp(r'^(<=)\s*([0-9\.,\s]+)\s*$').firstMatch(s);
-    if (matchLe != null) {
-      final x = _tryParseNumFlexible(matchLe.group(2) ?? '');
-      if (x != null) return '<=${_formatNumPlain(x)}';
-    }
-
-    // Satu sisi: >= x
-    final matchGe = RegExp(r'^(>=)\s*([0-9\.,\s]+)\s*$').firstMatch(s);
-    if (matchGe != null) {
-      final x = _tryParseNumFlexible(matchGe.group(2) ?? '');
-      if (x != null) return '>=${_formatNumPlain(x)}';
-    }
-
-    // Angka saja
-    final onlyNumber = RegExp(r'^\s*([0-9\.,\s]+)\s*$').firstMatch(s);
-    if (onlyNumber != null) {
-      final x = _tryParseNumFlexible(onlyNumber.group(1) ?? '');
-      if (x != null) return _formatNumPlain(x);
-    }
-
-    // Fallback: rapikan spasi
-    return s.replaceAll(RegExp(r'\s+'), ' ');
-  }
-
   String _normalizeNamaForCompare(String raw) {
     final label = _decodeKategoriLabel(raw);
     return label.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
@@ -362,26 +297,6 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
     for (final entry in _isinya.asMap().entries) {
       if (ignoreIndex != null && entry.key == ignoreIndex) continue;
       final existing = _normalizeNamaForCompare(entry.value.kategori.text);
-      if (existing == cand) return true;
-    }
-    return false;
-  }
-
-  bool _looksLikeNumericRuleLabel(String raw) {
-    final s = raw.trim().toLowerCase();
-    if (s.isEmpty) return true;
-    if (RegExp(r'^(<=|>=|<|>|≤|≥)').hasMatch(s)) return true;
-    // Angka / range / angka + unit sederhana
-    if (RegExp(r'^[0-9\s\.,\-]+(km)?$').hasMatch(s)) return true;
-    return false;
-  }
-
-  bool _isDuplicateKategori(String kandidat, {int? ignoreIndex}) {
-    final cand = _normalizeKategoriForCompare(kandidat);
-    if (cand.isEmpty) return false;
-    for (final entry in _isinya.asMap().entries) {
-      if (ignoreIndex != null && entry.key == ignoreIndex) continue;
-      final existing = _normalizeKategoriForCompare(entry.value.kategori.text);
       if (existing == cand) return true;
     }
     return false;

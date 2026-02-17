@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
 import 'package:collection/collection.dart';
@@ -21,8 +20,8 @@ import '../../../providers/auth_provider.dart';
 import '../../../providers/profil_provider.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../custom/textfield_with_dropdown.dart';
-import '../../custom/textfield_1baris_full.dart';
-import 'dart:collection';
+// import '../../custom/textfield_1baris_full.dart';
+// import 'dart:collection';
 
 class inputanlist {
   final TextEditingController fasilitas = TextEditingController();
@@ -696,8 +695,8 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
         .kostpemilik
         .firstWhereOrNull((element) => element.id_kost == terima);
 
-    int? _parseHarga() =>
-        ThousandsSeparatorInputFormatter.tryParseInt(_harga.text);
+    // int? _parseHarga() =>
+    //     ThousandsSeparatorInputFormatter.tryParseInt(_harga.text);
 
     return
         // penghubung2 == null &&
@@ -2241,7 +2240,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
   }) {
     final namaPemilik = _namapemilik.text.trim();
     final namaKost = _namakost.text.trim();
-    final noTelp = _notlpn.text.trim();
+    // final noTelp = _notlpn.text.trim();
     final alamat = _alamat.text.trim();
     final harga = _harga.text.trim();
     final panjang = _panjang.text.trim();
@@ -2490,172 +2489,4 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
       ],
     );
   }
-
-  // 🔹 Widget Pilihan Gambar Kost
-  Widget _buildGambarPicker(
-    BuildContext context,
-    String label,
-    File? file,
-    VoidCallback onTap, {
-    bool wajib = false,
-  }) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          height: 120,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(
-              color: Colors.grey.shade300,
-              width: 1.5,
-            ),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: file == null
-              ? Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.image_outlined, color: Colors.grey),
-                    const SizedBox(height: 6),
-                    Text(
-                      label + (wajib ? " *" : ""),
-                      style: TextStyle(
-                        color: Colors.grey.shade700,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                )
-              : ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.file(file,
-                      fit: BoxFit.cover, width: double.infinity),
-                ),
-        ),
-      ),
-    );
-  }
-
-  // Helper Widget supaya tidak perlu menulis CheckboxListTile 10 kali
-  Widget _buildCheckboxItem(
-    String label,
-    IconData icon,
-    bool nilai,
-    VoidCallback onTekan,
-    double lebar,
-    double tinggi,
-    bool test,
-  ) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: lebar * 0.025,
-        vertical: tinggi * 0.009,
-      ),
-      decoration: BoxDecoration(
-        color: test ? Colors.blue.shade100 : Colors.white,
-        border: Border.all(
-          color: test ? Colors.blue : Colors.grey.shade700,
-        ),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: CheckboxListTile(
-        title: Row(
-          children: [
-            Icon(
-              icon,
-              size: lebar * 0.045,
-              color: Colors.grey.shade700,
-            ),
-            Text(
-              label,
-              style: TextStyle(
-                  fontSize: lebar * 0.032,
-                  color: Colors.black.withOpacity(0.8)),
-            )
-          ],
-        ),
-        // secondary: Icon(icon),
-        value: nilai,
-        onChanged: (value) {
-          onTekan(); // Memanggil fungsi bool...() dari model
-        },
-        controlAffinity: ListTileControlAffinity.leading,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 0), // Sesuaikan padding
-        dense: true, // Agar tidak terlalu renggang
-      ),
-    );
-  }
 }
-
-// Helper Widget Baru (Desain Kotak Kecil / Tags)
-Widget _buildCustomItem(
-  String label,
-  IconData icon,
-  bool nilai,
-  VoidCallback onTekan,
-  double lebar,
-  double tinggi,
-) {
-  return Material(
-    color: Colors.transparent,
-    child: InkWell(
-      onTap: onTekan,
-      borderRadius: BorderRadius.circular(8),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: EdgeInsets.symmetric(
-          horizontal: lebar * 0.03,
-          vertical: tinggi * 0.012,
-        ),
-        decoration: BoxDecoration(
-          // Logika Warna Background: Biru muda jika aktif, Putih jika tidak
-          color: nilai ? const Color(0xFFE3F2FD) : Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            // Logika Warna Border: Biru jika aktif, Abu jika tidak
-            color: nilai ? Colors.blue : Colors.grey.shade300,
-            width: 1.5,
-          ),
-        ),
-        child: Row(
-          mainAxisSize:
-              MainAxisSize.min, // PENTING: Agar lebar menyesuaikan isi teks
-          children: [
-            // Ikon Checkbox Manual
-            Icon(
-              nilai ? Icons.check_box : Icons.check_box_outline_blank,
-              size: lebar * 0.05,
-              color: nilai ? Colors.blue : Colors.grey.shade600,
-            ),
-            SizedBox(width: lebar * 0.02),
-
-            // Ikon Fasilitas
-            Icon(
-              icon,
-              size: lebar * 0.05,
-              color: nilai ? Colors.blue.shade700 : Colors.grey.shade700,
-            ),
-            SizedBox(width: lebar * 0.02),
-
-            // Teks Label
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: lebar * 0.032,
-                fontWeight: nilai ? FontWeight.w600 : FontWeight.normal,
-                color: nilai
-                    ? Colors.blue.shade900
-                    : Colors.black.withOpacity(0.7),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-
-// harap

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/profil_provider.dart';
-import 'package:intl/intl.dart';
+// import 'package:intl/intl.dart';
 
 class DetailUser extends StatelessWidget {
   static const arah = "/detail-user-admin";

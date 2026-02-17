@@ -85,27 +85,6 @@ class _KostHomePageState extends State<KostHomePage> {
                 ),
               ],
             ),
-            // Container(
-            //   width: 40,
-            //   height: 40,
-            //   decoration: BoxDecoration(
-            //     color: Colors.white,
-            //     borderRadius: BorderRadius.circular(14),
-            //     boxShadow: const [
-            //       BoxShadow(
-            //         color: Color.fromRGBO(0, 0, 0, 0.06),
-            //         blurRadius: 10,
-            //         offset: Offset(0, 4),
-            //       ),
-            //     ],
-            //   ),
-            //   child: IconButton(
-            //     onPressed: () {},
-            //     icon: const Icon(Icons.notifications_none_rounded, size: 20),
-            //     padding: EdgeInsets.zero,
-            //     color: Colors.black87,
-            //   ),
-            // ),
           ],
         ),
       ),
