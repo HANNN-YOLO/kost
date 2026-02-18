@@ -160,6 +160,52 @@ class _UserProfilePageState extends State<UserProfilePage> {
     _recomputeHasChanges();
   }
 
+  /// Fungsi untuk refresh data profil (pull-to-refresh)
+  Future<void> _refreshData() async {
+    final penghubung = Provider.of<AuthProvider>(context, listen: false);
+    final penghubung2 = Provider.of<ProfilProvider>(context, listen: false);
+
+    try {
+      // Refresh data auth
+      await penghubung.readrole();
+
+      // Refresh data profil
+      if (penghubung2.accesstoken != null && penghubung2.id_auth != null) {
+        await penghubung2.readdata(
+          penghubung2.accesstoken!,
+          penghubung2.id_auth!,
+        );
+      }
+
+      if (!mounted) return;
+
+      // Update field dengan data terbaru
+      namaController.text = penghubung.mydata[index].username ?? 'Default';
+      _initialNamaText = namaController.text;
+      emailController.text = penghubung.mydata[index].Email ?? 'Default';
+
+      if (penghubung2.mydata.isNotEmpty) {
+        final kontak = penghubung2.mydata[index].kontak;
+        noHpController.text =
+            (kontak == null || kontak.trim().isEmpty || kontak == '0')
+                ? ''
+                : kontak;
+        _initialNoHpText = noHpController.text;
+      }
+
+      // Reset foto yang dipilih (jika ada) karena data sudah di-refresh
+      penghubung2.bersihfoto();
+
+      _recomputeHasChanges();
+      setState(() {});
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat data terbaru')),
+      );
+    }
+  }
+
   void _recomputeHasChanges() {
     if (!mounted) return;
 
@@ -509,311 +555,320 @@ class _UserProfilePageState extends State<UserProfilePage> {
         child: Scaffold(
           backgroundColor: Color(0xFFF5F7FB),
           body: SafeArea(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.only(bottom: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // HEADER mirip profil pemilik
-                  Stack(
-                    children: [
-                      Container(
-                        height: 180,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        right: -60,
-                        top: -40,
-                        child: Container(
-                          width: 160,
-                          height: 160,
+            child: RefreshIndicator(
+              onRefresh: _refreshData,
+              color: Color(0xFF1E3A8A),
+              child: SingleChildScrollView(
+                physics: AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.only(bottom: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // HEADER mirip profil pemilik
+                    Stack(
+                      children: [
+                        Container(
+                          height: 180,
+                          width: double.infinity,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.08),
-                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
                           ),
                         ),
-                      ),
-                      Positioned(
-                        left: -40,
-                        bottom: -50,
-                        child: Container(
-                          width: 140,
-                          height: 140,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.06),
-                            shape: BoxShape.circle,
+                        Positioned(
+                          right: -60,
+                          top: -40,
+                          child: Container(
+                            width: 160,
+                            height: 160,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              shape: BoxShape.circle,
+                            ),
                           ),
                         ),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.fromLTRB(16, 14, 16, 16),
-                        child: Column(
-                          children: [
-                            Center(
-                              child: Text(
-                                'Details',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
+                        Positioned(
+                          left: -40,
+                          bottom: -50,
+                          child: Container(
+                            width: 140,
+                            height: 140,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.06),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(16, 14, 16, 16),
+                          child: Column(
+                            children: [
+                              Center(
+                                child: Text(
+                                  'Details',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
-                            ),
-                            SizedBox(height: 14),
-                            Container(
-                              width: double.infinity,
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 20, vertical: 18),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.08),
-                                    blurRadius: 10,
-                                    offset: Offset(0, 6),
-                                  )
-                                ],
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Consumer<ProfilProvider>(
-                                    builder: (context, value, child) {
-                                      final hasFoto = value.mydata.isNotEmpty &&
-                                          value.mydata[index].foto != null &&
-                                          value.mydata[index].foto!.isNotEmpty;
+                              SizedBox(height: 14),
+                              Container(
+                                width: double.infinity,
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 18),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.08),
+                                      blurRadius: 10,
+                                      offset: Offset(0, 6),
+                                    )
+                                  ],
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Consumer<ProfilProvider>(
+                                      builder: (context, value, child) {
+                                        final hasFoto = value
+                                                .mydata.isNotEmpty &&
+                                            value.mydata[index].foto != null &&
+                                            value
+                                                .mydata[index].foto!.isNotEmpty;
 
-                                      return GestureDetector(
-                                        onTap: () => _openPhotoOptions(
-                                          context,
-                                          value,
-                                          hasFoto,
-                                        ),
-                                        child: Stack(
-                                          alignment: Alignment.bottomRight,
-                                          children: [
-                                            if (!hasFoto)
-                                              CustomUploadfoto(
-                                                tinggi: 70,
-                                                panjang: 70,
-                                                radius: 35,
-                                                fungsi: () {
-                                                  _openPhotoOptions(
-                                                    context,
-                                                    value,
-                                                    hasFoto,
-                                                  );
-                                                },
-                                                path: value.isinya?.path,
-                                              )
-                                            else
-                                              custom_editfoto(
-                                                fungsi: () {
-                                                  _openPhotoOptions(
-                                                    context,
-                                                    value,
-                                                    hasFoto,
-                                                  );
-                                                },
-                                                path: value.isinya?.path,
-                                                pathlama:
-                                                    value.mydata[index].foto,
-                                                tinggi: 70,
-                                                panjang: 70,
-                                                radius: 35,
-                                              ),
-                                            Positioned(
-                                              bottom: 2,
-                                              right: 2,
-                                              child: Container(
-                                                width: 24,
-                                                height: 24,
-                                                decoration: BoxDecoration(
-                                                  color: Color(0xFF1E3A8A),
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          999),
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: Colors.black
-                                                          .withOpacity(0.25),
-                                                      blurRadius: 6,
-                                                      offset: Offset(0, 3),
-                                                    ),
-                                                  ],
+                                        return GestureDetector(
+                                          onTap: () => _openPhotoOptions(
+                                            context,
+                                            value,
+                                            hasFoto,
+                                          ),
+                                          child: Stack(
+                                            alignment: Alignment.bottomRight,
+                                            children: [
+                                              if (!hasFoto)
+                                                CustomUploadfoto(
+                                                  tinggi: 70,
+                                                  panjang: 70,
+                                                  radius: 35,
+                                                  fungsi: () {
+                                                    _openPhotoOptions(
+                                                      context,
+                                                      value,
+                                                      hasFoto,
+                                                    );
+                                                  },
+                                                  path: value.isinya?.path,
+                                                )
+                                              else
+                                                custom_editfoto(
+                                                  fungsi: () {
+                                                    _openPhotoOptions(
+                                                      context,
+                                                      value,
+                                                      hasFoto,
+                                                    );
+                                                  },
+                                                  path: value.isinya?.path,
+                                                  pathlama:
+                                                      value.mydata[index].foto,
+                                                  tinggi: 70,
+                                                  panjang: 70,
+                                                  radius: 35,
                                                 ),
-                                                child: Icon(
-                                                  Icons.edit,
-                                                  size: 14,
-                                                  color: Colors.white,
+                                              Positioned(
+                                                bottom: 2,
+                                                right: 2,
+                                                child: Container(
+                                                  width: 24,
+                                                  height: 24,
+                                                  decoration: BoxDecoration(
+                                                    color: Color(0xFF1E3A8A),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            999),
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: Colors.black
+                                                            .withOpacity(0.25),
+                                                        blurRadius: 6,
+                                                        offset: Offset(0, 3),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.edit,
+                                                    size: 14,
+                                                    color: Colors.white,
+                                                  ),
                                                 ),
                                               ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            penghubung.mydata[index].username ??
+                                                '-',
+                                            style: TextStyle(
+                                              color: Color(0xFF111827),
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 16,
                                             ),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          penghubung.mydata[index].username ??
-                                              '-',
-                                          style: TextStyle(
-                                            color: Color(0xFF111827),
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 16,
                                           ),
-                                        ),
-                                        SizedBox(height: 4),
-                                        Text(
-                                          penghubung.mydata[index].Email ?? '-',
-                                          style: TextStyle(
-                                            color: Colors.black54,
-                                            fontSize: 12,
+                                          SizedBox(height: 4),
+                                          Text(
+                                            penghubung.mydata[index].Email ??
+                                                '-',
+                                            style: TextStyle(
+                                              color: Colors.black54,
+                                              fontSize: 12,
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Informasi Akun',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black87,
+                            ],
                           ),
                         ),
-                        SizedBox(height: 12),
-                        _IconTextField(
-                          controller: namaController,
-                          label: 'Nama',
-                          icon: Icons.person_outline,
-                          readOnly: false,
-                        ),
-                        SizedBox(height: 12),
-                        _IconTextField(
-                          controller: noHpController,
-                          label: 'No. Hp',
-                          icon: Icons.phone_outlined,
-                          readOnly: false,
-                          keyboardType: TextInputType.phone,
-                        ),
-                        _IconTextField(
-                          controller: emailController,
-                          label: 'Email',
-                          icon: Icons.email_outlined,
-                          readOnly: true,
-                          keyboardType: TextInputType.emailAddress,
-                        ),
-                        if (mesaage != null) ...[
-                          SizedBox(height: 8),
-                          Center(
-                            child: Text(
-                              mesaage!,
-                              style: TextStyle(color: Colors.green),
-                            ),
-                          )
-                        ],
-                        SizedBox(height: 16),
-                        if (widget.showLogoutButton)
-                          ElevatedButton.icon(
-                            onPressed: () async {
-                              if (_isSaving) return;
-
-                              final shouldLogout =
-                                  await _confirmLogout(context);
-                              if (!shouldLogout) return;
-
-                              bool logoutDialogOpen = false;
-                              void openLogoutDialog() {
-                                if (!mounted) return;
-                                if (logoutDialogOpen) return;
-                                showDialog(
-                                  context: context,
-                                  barrierDismissible: false,
-                                  useRootNavigator: true,
-                                  builder: (_) => WillPopScope(
-                                    onWillPop: () async => false,
-                                    child: const Center(
-                                      child: CircularProgressIndicator(),
-                                    ),
-                                  ),
-                                );
-                                logoutDialogOpen = true;
-                              }
-
-                              void closeLogoutDialogIfOpen() {
-                                if (!mounted) return;
-                                if (!logoutDialogOpen) return;
-                                Navigator.of(context, rootNavigator: true)
-                                    .pop();
-                                logoutDialogOpen = false;
-                              }
-
-                              try {
-                                openLogoutDialog();
-                                await penghubung.logout();
-                                penghubung2.reset();
-                                penghubung3.resetSession();
-                                closeLogoutDialogIfOpen();
-                              } catch (e) {
-                                closeLogoutDialogIfOpen();
-                                if (!mounted) return;
-                                showDialog(
-                                  context: context,
-                                  builder: (context) {
-                                    return ShowdialogEror(
-                                      label: e.toString(),
-                                    );
-                                  },
-                                );
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            icon: Icon(Icons.logout),
-                            label: Text(
-                              'Keluar Akun',
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                          ),
                       ],
                     ),
-                  ),
-                ],
+
+                    Padding(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Informasi Akun',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          SizedBox(height: 12),
+                          _IconTextField(
+                            controller: namaController,
+                            label: 'Nama',
+                            icon: Icons.person_outline,
+                            readOnly: false,
+                          ),
+                          SizedBox(height: 12),
+                          _IconTextField(
+                            controller: noHpController,
+                            label: 'No. Hp',
+                            icon: Icons.phone_outlined,
+                            readOnly: false,
+                            keyboardType: TextInputType.phone,
+                          ),
+                          _IconTextField(
+                            controller: emailController,
+                            label: 'Email',
+                            icon: Icons.email_outlined,
+                            readOnly: true,
+                            keyboardType: TextInputType.emailAddress,
+                          ),
+                          if (mesaage != null) ...[
+                            SizedBox(height: 8),
+                            Center(
+                              child: Text(
+                                mesaage!,
+                                style: TextStyle(color: Colors.green),
+                              ),
+                            )
+                          ],
+                          SizedBox(height: 16),
+                          if (widget.showLogoutButton)
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                if (_isSaving) return;
+
+                                final shouldLogout =
+                                    await _confirmLogout(context);
+                                if (!shouldLogout) return;
+
+                                bool logoutDialogOpen = false;
+                                void openLogoutDialog() {
+                                  if (!mounted) return;
+                                  if (logoutDialogOpen) return;
+                                  showDialog(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    useRootNavigator: true,
+                                    builder: (_) => WillPopScope(
+                                      onWillPop: () async => false,
+                                      child: const Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    ),
+                                  );
+                                  logoutDialogOpen = true;
+                                }
+
+                                void closeLogoutDialogIfOpen() {
+                                  if (!mounted) return;
+                                  if (!logoutDialogOpen) return;
+                                  Navigator.of(context, rootNavigator: true)
+                                      .pop();
+                                  logoutDialogOpen = false;
+                                }
+
+                                try {
+                                  openLogoutDialog();
+                                  await penghubung.logout();
+                                  penghubung2.reset();
+                                  penghubung3.resetSession();
+                                  closeLogoutDialogIfOpen();
+                                } catch (e) {
+                                  closeLogoutDialogIfOpen();
+                                  if (!mounted) return;
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) {
+                                      return ShowdialogEror(
+                                        label: e.toString(),
+                                      );
+                                    },
+                                  );
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              icon: Icon(Icons.logout),
+                              label: Text(
+                                'Keluar Akun',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

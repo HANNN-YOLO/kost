@@ -146,11 +146,13 @@ class ProfilService {
     var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/profil");
     print("buat data 1 profil");
 
-    final isian = ProfilModel(
-      id_auth: id_auth,
-      foto: link,
-      kontak: hp,
-    );
+    // Kirim field `foto` secara eksplisit (boleh null) agar database tidak
+    // menerapkan nilai default yang tidak diinginkan.
+    final Map<String, dynamic> isian = <String, dynamic>{
+      'id_auth': id_auth,
+      'foto': link,
+      'kontak': hp,
+    };
     print("buat data 2 profil");
 
     var pengisian = await htpp.post(
@@ -160,7 +162,7 @@ class ProfilService {
         'Authorization': 'Bearer $token',
         'apikey': '${SupabaseApiConfig.apipublic}'
       },
-      body: json.encode(isian.toJson()),
+      body: json.encode(isian),
     );
     print("buat data 3 profil");
 
@@ -173,16 +175,17 @@ class ProfilService {
   }
 
   Future<void> updateprofil(
-    int Id_profil,
+    int idProfil,
     String token,
     String? link,
     String? kontak,
-    DateTime edit,
-  ) async {
+    DateTime edit, {
+    bool setFoto = false,
+  }) async {
     print("inisasi perubahan data");
 
     var url = Uri.parse(
-        "${SupabaseApiConfig.masterurl}/rest/v1/profil?id_profil=eq.$Id_profil");
+        "${SupabaseApiConfig.masterurl}/rest/v1/profil?id_profil=eq.$idProfil");
     print("ubah data 1 profil");
 
     // NOTE: kontak boleh NULL. Untuk bisa clear kontak di Supabase,
@@ -191,7 +194,12 @@ class ProfilService {
       'updatedAt': edit.toIso8601String(),
       'kontak': kontak,
     };
-    if (link != null) {
+    // Default: hanya update foto kalau ada link baru.
+    // Jika setFoto=true, kirim foto eksplisit (boleh null) untuk memastikan
+    // database tidak mengisi default aneh saat foto memang kosong.
+    if (setFoto) {
+      body['foto'] = link;
+    } else if (link != null) {
       body['foto'] = link;
     }
     print("ubah data 2 profil");

@@ -222,6 +222,16 @@ class _KostHomePageState extends State<KostHomePage> {
   }
 
   @override
+
+  /// Fungsi untuk refresh data kost (pull-to-refresh)
+  Future<void> _refreshData() async {
+    final penghubung = Provider.of<KostProvider>(context, listen: false);
+    if (penghubung.token != null) {
+      await penghubung.readdatapenyewa(penghubung.token!);
+    }
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     _hargaMaxController.dispose();
@@ -683,67 +693,82 @@ class _KostHomePageState extends State<KostHomePage> {
                   }).toList();
 
                   if (filtered.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'Kost tidak ditemukan. Coba ubah kata kunci atau filter.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.black54),
+                    return RefreshIndicator(
+                      onRefresh: _refreshData,
+                      color: const Color(0xFF1E3A8A),
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: const [
+                          SizedBox(height: 100),
+                          Center(
+                            child: Text(
+                              'Kost tidak ditemukan. Coba ubah kata kunci atau filter.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.black54),
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   }
 
-                  return ListView.separated(
-                    padding: const EdgeInsets.only(bottom: 80),
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 18),
-                    itemBuilder: (context, index) {
-                      final tesst = filtered[index];
+                  return RefreshIndicator(
+                    onRefresh: _refreshData,
+                    color: const Color(0xFF1E3A8A),
+                    child: ListView.separated(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.only(bottom: 80),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 18),
+                      itemBuilder: (context, index) {
+                        final tesst = filtered[index];
 
-                      final perLabel =
-                          ((tesst.per ?? '').toString().trim().isEmpty)
-                              ? 'bulan'
-                              : tesst.per.toString();
+                        final perLabel =
+                            ((tesst.per ?? '').toString().trim().isEmpty)
+                                ? 'bulan'
+                                : tesst.per.toString();
 
-                      // Build facility tags from kost.fasilitas (comma-separated)
-                      final List<String> fasilitasTags = [];
-                      final rawFasilitas = (tesst.fasilitas ?? '').toString();
-                      if (rawFasilitas.trim().isNotEmpty) {
-                        fasilitasTags.addAll(
-                          rawFasilitas
-                              .split(RegExp(r'[|,;]'))
-                              .map((e) => e.trim())
-                              .where((e) => e.isNotEmpty),
-                        );
-                      }
-
-                      return _KostCard(
-                        imageHeight: imageHeight,
-                        radius: cardRadius,
-                        titleFontSize: titleFont,
-                        priceFontSize: priceFont,
-                        price: tesst.harga_kost ?? 0,
-                        per: " / $perLabel",
-                        title: tesst.nama_kost ?? '-',
-                        location: tesst.alamat_kost ?? '-',
-                        genderLabel: (tesst.penghuni == null ||
-                                (tesst.penghuni ?? '').trim().isEmpty)
-                            ? '-'
-                            : (tesst.penghuni ?? '-'),
-                        gambar: tesst.gambar_kost ?? '',
-                        fasilitas: fasilitasTags,
-                        fungsitap: () {
-                          Navigator.of(context).pushNamed(
-                            'detail-kost',
-                            arguments: {
-                              'data_kost': tesst,
-                            },
+                        // Build facility tags from kost.fasilitas (comma-separated)
+                        final List<String> fasilitasTags = [];
+                        final rawFasilitas = (tesst.fasilitas ?? '').toString();
+                        if (rawFasilitas.trim().isNotEmpty) {
+                          fasilitasTags.addAll(
+                            rawFasilitas
+                                .split(RegExp(r'[|,;]'))
+                                .map((e) => e.trim())
+                                .where((e) => e.isNotEmpty),
                           );
-                        },
-                        colorprimary: colorPrimary,
-                        colorwhite: colorWhite,
-                        s: s,
-                      );
-                    },
+                        }
+
+                        return _KostCard(
+                          imageHeight: imageHeight,
+                          radius: cardRadius,
+                          titleFontSize: titleFont,
+                          priceFontSize: priceFont,
+                          price: tesst.harga_kost ?? 0,
+                          per: " / $perLabel",
+                          title: tesst.nama_kost ?? '-',
+                          location: tesst.alamat_kost ?? '-',
+                          genderLabel: (tesst.penghuni == null ||
+                                  (tesst.penghuni ?? '').trim().isEmpty)
+                              ? '-'
+                              : (tesst.penghuni ?? '-'),
+                          gambar: tesst.gambar_kost ?? '',
+                          fasilitas: fasilitasTags,
+                          fungsitap: () {
+                            Navigator.of(context).pushNamed(
+                              'detail-kost',
+                              arguments: {
+                                'data_kost': tesst,
+                              },
+                            );
+                          },
+                          colorprimary: colorPrimary,
+                          colorwhite: colorWhite,
+                          s: s,
+                        );
+                      },
+                    ),
                   );
                 },
               ),

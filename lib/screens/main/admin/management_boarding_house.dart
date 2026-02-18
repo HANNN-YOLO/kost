@@ -19,6 +19,12 @@ class ManagementBoardingHouse extends StatefulWidget {
 class _ManagementBoardingHouseState extends State<ManagementBoardingHouse> {
   bool _isNavigating = false;
 
+  /// Fungsi untuk refresh data kost admin (pull-to-refresh)
+  Future<void> _refreshData() async {
+    final penghubung = Provider.of<KostProvider>(context, listen: false);
+    await penghubung.readdata();
+  }
+
   @override
   Widget build(BuildContext context) {
     final penghubung = Provider.of<KostProvider>(context);
@@ -200,85 +206,109 @@ class _ManagementBoardingHouseState extends State<ManagementBoardingHouse> {
               Expanded(
                 child: penghubung.isLoadingAdminKost && penghubung.kost.isEmpty
                     ? const Center(child: CircularProgressIndicator())
-                    : ListView.separated(
-                        itemCount: penghubung.kost.length,
-                        separatorBuilder: (context, index) =>
-                            SizedBox(height: tinggiLayar * 0.02),
-                        itemBuilder: (context, index) {
-                          final item = penghubung.kost[index];
-                          final bool needsFix =
-                              penghubung.kostNeedsSubkriteriaFix(item);
-                          return KostCard(
-                            gambar: "${item.gambar_kost ?? ''}",
-                            harga: item.harga_kost ?? 0,
-                            nama: "${item.nama_kost ?? ''}",
-                            lokasi: "${item.alamat_kost ?? ''}",
-                            tampilkanEdit: true,
-                            tampilkanHapus: true,
-                            needsFix: needsFix,
-                            //
-                            fungsihapus: () async {
-                              final idKost = item.id_kost;
-                              final gambar = item.gambar_kost;
-                              if (idKost == null ||
-                                  gambar == null ||
-                                  gambar.isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                        'Data kost belum lengkap untuk dihapus.'),
+                    : penghubung.kost.isEmpty
+                        ? RefreshIndicator(
+                            onRefresh: _refreshData,
+                            color: const Color(0xFF1E3A8A),
+                            child: ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: const [
+                                SizedBox(height: 100),
+                                Center(
+                                  child: Text(
+                                    "Belum ada kost terdaftar",
+                                    style: TextStyle(color: Colors.black54),
                                   ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : RefreshIndicator(
+                            onRefresh: _refreshData,
+                            color: const Color(0xFF1E3A8A),
+                            child: ListView.separated(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              itemCount: penghubung.kost.length,
+                              separatorBuilder: (context, index) =>
+                                  SizedBox(height: tinggiLayar * 0.02),
+                              itemBuilder: (context, index) {
+                                final item = penghubung.kost[index];
+                                final bool needsFix =
+                                    penghubung.kostNeedsSubkriteriaFix(item);
+                                return KostCard(
+                                  gambar: "${item.gambar_kost ?? ''}",
+                                  harga: item.harga_kost ?? 0,
+                                  nama: "${item.nama_kost ?? ''}",
+                                  lokasi: "${item.alamat_kost ?? ''}",
+                                  tampilkanEdit: true,
+                                  tampilkanHapus: true,
+                                  needsFix: needsFix,
+                                  //
+                                  fungsihapus: () async {
+                                    final idKost = item.id_kost;
+                                    final gambar = item.gambar_kost;
+                                    if (idKost == null ||
+                                        gambar == null ||
+                                        gambar.isEmpty) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Data kost belum lengkap untuk dihapus.'),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    await penghubung.deletedata(idKost, gambar);
+                                  },
+                                  //
+                                  fungsitap: () {
+                                    final test = penghubung.kost[index];
+
+                                    // if (cek == null) {
+                                    //   ScaffoldMessenger.of(context).showSnackBar(
+                                    //     const SnackBar(
+                                    //       content: Text(
+                                    //         'Data fasilitas kost tidak tersedia.',
+                                    //       ),
+                                    //     ),
+                                    //   );
+                                    //   return;
+                                    // }
+
+                                    Navigator.of(context)
+                                        .pushNamed("detail-kost", arguments: {
+                                      'data_kost': penghubung.kost[index],
+                                      // 'data_fasilitas': cek,
+                                    });
+
+                                    //   Navigator.of(context).pushNamed("detail-kost",
+                                    //       arguments: test.id_kost);
+                                  },
+                                  //
+                                  fungsiupdated: () {
+                                    final idKost = item.id_kost;
+                                    if (idKost == null) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'ID kost tidak tersedia untuk edit.'),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    Navigator.of(context).pushNamed(
+                                      "/form-house-admin",
+                                      arguments: idKost,
+                                    );
+                                  },
+                                  per: "${item.per ?? ''}",
                                 );
-                                return;
-                              }
-                              await penghubung.deletedata(idKost, gambar);
-                            },
-                            //
-                            fungsitap: () {
-                              final test = penghubung.kost[index];
-
-                              // if (cek == null) {
-                              //   ScaffoldMessenger.of(context).showSnackBar(
-                              //     const SnackBar(
-                              //       content: Text(
-                              //         'Data fasilitas kost tidak tersedia.',
-                              //       ),
-                              //     ),
-                              //   );
-                              //   return;
-                              // }
-
-                              Navigator.of(context)
-                                  .pushNamed("detail-kost", arguments: {
-                                'data_kost': penghubung.kost[index],
-                                // 'data_fasilitas': cek,
-                              });
-
-                              //   Navigator.of(context).pushNamed("detail-kost",
-                              //       arguments: test.id_kost);
-                            },
-                            //
-                            fungsiupdated: () {
-                              final idKost = item.id_kost;
-                              if (idKost == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                        'ID kost tidak tersedia untuk edit.'),
-                                  ),
-                                );
-                                return;
-                              }
-                              Navigator.of(context).pushNamed(
-                                "/form-house-admin",
-                                arguments: idKost,
-                              );
-                            },
-                            per: "${item.per ?? ''}",
-                          );
-                          // SizedBox(height: tinggiLayar * 0.02);
-                        },
-                      ),
+                                // SizedBox(height: tinggiLayar * 0.02);
+                              },
+                            ),
+                          ),
               ),
             ],
           ),

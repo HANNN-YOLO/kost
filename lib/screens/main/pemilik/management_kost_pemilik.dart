@@ -22,6 +22,15 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
   // bool _isDeleting = false;
   bool _isNavigating = false;
 
+  /// Fungsi untuk refresh data kost pemilik (pull-to-refresh)
+  Future<void> _refreshData() async {
+    final penghubung = Provider.of<KostProvider>(context, listen: false);
+    if (penghubung.token != null && penghubung.id_authnya != null) {
+      await penghubung.readdatapemilik(
+          penghubung.id_authnya!, penghubung.token!);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final tinggiLayar = MediaQuery.of(context).size.height;
@@ -87,193 +96,215 @@ class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
                         penghubung.kostpemilik.isEmpty
                     ? const Center(child: CircularProgressIndicator())
                     : penghubung.kostpemilik.isEmpty
-                        ? const Center(
-                            child: Text(
-                              "Belum ada kost terdaftar",
-                              style: TextStyle(color: Colors.black54),
+                        ? RefreshIndicator(
+                            onRefresh: _refreshData,
+                            color: warnaUtama,
+                            child: ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: const [
+                                SizedBox(height: 100),
+                                Center(
+                                  child: Text(
+                                    "Belum ada kost terdaftar",
+                                    style: TextStyle(color: Colors.black54),
+                                  ),
+                                ),
+                              ],
                             ),
                           )
-                        : ListView.separated(
-                            itemCount: penghubung.kostpemilik.length,
-                            separatorBuilder: (context, index) =>
-                                SizedBox(height: tinggiLayar * 0.02),
-                            itemBuilder: (context, index) {
-                              final item = penghubung.kostpemilik[index];
-                              final bool needsFix =
-                                  penghubung.kostNeedsSubkriteriaFix(item);
-                              // final cek = penghubung.fasilitaspemilik
-                              //     .firstWhereOrNull((element) =>
-                              //         element.id_fasilitas ==
-                              //         item.id_fasilitas);
+                        : RefreshIndicator(
+                            onRefresh: _refreshData,
+                            color: warnaUtama,
+                            child: ListView.separated(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              itemCount: penghubung.kostpemilik.length,
+                              separatorBuilder: (context, index) =>
+                                  SizedBox(height: tinggiLayar * 0.02),
+                              itemBuilder: (context, index) {
+                                final item = penghubung.kostpemilik[index];
+                                final bool needsFix =
+                                    penghubung.kostNeedsSubkriteriaFix(item);
+                                // final cek = penghubung.fasilitaspemilik
+                                //     .firstWhereOrNull((element) =>
+                                //         element.id_fasilitas ==
+                                //         item.id_fasilitas);
 
-                              // if (cek == null) {
-                              //   // Jika data fasilitas tidak ditemukan, jangan tampilkan kartu
-                              //   return const SizedBox.shrink();
-                              // }
+                                // if (cek == null) {
+                                //   // Jika data fasilitas tidak ditemukan, jangan tampilkan kartu
+                                //   return const SizedBox.shrink();
+                                // }
 
-                              return _OwnerKostCard(
-                                nama: penghubung.kostpemilik[index].nama_kost!,
-                                gambar:
-                                    penghubung.kostpemilik[index].gambar_kost!,
-                                harga:
-                                    penghubung.kostpemilik[index].harga_kost!,
-                                lokasi:
-                                    penghubung.kostpemilik[index].alamat_kost!,
-                                needsFix: needsFix,
-                                onTap: () {
-                                  Navigator.of(context).pushNamed(
-                                    'detail-kost',
-                                    arguments: {
-                                      'data_kost': item,
-                                      // 'data_fasilitas': cek,
-                                    },
-                                  );
-                                },
-                                onEdit: () {
-                                  Navigator.of(context).pushNamed(
-                                    '/form-house-pemilik',
-                                    arguments:
-                                        penghubung.kostpemilik[index].id_kost,
-                                    // item.id_kost,
-                                  );
-                                },
-                                onDelete: () async {
-                                  await showDialog<void>(
-                                    context: context,
-                                    barrierDismissible: false,
-                                    builder: (dialogContext) {
-                                      bool isDeleting = false;
-                                      String? dialogError;
-                                      return StatefulBuilder(
-                                        builder: (context, setStateDialog) {
-                                          return WillPopScope(
-                                            onWillPop: () async => !isDeleting,
-                                            child: AlertDialog(
-                                              title: const Text(
-                                                'Konfirmasi Hapus',
-                                              ),
-                                              content: Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  const Text(
-                                                    'Apakah Anda yakin ingin menghapus kost ini?',
-                                                  ),
-                                                  if (dialogError != null) ...[
-                                                    const SizedBox(height: 10),
-                                                    Text(
-                                                      dialogError!,
-                                                      style: const TextStyle(
-                                                        color: Colors.red,
-                                                        fontSize: 13,
-                                                      ),
+                                return _OwnerKostCard(
+                                  nama:
+                                      penghubung.kostpemilik[index].nama_kost!,
+                                  gambar: penghubung
+                                      .kostpemilik[index].gambar_kost!,
+                                  harga:
+                                      penghubung.kostpemilik[index].harga_kost!,
+                                  lokasi: penghubung
+                                      .kostpemilik[index].alamat_kost!,
+                                  needsFix: needsFix,
+                                  onTap: () {
+                                    Navigator.of(context).pushNamed(
+                                      'detail-kost',
+                                      arguments: {
+                                        'data_kost': item,
+                                        // 'data_fasilitas': cek,
+                                      },
+                                    );
+                                  },
+                                  onEdit: () {
+                                    Navigator.of(context).pushNamed(
+                                      '/form-house-pemilik',
+                                      arguments:
+                                          penghubung.kostpemilik[index].id_kost,
+                                      // item.id_kost,
+                                    );
+                                  },
+                                  onDelete: () async {
+                                    await showDialog<void>(
+                                      context: context,
+                                      barrierDismissible: false,
+                                      builder: (dialogContext) {
+                                        bool isDeleting = false;
+                                        String? dialogError;
+                                        return StatefulBuilder(
+                                          builder: (context, setStateDialog) {
+                                            return WillPopScope(
+                                              onWillPop: () async =>
+                                                  !isDeleting,
+                                              child: AlertDialog(
+                                                title: const Text(
+                                                  'Konfirmasi Hapus',
+                                                ),
+                                                content: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    const Text(
+                                                      'Apakah Anda yakin ingin menghapus kost ini?',
                                                     ),
+                                                    if (dialogError !=
+                                                        null) ...[
+                                                      const SizedBox(
+                                                          height: 10),
+                                                      Text(
+                                                        dialogError!,
+                                                        style: const TextStyle(
+                                                          color: Colors.red,
+                                                          fontSize: 13,
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ],
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: isDeleting
+                                                        ? null
+                                                        : () => Navigator.of(
+                                                              dialogContext,
+                                                            ).pop(),
+                                                    child: const Text('Batal'),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: isDeleting
+                                                        ? null
+                                                        : () async {
+                                                            setStateDialog(() {
+                                                              isDeleting = true;
+                                                              dialogError =
+                                                                  null;
+                                                            });
+                                                            try {
+                                                              await penghubung
+                                                                  .deletedatapemilik(
+                                                                penghubung
+                                                                    .kostpemilik[
+                                                                        index]
+                                                                    .id_kost!,
+                                                                penghubung
+                                                                    .kostpemilik[
+                                                                        index]
+                                                                    .gambar_kost!,
+                                                              );
+                                                              if (!dialogContext
+                                                                  .mounted) {
+                                                                return;
+                                                              }
+                                                              Navigator.of(
+                                                                dialogContext,
+                                                              ).pop();
+                                                            } catch (e) {
+                                                              setStateDialog(
+                                                                  () {
+                                                                isDeleting =
+                                                                    false;
+                                                                dialogError =
+                                                                    'Gagal menghapus kost: $e';
+                                                              });
+                                                            }
+                                                          },
+                                                    child: isDeleting
+                                                        ? const SizedBox(
+                                                            width: 16,
+                                                            height: 16,
+                                                            child:
+                                                                CircularProgressIndicator(
+                                                              strokeWidth: 2,
+                                                            ),
+                                                          )
+                                                        : const Text('Hapus'),
+                                                  ),
                                                 ],
                                               ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: isDeleting
-                                                      ? null
-                                                      : () => Navigator.of(
-                                                            dialogContext,
-                                                          ).pop(),
-                                                  child: const Text('Batal'),
-                                                ),
-                                                TextButton(
-                                                  onPressed: isDeleting
-                                                      ? null
-                                                      : () async {
-                                                          setStateDialog(() {
-                                                            isDeleting = true;
-                                                            dialogError = null;
-                                                          });
-                                                          try {
-                                                            await penghubung
-                                                                .deletedatapemilik(
-                                                              penghubung
-                                                                  .kostpemilik[
-                                                                      index]
-                                                                  .id_kost!,
-                                                              penghubung
-                                                                  .kostpemilik[
-                                                                      index]
-                                                                  .gambar_kost!,
-                                                            );
-                                                            if (!dialogContext
-                                                                .mounted) {
-                                                              return;
-                                                            }
-                                                            Navigator.of(
-                                                              dialogContext,
-                                                            ).pop();
-                                                          } catch (e) {
-                                                            setStateDialog(() {
-                                                              isDeleting =
-                                                                  false;
-                                                              dialogError =
-                                                                  'Gagal menghapus kost: $e';
-                                                            });
-                                                          }
-                                                        },
-                                                  child: isDeleting
-                                                      ? const SizedBox(
-                                                          width: 16,
-                                                          height: 16,
-                                                          child:
-                                                              CircularProgressIndicator(
-                                                            strokeWidth: 2,
-                                                          ),
-                                                        )
-                                                      : const Text('Hapus'),
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                        },
-                                      );
-                                    },
-                                  );
+                                            );
+                                          },
+                                        );
+                                      },
+                                    );
 
-                                  // valiidas nya agak keluar jalur ki kah jalan ki delete nya eh malah pop gagal padahal database terhapus loh
-                                  // if (konfirmasi != true) return;
+                                    // valiidas nya agak keluar jalur ki kah jalan ki delete nya eh malah pop gagal padahal database terhapus loh
+                                    // if (konfirmasi != true) return;
 
-                                  // setState(() {
-                                  //   _isDeleting = true;
-                                  // });
+                                    // setState(() {
+                                    //   _isDeleting = true;
+                                    // });
 
-                                  // try {
-                                  //   await penghubung.deletedatapemilik(
-                                  //     item.id_fasilitas!,
-                                  //     item.gambar_kost!,
-                                  //   );
-                                  // } catch (e) {
-                                  //   ScaffoldMessenger.of(context).showSnackBar(
-                                  //     SnackBar(
-                                  //       content: Text(
-                                  //         'Gagal menghapus kost: $e',
-                                  //       ),
-                                  //     ),
-                                  //   );
-                                  // } finally {
-                                  //   if (mounted) {
-                                  //     setState(() {
-                                  //       _isDeleting = false;
-                                  //     });
-                                  //   }
-                                  // }
-                                },
-                                per: (penghubung.kostpemilik[index].per ==
-                                            null ||
-                                        (penghubung.kostpemilik[index].per ??
-                                                '')
-                                            .trim()
-                                            .isEmpty)
-                                    ? 'bulan'
-                                    : penghubung.kostpemilik[index].per!,
-                              );
-                            },
+                                    // try {
+                                    //   await penghubung.deletedatapemilik(
+                                    //     item.id_fasilitas!,
+                                    //     item.gambar_kost!,
+                                    //   );
+                                    // } catch (e) {
+                                    //   ScaffoldMessenger.of(context).showSnackBar(
+                                    //     SnackBar(
+                                    //       content: Text(
+                                    //         'Gagal menghapus kost: $e',
+                                    //       ),
+                                    //     ),
+                                    //   );
+                                    // } finally {
+                                    //   if (mounted) {
+                                    //     setState(() {
+                                    //       _isDeleting = false;
+                                    //     });
+                                    //   }
+                                    // }
+                                  },
+                                  per: (penghubung.kostpemilik[index].per ==
+                                              null ||
+                                          (penghubung.kostpemilik[index].per ??
+                                                  '')
+                                              .trim()
+                                              .isEmpty)
+                                      ? 'bulan'
+                                      : penghubung.kostpemilik[index].per!,
+                                );
+                              },
+                            ),
                           ),
               ),
             ],

@@ -149,34 +149,37 @@ class ProfilProvider with ChangeNotifier {
       final bool hasOldLink = linklama != null && linklama.isNotEmpty;
 
       if (foto == null) {
-        // Tidak ada foto baru, hanya update data lain.
+        // Tidak ada foto baru.
+        // Jika profil memang belum punya foto, kirim `foto: null` eksplisit
+        // supaya database tidak mengisi nilai default yang aneh.
+        // Jika sudah ada foto lama, jangan sentuh kolom foto.
+        final bool setFotoExplicit = !hasOldLink;
         await _ref.updateprofil(
           id_profil!,
           _accesstoken!,
-          hasOldLink ? linklama! : null,
+          null,
           hp,
           edit,
+          setFoto: setFotoExplicit,
         );
       } else {
         // Ada foto baru
         if (hasOldLink) {
-          // Jika ada foto lama, hapus dulu dari storage
-          await _ref.hapusgambar(linklama!, _accesstoken!);
+          await _ref.hapusgambar(linklama, _accesstoken!);
         }
 
         final link = await _ref.uploadfoto(
           foto,
           _accesstoken!,
         );
-        if (link != null) {
-          await _ref.updateprofil(
-            id_profil!,
-            _accesstoken!,
-            link,
-            hp,
-            edit,
-          );
-        }
+
+        await _ref.updateprofil(
+          id_profil!,
+          _accesstoken!,
+          link,
+          hp,
+          edit,
+        );
       }
     } catch (e) {
       print(e);

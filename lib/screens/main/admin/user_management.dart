@@ -18,6 +18,36 @@ class UserManagement extends StatefulWidget {
 class _UserManagementState extends State<UserManagement> {
   bool hanyasekali = true;
 
+  /// Fungsi untuk refresh data pengguna (pull-to-refresh)
+  Future<void> _refreshData() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final profil = Provider.of<ProfilProvider>(context, listen: false);
+
+    // 1) Refresh data auth (role + daftar akun) agar admin melihat data terbaru.
+    try {
+      await auth.readrole();
+    } catch (_) {
+      // Jika sesi invalid, biarkan flow UI yang menangani.
+      // Tetap coba refresh profil jika token masih ada.
+    }
+
+    // 2) Sinkronkan token/email/id + list auth ke ProfilProvider.
+    // Ini penting karena halaman memakai `ProfilProvider.listauth` untuk daftar user.
+    if (auth.accesstoken != null &&
+        auth.email != null &&
+        auth.id_auth != null) {
+      profil.terisi(
+        auth.accesstoken!,
+        auth.email!,
+        auth.id_auth!,
+        auth.hasilnya,
+      );
+    }
+
+    // 3) Ambil ulang profil semua user.
+    await profil.readuser();
+  }
+
   @override
   void initState() {
     // TODO: implement initState
@@ -39,7 +69,7 @@ class _UserManagementState extends State<UserManagement> {
 
   @override
   Widget build(BuildContext context) {
-    final penghubung = Provider.of<ProfilProvider>(context, listen: false);
+    final penghubung = Provider.of<ProfilProvider>(context);
     final penghubung2 = Provider.of<AuthProvider>(context);
     final tinggiLayar = MediaQuery.of(context).size.height;
     final lebarLayar = MediaQuery.of(context).size.width;
@@ -204,58 +234,75 @@ class _UserManagementState extends State<UserManagement> {
 
                     // perhitungan dari sisi auth (tampilkan semua pengguna non-admin)
                     return semuaAuth.isEmpty
-                        ? Center(child: CircularProgressIndicator())
-                        : ListView.separated(
-                            itemCount: semuaAuth.length,
-                            separatorBuilder: (context, index) =>
-                                const SizedBox(height: 12),
-                            itemBuilder: (context, index) {
-                              final authuser = semuaAuth[index];
+                        ? RefreshIndicator(
+                            onRefresh: _refreshData,
+                            color: const Color(0xFF1E3A8A),
+                            child: ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: const [
+                                SizedBox(height: 100),
+                                Center(child: CircularProgressIndicator()),
+                              ],
+                            ),
+                          )
+                        : RefreshIndicator(
+                            onRefresh: _refreshData,
+                            color: const Color(0xFF1E3A8A),
+                            child: ListView.separated(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              itemCount: semuaAuth.length,
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 12),
+                              itemBuilder: (context, index) {
+                                final authuser = semuaAuth[index];
 
-                              // cari profil jika sudah pernah mengisi
-                              final profiluser = value.alluser.firstWhereOrNull(
-                                (p) => p.id_auth == authuser.id_auth,
-                              );
+                                // cari profil jika sudah pernah mengisi
+                                final profiluser =
+                                    value.alluser.firstWhereOrNull(
+                                  (p) => p.id_auth == authuser.id_auth,
+                                );
 
-                              final user = authuser.username ?? "Tidak ada";
-                              final email = authuser.Email ?? "Tidak ada";
-                              final uid = authuser.UID ?? "";
+                                final user = authuser.username ?? "Tidak ada";
+                                final email = authuser.Email ?? "Tidak ada";
+                                final uid = authuser.UID ?? "";
 
-                              final telepon = profiluser == null
-                                  ? "-"
-                                  : (profiluser.kontak == 0
-                                      ? "Tidak di publish"
-                                      : "${profiluser.kontak}");
+                                final telepon = profiluser == null
+                                    ? "-"
+                                    : (profiluser.kontak == 0
+                                        ? "Tidak di publish"
+                                        : "${profiluser.kontak}");
 
-                              final String? foto = (profiluser?.foto != null &&
-                                      profiluser!.foto!.isNotEmpty)
-                                  ? profiluser.foto
-                                  : null;
-                              final idAuth = authuser.id_auth ?? -1;
+                                final String? foto =
+                                    (profiluser?.foto != null &&
+                                            profiluser!.foto!.isNotEmpty)
+                                        ? profiluser.foto
+                                        : null;
+                                final idAuth = authuser.id_auth ?? -1;
 
-                              return UserCard(
-                                nama: user,
-                                email: email,
-                                telepon: telepon,
-                                foto: foto,
-                                id: idAuth,
-                                hasProfil: profiluser != null,
-                                fungsihapus: () async {
-                                  await penghubung2.deletedata(
-                                    authuser.id_auth ?? -1,
-                                    uid,
-                                  );
-
-                                  if (profiluser != null &&
-                                      profiluser.foto != null &&
-                                      profiluser.foto!.isNotEmpty) {
-                                    await penghubung.deletegambaradmin(
-                                      profiluser.foto!,
+                                return UserCard(
+                                  nama: user,
+                                  email: email,
+                                  telepon: telepon,
+                                  foto: foto,
+                                  id: idAuth,
+                                  hasProfil: profiluser != null,
+                                  fungsihapus: () async {
+                                    await penghubung2.deletedata(
+                                      authuser.id_auth ?? -1,
+                                      uid,
                                     );
-                                  }
-                                },
-                              );
-                            },
+
+                                    if (profiluser != null &&
+                                        profiluser.foto != null &&
+                                        profiluser.foto!.isNotEmpty) {
+                                      await penghubung.deletegambaradmin(
+                                        profiluser.foto!,
+                                      );
+                                    }
+                                  },
+                                );
+                              },
+                            ),
                           );
                   },
                 ),
