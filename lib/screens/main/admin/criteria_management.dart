@@ -357,7 +357,7 @@ class _CriteriaManagementState extends State<CriteriaManagement> {
                                               SizedBox(width: 4),
                                               Text(
                                                 item.bobotDecimal
-                                                    .toStringAsFixed(2),
+                                                    .toStringAsFixed(4),
                                                 style: TextStyle(
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.bold,
