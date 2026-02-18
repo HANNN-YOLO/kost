@@ -16,12 +16,51 @@ class ManagementBoardingHouse extends StatefulWidget {
       _ManagementBoardingHouseState();
 }
 
-class _ManagementBoardingHouseState extends State<ManagementBoardingHouse> {
+class _ManagementBoardingHouseState extends State<ManagementBoardingHouse>
+    with WidgetsBindingObserver {
   bool _isNavigating = false;
+  bool _isAutoRefreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoRefreshIfNeeded();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _autoRefreshIfNeeded();
+    }
+  }
+
+  Future<void> _autoRefreshIfNeeded() async {
+    if (!mounted) return;
+    if (_isAutoRefreshing) return;
+    _isAutoRefreshing = true;
+    try {
+      await _refreshData();
+    } catch (_) {
+      // Abaikan error auto-refresh; user masih bisa pull-to-refresh.
+    } finally {
+      _isAutoRefreshing = false;
+    }
+  }
 
   /// Fungsi untuk refresh data kost admin (pull-to-refresh)
   Future<void> _refreshData() async {
     final penghubung = Provider.of<KostProvider>(context, listen: false);
+    await penghubung.fetchKriteria();
+    await penghubung.fetchSubkriteria();
     await penghubung.readdata();
   }
 

@@ -2879,6 +2879,11 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                         openSavingDialog();
 
                         try {
+                          final kostProvider = Provider.of<KostProvider>(
+                            context,
+                            listen: false,
+                          );
+
                           // Jika data di database (inidata) kosong untuk kriteria ini, panggil savemassal
                           final kSekarang = penghubung.mydata.firstWhereOrNull(
                               (e) => e.kategori == penghubung.nama);
@@ -2888,14 +2893,44 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                           if (dataDb.isEmpty) {
                             await penghubung.savemassalsubkriteria(_isinya);
                           } else {
+                            // Deteksi rename label (A -> B) untuk subkriteria yang sama (id_subkriteria sama)
+                            final List<MapEntry<String, String>> renames =
+                                <MapEntry<String, String>>[];
+                            for (final item in _isinya) {
+                              final id = item.id_subkriteria;
+                              if (id == null) continue;
+                              final oldRow =
+                                  penghubung.inidata.firstWhereOrNull(
+                                (e) => e.id_subkriteria == id,
+                              );
+                              if (oldRow == null) continue;
+
+                              final oldLabel =
+                                  _decodeKategoriLabel((oldRow.kategori ?? ''))
+                                      .trim();
+                              final newLabel =
+                                  _decodeKategoriLabel(item.kategori.text)
+                                      .trim();
+
+                              if (oldLabel.isEmpty || newLabel.isEmpty)
+                                continue;
+                              if (oldLabel == newLabel) continue;
+
+                              renames.add(MapEntry(oldLabel, newLabel));
+                            }
+
                             await penghubung.updatedmassalsubkriteria(_isinya);
+
+                            // Cascade rename ke tabel kost agar value tersimpan ikut berubah
+                            // (mis. keamanan 'A' -> 'B'), sehingga tidak memicu "Perbaiki Data".
+                            await kostProvider
+                                .cascadeRenameKostValuesForKriteria(
+                              kriteriaName: penghubung.nama,
+                              renames: renames,
+                            );
                           }
 
                           // Refresh data kost setelah cascade update subkriteria
-                          final kostProvider = Provider.of<KostProvider>(
-                            context,
-                            listen: false,
-                          );
                           await kostProvider.fetchSubkriteria();
                           await kostProvider.readdata();
 

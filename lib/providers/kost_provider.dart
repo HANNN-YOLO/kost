@@ -271,6 +271,15 @@ class KostProvider with ChangeNotifier {
   /// True jika ada nilai dropdown pada data kost yang sudah tidak valid
   /// karena subkriteria terkait sudah dihapus.
   bool kostNeedsSubkriteriaFix(KostModel kost) {
+    bool containsIgnoreCase(List<String> options, String value) {
+      final v = value.trim().toLowerCase();
+      if (v.isEmpty) return true;
+      for (final o in options) {
+        if (o.trim().toLowerCase() == v) return true;
+      }
+      return false;
+    }
+
     final keamanan = (kost.keamanan ?? '').trim();
     final batas = (kost.batas_jam_malam ?? '').trim();
     final air = (kost.jenis_pembayaran_air ?? '').trim();
@@ -279,30 +288,68 @@ class KostProvider with ChangeNotifier {
 
     final optKeamanan = keamananOptionsDynamic;
     if (optKeamanan.isNotEmpty && keamanan.isNotEmpty) {
-      if (!optKeamanan.contains(keamanan)) return true;
+      if (!containsIgnoreCase(optKeamanan, keamanan)) return true;
     }
 
     final optBatas = batasJamMalamOptionsDynamic;
     if (optBatas.isNotEmpty && batas.isNotEmpty) {
-      if (!optBatas.contains(batas)) return true;
+      if (!containsIgnoreCase(optBatas, batas)) return true;
     }
 
     final optAir = jenisAirOptionsDynamic;
     if (optAir.isNotEmpty && air.isNotEmpty) {
-      if (!optAir.contains(air)) return true;
+      if (!containsIgnoreCase(optAir, air)) return true;
     }
 
     final optListrik = jenisListrikOptionsDynamic;
     if (optListrik.isNotEmpty && listrik.isNotEmpty) {
-      if (!optListrik.contains(listrik)) return true;
+      if (!containsIgnoreCase(optListrik, listrik)) return true;
     }
 
     final optJenisKost = jenisKostOptionsDynamic;
     if (optJenisKost.isNotEmpty && jenisKost.isNotEmpty) {
-      if (!optJenisKost.contains(jenisKost)) return true;
+      if (!containsIgnoreCase(optJenisKost, jenisKost)) return true;
     }
 
     return false;
+  }
+
+  String? _kostColumnForKriteriaName(String? kriteriaName) {
+    if (kriteriaName == null) return null;
+    final lower = kriteriaName.toLowerCase();
+
+    if (lower.contains('keamanan')) return 'keamanan';
+    if (lower.contains('batas') || lower.contains('jam malam')) {
+      return 'batas_jam_malam';
+    }
+    if (lower.contains('listrik')) return 'jenis_listrik';
+    if (lower.contains('air') || lower.contains('pembayaran air')) {
+      return 'jenis_pembayaran_air';
+    }
+    if (lower.contains('jenis') && lower.contains('kost')) return 'jenis_kost';
+    if (lower.contains('penghuni')) return 'penghuni';
+
+    return null;
+  }
+
+  /// Ketika admin rename subkriteria (mis. Keamanan A->B),
+  /// data `kost` lama yang masih menyimpan 'A' perlu ikut diganti menjadi 'B'.
+  /// Ini mencegah flag "Perbaiki Data" muncul padahal hanya rename.
+  Future<void> cascadeRenameKostValuesForKriteria({
+    required String? kriteriaName,
+    required List<MapEntry<String, String>> renames,
+  }) async {
+    final column = _kostColumnForKriteriaName(kriteriaName);
+    if (column == null) return;
+    if (renames.isEmpty) return;
+
+    for (final r in renames) {
+      await _kekost.renameTextValueInKostColumn(
+        column: column,
+        oldValue: r.key,
+        newValue: r.value,
+      );
+    }
   }
 
   // jenis pembayaran air

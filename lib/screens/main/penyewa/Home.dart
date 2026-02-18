@@ -13,10 +13,42 @@ class KostHomePage extends StatefulWidget {
   State<KostHomePage> createState() => _KostHomePageState();
 }
 
-class _KostHomePageState extends State<KostHomePage> {
+class _KostHomePageState extends State<KostHomePage>
+    with WidgetsBindingObserver {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _hargaMaxController = TextEditingController();
   final TextEditingController _luasMaxController = TextEditingController();
+
+  bool _isAutoRefreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoRefreshIfNeeded();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _autoRefreshIfNeeded();
+    }
+  }
+
+  Future<void> _autoRefreshIfNeeded() async {
+    if (!mounted) return;
+    if (_isAutoRefreshing) return;
+    _isAutoRefreshing = true;
+    try {
+      await _refreshData();
+    } catch (_) {
+      // Abaikan error auto-refresh.
+    } finally {
+      _isAutoRefreshing = false;
+    }
+  }
 
   String _searchQuery = '';
   String _selectedJenis = 'Semua';
@@ -227,12 +259,15 @@ class _KostHomePageState extends State<KostHomePage> {
   Future<void> _refreshData() async {
     final penghubung = Provider.of<KostProvider>(context, listen: false);
     if (penghubung.token != null) {
+      await penghubung.fetchKriteria();
+      await penghubung.fetchSubkriteria();
       await penghubung.readdatapenyewa(penghubung.token!);
     }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     _hargaMaxController.dispose();
     _luasMaxController.dispose();

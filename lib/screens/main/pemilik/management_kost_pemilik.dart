@@ -14,18 +14,58 @@ class ManagementKostPemilik extends StatefulWidget {
   State<ManagementKostPemilik> createState() => _ManagementKostPemilikState();
 }
 
-class _ManagementKostPemilikState extends State<ManagementKostPemilik> {
+class _ManagementKostPemilikState extends State<ManagementKostPemilik>
+    with WidgetsBindingObserver {
   static Color warnaLatar = Color(0xFFF5F7FB);
   // static Color warnaKartu = Colors.white;
   static Color warnaUtama = Color(0xFF1E3A8A);
   // static Color aksenBiru = Color(0xFF007BFF);
   // bool _isDeleting = false;
   bool _isNavigating = false;
+  bool _isAutoRefreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoRefreshIfNeeded();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _autoRefreshIfNeeded();
+    }
+  }
+
+  Future<void> _autoRefreshIfNeeded() async {
+    if (!mounted) return;
+    if (_isAutoRefreshing) return;
+    _isAutoRefreshing = true;
+    try {
+      await _refreshData();
+    } catch (_) {
+      // Abaikan error auto-refresh.
+    } finally {
+      _isAutoRefreshing = false;
+    }
+  }
 
   /// Fungsi untuk refresh data kost pemilik (pull-to-refresh)
   Future<void> _refreshData() async {
     final penghubung = Provider.of<KostProvider>(context, listen: false);
     if (penghubung.token != null && penghubung.id_authnya != null) {
+      // Pastikan opsi subkriteria terbaru (rename tidak dianggap invalid)
+      await penghubung.fetchKriteria();
+      await penghubung.fetchSubkriteria();
       await penghubung.readdatapemilik(
           penghubung.id_authnya!, penghubung.token!);
     }

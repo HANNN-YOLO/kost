@@ -8,6 +8,53 @@ class KostService {
   // Flag untuk debug print sekali saja
   static bool _debugKostPrinted = false;
 
+  Map<String, String> _withNoCacheHeaders(Map<String, String> headers) {
+    return <String, String>{
+      ...headers,
+      // Pastikan request tidak memakai cache (berguna ketika data berubah dari device lain)
+      'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
+      'Pragma': 'no-cache',
+    };
+  }
+
+  /// Cascade rename value di tabel `kost` untuk kolom text tertentu.
+  /// Contoh: ketika admin rename subkriteria keamanan dari 'A' menjadi 'B',
+  /// maka semua kost dengan `keamanan = 'A'` akan dipatch menjadi `keamanan = 'B'`.
+  Future<void> renameTextValueInKostColumn({
+    required String column,
+    required String oldValue,
+    required String newValue,
+  }) async {
+    final oldTrim = oldValue.trim();
+    final newTrim = newValue.trim();
+    if (column.trim().isEmpty) return;
+    if (oldTrim.isEmpty || newTrim.isEmpty) return;
+    if (oldTrim == newTrim) return;
+
+    final encodedOld = Uri.encodeQueryComponent(oldTrim);
+    final url = Uri.parse(
+      "${SupabaseApiConfig.masterurl}/rest/v1/kost?$column=eq.$encodedOld",
+    );
+
+    final resp = await htpp.patch(
+      url,
+      headers: _withNoCacheHeaders({
+        'Content-Type': 'application/json',
+        'apikey': '${SupabaseApiConfig.apisecret}',
+        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+      }),
+      body: json.encode(<String, dynamic>{
+        column: newTrim,
+      }),
+    );
+
+    // PostgREST: PATCH sukses biasanya 204 meskipun 0 row match.
+    if (resp.statusCode == 204 || resp.statusCode == 200) {
+      return;
+    }
+    throw "gagal cascade rename kost ($column: '$oldTrim'→'$newTrim') : ${resp.body}";
+  }
+
   // modul Storage
   Future<String> uploadgambar(XFile gambar) async {
     print("inisiasi modul storage");
@@ -157,11 +204,11 @@ class KostService {
         "${SupabaseApiConfig.masterurl}/rest/v1/kost?order=id_kost.asc");
     var simpan = await htpp.get(
       url,
-      headers: {
+      headers: _withNoCacheHeaders({
         'Content-Type': 'application/json',
         'apikey': '${SupabaseApiConfig.apisecret}',
-        'Authorization': ' Bearer ${SupabaseApiConfig.apisecret}'
-      },
+        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+      }),
     );
     if (simpan.statusCode == 200) {
       final ambil = json.decode(simpan.body) as List<dynamic>;
@@ -188,11 +235,11 @@ class KostService {
 
     final simpan = await htpp.get(
       url,
-      headers: {
+      headers: _withNoCacheHeaders({
         'Content-Type': 'application/json',
         'apikey': '${SupabaseApiConfig.apisecret}',
-        'Authorization': ' Bearer ${SupabaseApiConfig.apisecret}'
-      },
+        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+      }),
     );
 
     if (simpan.statusCode != 200) {
@@ -311,11 +358,11 @@ class KostService {
 
     var simpan = await htpp.get(
       url,
-      headers: {
+      headers: _withNoCacheHeaders({
         'Content-Type': 'application/json',
         'apikey': '${SupabaseApiConfig.apipublic}',
-        'Authorization': 'Bearer $token'
-      },
+        'Authorization': 'Bearer $token',
+      }),
     );
     if (simpan.statusCode == 200) {
       final ambil = json.decode(simpan.body) as List<dynamic>;
@@ -338,10 +385,12 @@ class KostService {
         "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_auth=eq.$id_auth&select=*");
 
     var simpan = await htpp.get(url, headers: {
-      "Content-Type": 'applicaation/json',
+      "Content-Type": 'application/json',
       'apikey': '${SupabaseApiConfig.apipublic}',
       'Authorization': 'Bearer $token',
-      'Prefer': 'return=representation'
+      'Prefer': 'return=representation',
+      'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
+      'Pragma': 'no-cache',
     });
 
     if (simpan.statusCode == 200) {
@@ -414,7 +463,7 @@ class KostService {
         'Content-Type': 'application/json',
         'apikey': '${SupabaseApiConfig.apipublic}',
         'Authorization': 'Bearer $token',
-        'Prefer': 'return=represenstation',
+        'Prefer': 'return=representation',
       },
       body: json.encode(isian.toJson()),
     );
