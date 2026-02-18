@@ -172,14 +172,34 @@ class _FormAddHouseState extends State<FormHouse> {
     // Default teks untuk mode "Tujuan" saat pertama kali membuka form
     _koordinatController.text = 'Klik 2x pada peta';
 
-    // 🔄 REFRESH kriteria & subkriteria agar dropdown selalu up-to-date
+    // 🔄 REFRESH kriteria/subkriteria + daftar user/pemilik agar dropdown selalu up-to-date
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final penghubung = Provider.of<KostProvider>(context, listen: false);
-      await Future.wait([
-        penghubung.fetchKriteria(),
-        penghubung.fetchSubkriteria(),
-      ]);
+
+      // Dropdown "Pemilik Kost" menggunakan list user dari AuthProvider (proxy ke KostProvider).
+      // ProfilProvider dipakai untuk mengambil kontak pemilik.
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final profil = Provider.of<ProfilProvider>(context, listen: false);
+
+      try {
+        await Future.wait([
+          penghubung.fetchKriteria(),
+          penghubung.fetchSubkriteria(),
+          auth.readrole(),
+          profil.readuser(),
+        ]);
+      } catch (_) {
+        // Jangan blok halaman jika refresh gagal.
+        await Future.wait([
+          penghubung.fetchKriteria(),
+          penghubung.fetchSubkriteria(),
+        ]);
+      }
+
+      // Pastikan build terpanggil sekali setelah data user baru masuk
+      // (karena beberapa provider di-build dengan listen:false).
+      if (mounted) setState(() {});
     });
 
     // Buat controller WebView (webview_flutter >=4.x)

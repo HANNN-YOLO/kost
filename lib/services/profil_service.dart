@@ -271,6 +271,8 @@ class ProfilService {
         'Content-Type': 'application/json',
         'apikey': '${SupabaseApiConfig.apisecret}',
         'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
+        'Pragma': 'no-cache',
       },
     );
 

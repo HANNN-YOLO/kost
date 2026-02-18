@@ -3,7 +3,9 @@ import 'package:kost_saw/screens/custom/showdialog_eror.dart';
 import 'form_house.dart';
 import 'package:provider/provider.dart';
 // import 'package:collection/collection.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../providers/kost_provider.dart';
+import '../../../providers/profil_provider.dart';
 import 'admin_places_page.dart';
 import '../shared/formatCurrency.dart';
 
@@ -59,6 +61,19 @@ class _ManagementBoardingHouseState extends State<ManagementBoardingHouse>
   /// Fungsi untuk refresh data kost admin (pull-to-refresh)
   Future<void> _refreshData() async {
     final penghubung = Provider.of<KostProvider>(context, listen: false);
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final profil = Provider.of<ProfilProvider>(context, listen: false);
+
+    // Refresh daftar user/pemilik juga, agar dropdown pemilik di form tambah kost
+    // langsung memuat akun pemilik yang baru daftar dari device lain.
+    try {
+      await Future.wait([
+        auth.readrole(),
+        profil.readuser(),
+      ]);
+    } catch (_) {
+      // Abaikan error refresh user; tetap refresh data kost.
+    }
     await penghubung.fetchKriteria();
     await penghubung.fetchSubkriteria();
     await penghubung.readdata();

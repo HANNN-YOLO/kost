@@ -201,7 +201,9 @@ class AuthServices {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
-        'apikey': '${SupabaseApiConfig.apipublic}'
+        'apikey': '${SupabaseApiConfig.apipublic}',
+        'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
+        'Pragma': 'no-cache',
       },
     );
 
@@ -249,8 +251,10 @@ class AuthServices {
 
     var hasil = await htpp.get(url, headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'bearer ${SupabaseApiConfig.apisecret}',
-      'apikey': '${SupabaseApiConfig.apisecret}'
+      'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+      'apikey': '${SupabaseApiConfig.apisecret}',
+      'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
+      'Pragma': 'no-cache',
     });
 
     if (hasil.statusCode == 200 || hasil.statusCode == 201) {
