@@ -1,25 +1,29 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-
-import '../configs/supabase_api_config.dart';
+// import '../configs/supabase_api_config.dart';
 import '../models/kriteria_models.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as htpp;
+import '../configs/supabase_cadangan_api.dart';
 
 class KriteriaServices {
   Future<void> createdata(List<Map<String, dynamic>> mana) async {
     print("inisiasi buat kriteria");
 
-    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/kriteria");
+    // var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/kriteria");
+
+    var url = Uri.parse("${SupabaseCadanganApi.masterurl}/rest/v1/kriteria");
     print("buat 1 kriteria");
 
     var pengisian = await htpp.post(
       url,
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apisecret}',
-        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        // 'apikey': '${SupabaseApiConfig.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        'apikey': '${SupabaseCadanganApi.apisecret}',
+        'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}',
         'Prefer': 'return=representation',
       },
       body: json.encode(mana),
@@ -38,8 +42,11 @@ class KriteriaServices {
     List<KriteriaModels> hasilnya = [];
 
     // Query dengan order by ranking untuk urutan kriteria yang benar
+    // var url = Uri.parse(
+    //     "${SupabaseApiConfig.masterurl}/rest/v1/kriteria?order=ranking.asc");
+
     var url = Uri.parse(
-        "${SupabaseApiConfig.masterurl}/rest/v1/kriteria?order=ranking.asc");
+        "${SupabaseCadanganApi.masterurl}/rest/v1/kriteria?order=ranking.asc");
 
     htpp.Response? baca;
     const maxAttempts = 2;
@@ -47,8 +54,10 @@ class KriteriaServices {
       try {
         baca = await htpp.get(url, headers: {
           'Content-Type': 'application/json',
-          'apikey': '${SupabaseApiConfig.apisecret}',
-          'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+          // 'apikey': '${SupabaseApiConfig.apisecret}',
+          // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+          'apikey': '${SupabaseCadanganApi.apisecret}',
+          'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}'
         }).timeout(const Duration(seconds: 20));
         break;
       } on TimeoutException catch (e) {
@@ -97,15 +106,20 @@ class KriteriaServices {
   }
 
   Future<void> updateddata(List<Map<String, dynamic>> sebuahlist) async {
+    // var url = Uri.parse(
+    //     "${SupabaseApiConfig.masterurl}/rest/v1/kriteria?on_conflict=id_kriteria");
+
     var url = Uri.parse(
-        "${SupabaseApiConfig.masterurl}/rest/v1/kriteria?on_conflict=id_kriteria");
+        "${SupabaseCadanganApi.masterurl}/rest/v1/kriteria?on_conflict=id_kriteria");
 
     var perubahan = await htpp.post(
       url,
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apisecret}',
-        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        // 'apikey': '${SupabaseApiConfig.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        'apikey': '${SupabaseCadanganApi.apisecret}',
+        'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}',
         'Prefer': 'resolution=merge-duplicates'
       },
       body: json.encode(sebuahlist),
@@ -122,15 +136,20 @@ class KriteriaServices {
   }
 
   Future<void> deletedata(int id_kriteria) async {
+    // var url = Uri.parse(
+    //     "${SupabaseApiConfig.masterurl}/rest/v1/kriteria?id_kriteria=eq.$id_kriteria");
+
     var url = Uri.parse(
-        "${SupabaseApiConfig.masterurl}/rest/v1/kriteria?id_kriteria=eq.$id_kriteria");
+        "${SupabaseCadanganApi.masterurl}/rest/v1/kriteria?id_kriteria=eq.$id_kriteria");
 
     var hapus = await htpp.delete(
       url,
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apisecret}',
-        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+        // 'apikey': '${SupabaseApiConfig.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+        'apikey': '${SupabaseCadanganApi.apisecret}',
+        'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}'
       },
     );
 

@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
-import '../configs/supabase_api_config.dart';
+// import '../configs/supabase_api_config.dart';
 import '../models/auth_model.dart';
 import 'package:http/http.dart' as htpp;
+import '../configs/supabase_cadangan_api.dart';
 
 class AuthServices {
   // modul auth
@@ -13,8 +14,11 @@ class AuthServices {
     print("inisiasi modul auth");
 
     try {
+      // var url = Uri.parse(
+      //     "${SupabaseApiConfig.masterurl}/auth/v1/token?grant_type=password");
+
       var url = Uri.parse(
-          "${SupabaseApiConfig.masterurl}/auth/v1/token?grant_type=password");
+          "${SupabaseCadanganApi.masterurl}/auth/v1//token?grant_type=password");
       print("login 1 auth");
 
       final isi = AuthModel(Email: email, password: pass);
@@ -24,7 +28,8 @@ class AuthServices {
         url,
         headers: {
           'Content-Type': 'application/json',
-          'apikey': '${SupabaseApiConfig.apipublic}'
+          // 'apikey': '${SupabaseApiConfig.apipublic}'
+          'apikey': '${SupabaseCadanganApi.apipublic}',
         },
         body: json.encode(isi.toJson()),
       );
@@ -87,7 +92,8 @@ class AuthServices {
     print("inisiasi modul auth");
 
     try {
-      var url = Uri.parse("${SupabaseApiConfig.masterurl}/auth/v1/signup");
+      // var url = Uri.parse("${SupabaseApiConfig.masterurl}/auth/v1/signup");\
+      var url = Uri.parse("${SupabaseCadanganApi.masterurl}/auth/v1/signup");
       print("register 1 auth");
 
       final isi = AuthModel(Email: email, password: pass);
@@ -97,7 +103,8 @@ class AuthServices {
         url,
         headers: {
           'Content-Type': 'application/json',
-          'apikey': '${SupabaseApiConfig.apipublic}'
+          // 'apikey': '${SupabaseApiConfig.apipublic}'
+          'apikey': '${SupabaseCadanganApi.apipublic}',
         },
         body: json.encode(isi.toJson()),
       );
@@ -143,7 +150,8 @@ class AuthServices {
   ) async {
     print("inisiasi buat data auth");
     try {
-      var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/auth");
+      // var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/auth");
+      var url = Uri.parse("${SupabaseCadanganApi.masterurl}/rest/v1/auth");
       print("buat data 1 auth");
 
       final isi = AuthModel(
@@ -158,7 +166,8 @@ class AuthServices {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer $token',
-            'apikey': '${SupabaseApiConfig.apipublic}'
+            // 'apikey': '${SupabaseApiConfig.apipublic}'
+            'apikey': '${SupabaseCadanganApi.apipublic}',
           },
           body: json.encode(isi.toJson()));
 
@@ -194,14 +203,16 @@ class AuthServices {
 
   Future<List<AuthModel>> readdata(String token) async {
     List<AuthModel> hasilnya = [];
-    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/auth");
+    // var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/auth");
+    var url = Uri.parse("${SupabaseCadanganApi.masterurl}/rest/v1/auth");
 
     var simpan = await htpp.get(
       url,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
-        'apikey': '${SupabaseApiConfig.apipublic}',
+        // 'apikey': '${SupabaseApiConfig.apipublic}',
+        'apiley': '${SupabaseCadanganApi.apipublic}',
         'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
         'Pragma': 'no-cache',
       },
@@ -247,12 +258,16 @@ class AuthServices {
 
   Future<List<AuthModel>> alluser() async {
     List<AuthModel> hasilnya = [];
-    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/auth?select=*");
+    // var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/auth?select=*");
+    var url =
+        Uri.parse("${SupabaseCadanganApi.masterurl}/rest/v1/auth?select=*");
 
     var hasil = await htpp.get(url, headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
-      'apikey': '${SupabaseApiConfig.apisecret}',
+      // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+      'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}',
+      // 'apikey': '${SupabaseApiConfig.apisecret}',
+      'apikey': '${SupabaseCadanganApi.apisecret}',
       'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
       'Pragma': 'no-cache',
     });
@@ -273,11 +288,13 @@ class AuthServices {
   Future<List<AuthModel>> readlist(String token) async {
     List<AuthModel> hasilnya = [];
 
-    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/auth?select=*");
+    // var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/auth?select=*");
+    var url = Uri.parse("${SupabaseCadanganApi.masterurl}/rest/v1/auth");
 
     var simpan = await htpp.get(url, headers: {
       'Content-Type': 'application/json',
-      'apikey': '${SupabaseApiConfig.apipublic}',
+      // 'apikey': '${SupabaseApiConfig.apipublic}',
+      'apikey': '${SupabaseCadanganApi.apipublic}',
       'Authorization': 'Bearer $token'
     });
 
@@ -295,13 +312,18 @@ class AuthServices {
   }
 
   Future<void> deletedatarest(int id_auth) async {
+    // var url = Uri.parse(
+    //     "${SupabaseApiConfig.masterurl}/rest/v1/auth?id_auth=eq.$id_auth");
+
     var url = Uri.parse(
-        "${SupabaseApiConfig.masterurl}/rest/v1/auth?id_auth=eq.$id_auth");
+        "${SupabaseCadanganApi.masterurl}/rest/v1/auth?id_auth=eq.$id_auth");
 
     var hapus = await htpp.delete(url, headers: {
       'Content-Type': 'application/json',
-      'apikey': '${SupabaseApiConfig.apisecret}',
-      'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+      // 'apikey': '${SupabaseApiConfig.apisecret}',
+      // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+      'apikey': '${SupabaseCadanganApi.apisecret}',
+      'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}'
     });
 
     if (hapus.statusCode == 204) {
@@ -313,13 +335,18 @@ class AuthServices {
   }
 
   Future<void> deletedatauath(String UID) async {
+    // var url =
+    //     Uri.parse("${SupabaseApiConfig.masterurl}/auth/v1/admin/users/$UID");
+
     var url =
-        Uri.parse("${SupabaseApiConfig.masterurl}/auth/v1/admin/users/$UID");
+        Uri.parse("${SupabaseCadanganApi.masterurl}/auth/v1/admin/users/$UID");
 
     var hapus = await htpp.delete(url, headers: {
       'Content-Type': 'application/json',
-      'apikey': '${SupabaseApiConfig.apisecret}',
-      'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+      // 'apikey': '${SupabaseApiConfig.apisecret}',
+      // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+      'apikey': '${SupabaseCadanganApi.apisecret}',
+      'Authorization': '${SupabaseCadanganApi.apisecret}',
     });
 
     if (hapus.statusCode == 200) {
@@ -336,9 +363,12 @@ class AuthServices {
     required String username,
     DateTime? updatedAt,
   }) async {
-    final url = Uri.parse(
-      "${SupabaseApiConfig.masterurl}/rest/v1/auth?id_auth=eq.$idAuth",
-    );
+    // final url = Uri.parse(
+    //   "${SupabaseApiConfig.masterurl}/rest/v1/auth?id_auth=eq.$idAuth",
+    // );
+
+    var url = Uri.parse(
+        "${SupabaseCadanganApi.masterurl}/rest/v1/auth?id_auth=eq.$idAuth");
 
     final payload = <String, dynamic>{
       'username': username,
@@ -349,7 +379,8 @@ class AuthServices {
       url,
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apipublic}',
+        // 'apikey': '${SupabaseApiConfig.apipublic}',
+        'apikey': '${SupabaseCadanganApi.apipublic}',
         'Authorization': 'Bearer $token',
       },
       body: json.encode(payload),

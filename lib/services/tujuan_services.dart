@@ -1,12 +1,14 @@
 import 'dart:convert';
-
-import '../configs/supabase_api_config.dart';
+import '../configs/supabase_cadangan_api.dart';
+// import '../configs/supabase_api_config.dart';
 import '../models/tujuan_models.dart';
 import 'package:http/http.dart' as htpp;
 
 class TujuanServices {
   Future<void> createdata(String tujuan, double lintang, double bujur) async {
-    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/tempat");
+    // var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/tempat");
+
+    var url = Uri.parse("${SupabaseCadanganApi.masterurl}/rest/v1/tempat");
 
     var isian = TujuanModels(
       namatujuan: tujuan,
@@ -18,8 +20,10 @@ class TujuanServices {
       url,
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apisecret}',
-        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        // 'apikey': '${SupabaseApiConfig.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        'apikey': '${SupabaseCadanganApi.apisecret}',
+        'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}',
         'Prefer': 'returns=resolution'
       },
       body: json.encode(isian.toJson()),
@@ -36,14 +40,18 @@ class TujuanServices {
   Future<List<TujuanModels>> readdata() async {
     List<TujuanModels> hasilnya = [];
 
-    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/tempat");
+    // var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/tempat");
+
+    var url = Uri.parse("${SupabaseCadanganApi.masterurl}/rest/v1/tempat");
 
     var pengambilan = await htpp.get(
       url,
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apisecret}',
-        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+        // 'apikey': '${SupabaseApiConfig.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+        'apikey': '${SupabaseCadanganApi.apisecret}',
+        'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}'
       },
     );
 
@@ -63,8 +71,11 @@ class TujuanServices {
 
   Future<void> updateddata(int id_tujuan, String tujuan, double lintang,
       double bujur, DateTime editan) async {
+    // var url = Uri.parse(
+    //     "${SupabaseApiConfig.masterurl}/rest/v1/tempat?id_tujuan=eq.$id_tujuan");
+
     var url = Uri.parse(
-        "${SupabaseApiConfig.masterurl}/rest/v1/tempat?id_tujuan=eq.$id_tujuan");
+        "${SupabaseCadanganApi.masterurl}/rest/v1/tempat?id_tujuan=eq.$id_tujuan");
 
     var isian = TujuanModels(
         namatujuan: tujuan,
@@ -75,8 +86,10 @@ class TujuanServices {
     var updated = await htpp.patch(url,
         headers: {
           'Content-Type': 'application/json',
-          'apikey': '${SupabaseApiConfig.apisecret}',
-          'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+          // 'apikey': '${SupabaseApiConfig.apisecret}',
+          // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+          'apikey': '${SupabaseCadanganApi.apisecret}',
+          'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}'
         },
         body: json.encode(isian.toJson()));
 
@@ -89,13 +102,18 @@ class TujuanServices {
   }
 
   Future<void> deletedata(int id_tujuan) async {
+    // var url = Uri.parse(
+    //     "${SupabaseApiConfig.masterurl}/rest/v1/tempat?id_tujuan=eq.$id_tujuan");
+
     var url = Uri.parse(
-        "${SupabaseApiConfig.masterurl}/rest/v1/tempat?id_tujuan=eq.$id_tujuan");
+        "${SupabaseCadanganApi.masterurl}/rest/v1/tempat?id_tujuan=eq.$id_tujuan");
 
     var hapus = await htpp.delete(url, headers: {
       'Content-Type': 'application/json',
-      'apikey': '${SupabaseApiConfig.apisecret}',
-      'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+      // 'apikey': '${SupabaseApiConfig.apisecret}',
+      // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+      'apikey': '${SupabaseCadanganApi.apisecret}',
+      'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}'
     });
 
     if (hapus.statusCode == 204) {

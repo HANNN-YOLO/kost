@@ -1,8 +1,9 @@
 import 'dart:convert';
 import '../models/kost_model.dart';
-import '../configs/supabase_api_config.dart';
+// import '../configs/supabase_api_config.dart';
 import 'package:http/http.dart' as htpp;
 import 'package:image_picker/image_picker.dart';
+import '../configs/supabase_cadangan_api.dart';
 
 class KostService {
   // Flag untuk debug print sekali saja
@@ -32,16 +33,20 @@ class KostService {
     if (oldTrim == newTrim) return;
 
     final encodedOld = Uri.encodeQueryComponent(oldTrim);
-    final url = Uri.parse(
-      "${SupabaseApiConfig.masterurl}/rest/v1/kost?$column=eq.$encodedOld",
-    );
+    // final url = Uri.parse(
+    //   "${SupabaseApiConfig.masterurl}/rest/v1/kost?$column=eq.$encodedOld",
+    // );
+    var url = Uri.parse(
+        "${SupabaseCadanganApi.masterurl}/rest/v1/kost?$column=eq.$encodedOld");
 
     final resp = await htpp.patch(
       url,
       headers: _withNoCacheHeaders({
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apisecret}',
-        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        // 'apikey': '${SupabaseApiConfig.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        'apikey': '${SupabaseCadanganApi.apisecret}',
+        'Authorization': '${SupabaseCadanganApi.apisecret}'
       }),
       body: json.encode(<String, dynamic>{
         column: newTrim,
@@ -65,8 +70,11 @@ class KostService {
     final siapa = "${timestamp}_$sanitizedName";
     print("upload gambar 1 kost");
 
+    // var url = Uri.parse(
+    //     "${SupabaseApiConfig.masterurl}/storage/v1/object/kost/$siapa");
+
     var url = Uri.parse(
-        "${SupabaseApiConfig.masterurl}/storage/v1/object/kost/$siapa");
+        "${SupabaseCadanganApi.masterurl}/storage/v1/object/kost/$siapa");
     print("upload gambar 2 kost");
 
     var isian = await gambar.readAsBytes();
@@ -76,16 +84,20 @@ class KostService {
       url,
       headers: {
         'Content-Type': '/images/$siapa.jpg',
-        'apikey': '${SupabaseApiConfig.apisecret}',
-        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+        // 'apikey': '${SupabaseApiConfig.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        'apikey': '${SupabaseCadanganApi.apisecret}',
+        'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}'
       },
       body: isian,
     );
     print("upload gambar 4 kost");
 
     if (pengisian.statusCode == 200 || pengisian.statusCode == 201) {
+      // final ambil =
+      //     "${SupabaseApiConfig.masterurl}/storage/v1/object/public/kost/$siapa";
       final ambil =
-          "${SupabaseApiConfig.masterurl}/storage/v1/object/public/kost/$siapa";
+          "${SupabaseCadanganApi.masterurl}/storage/v1/object/public/kost/$siapa";
       print("done $ambil");
       return ambil;
     } else {
@@ -103,16 +115,21 @@ class KostService {
     var nama = link.pathSegments.last;
     print("hapus gamba 2 kost");
 
+    // var url = Uri.parse(
+    //     "${SupabaseApiConfig.masterurl}/storage/v1/object/kost/$nama");
+
     var url = Uri.parse(
-        "${SupabaseApiConfig.masterurl}/storage/v1/object/kost/$nama");
+        "${SupabaseCadanganApi.masterurl}/storage/v1/object/kost/$nama");
     print("hapus gamba 3 kost");
 
     var delete = await htpp.delete(
       url,
       headers: {
         'Content-Type': 'images/$nama.jpg',
-        'apikey': '${SupabaseApiConfig.apisecret}',
-        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+        // 'apikey': '${SupabaseApiConfig.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        'apikey': '${SupabaseCadanganApi.apisecret}',
+        'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}'
       },
     );
     print("hapus gamba 5 kost");
@@ -150,7 +167,8 @@ class KostService {
   ) async {
     print("inisiai buat data kost");
 
-    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/kost");
+    // var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/kost");
+    var url = Uri.parse("${SupabaseCadanganApi.masterurl}/rest/v1/kost");
     print("buat data 1 kost");
 
     var isian = KostModel(
@@ -181,8 +199,10 @@ class KostService {
       url,
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apisecret}',
-        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        // 'apikey': '${SupabaseApiConfig.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        'apikey': '${SupabaseCadanganApi.apisecret}',
+        'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}',
         'Prefer': 'returns=representation',
       },
       body: json.encode(isian.toJson()),
@@ -200,14 +220,19 @@ class KostService {
   Future<List<KostModel>> readdata({bool debugPrint = true}) async {
     List<KostModel> hasilnya = [];
     // Urutkan berdasarkan id_kost ascending untuk konsistensi alternatif A1, A2, A3, dst
+    // var url = Uri.parse(
+    //     "${SupabaseApiConfig.masterurl}/rest/v1/kost?order=id_kost.asc");
+
     var url = Uri.parse(
-        "${SupabaseApiConfig.masterurl}/rest/v1/kost?order=id_kost.asc");
+        "${SupabaseCadanganApi.masterurl}/rest/v1/kost?order=id_kost.asc");
     var simpan = await htpp.get(
       url,
       headers: _withNoCacheHeaders({
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apisecret}',
-        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        // 'apikey': '${SupabaseApiConfig.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        'apikey': '${SupabaseCadanganApi.apisecret}',
+        'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}',
       }),
     );
     if (simpan.statusCode == 200) {
@@ -229,16 +254,22 @@ class KostService {
   }
 
   Future<KostModel?> readById(int id_kost) async {
+    // final url = Uri.parse(
+    //   "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_kost=eq.$id_kost&select=*",
+    // );
+
     final url = Uri.parse(
-      "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_kost=eq.$id_kost&select=*",
+      "${SupabaseCadanganApi.masterurl}/rest/v1/kost?id_kost=eq.$id_kost&select=*",
     );
 
     final simpan = await htpp.get(
       url,
       headers: _withNoCacheHeaders({
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apisecret}',
-        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        // 'apikey': '${SupabaseApiConfig.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        'apikey': '${SupabaseCadanganApi.apisecret}',
+        'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}',
       }),
     );
 
@@ -254,16 +285,21 @@ class KostService {
   Future<void> deletedata(int id_kost) async {
     print("inisiasi hapus data kost");
 
+    // var url = Uri.parse(
+    //     "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_kost=eq.$id_kost");
+
     var url = Uri.parse(
-        "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_kost=eq.$id_kost");
+        "${SupabaseCadanganApi.masterurl}/rest/v1/kost?id_kost=eq.$id_kost");
     print("data hapus 1 kost");
 
     var delete = await htpp.delete(
       url,
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apisecret}',
-        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+        // 'apikey': '${SupabaseApiConfig.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        'apikey': '${SupabaseCadanganApi.apisecret}',
+        'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}',
       },
     );
     print("data hapus 2 kost");
@@ -302,8 +338,11 @@ class KostService {
   ) async {
     print("inisiasi perubahan data kost");
 
+    // var url = Uri.parse(
+    //     "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_kost=eq.$id_kost");
+
     var url = Uri.parse(
-        "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_kost=eq.$id_kost");
+        "${SupabaseCadanganApi.masterurl}/rest/v1/kost?id_kost=eq.$id_kost");
     print("ubah data 1 kost");
 
     var isian = KostModel(
@@ -336,8 +375,10 @@ class KostService {
       url,
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apisecret}',
-        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        // 'apikey': '${SupabaseApiConfig.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        'apikey': '${SupabaseCadanganApi.apisecret}',
+        'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}',
       },
       body: json.encode(isian.toJson()),
     );
@@ -354,13 +395,16 @@ class KostService {
   Future<List<KostModel>> readdatapenyewa(String token) async {
     List<KostModel> hasilnya = [];
 
-    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/kost");
+    // var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/kost");
+
+    var url = Uri.parse("${SupabaseCadanganApi.masterurl}/rest/v1/kost");
 
     var simpan = await htpp.get(
       url,
       headers: _withNoCacheHeaders({
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apipublic}',
+        // 'apikey': '${SupabaseApiConfig.apipublic}',
+        'apikey': '${SupabaseCadanganApi.apipublic}',
         'Authorization': 'Bearer $token',
       }),
     );
@@ -381,12 +425,16 @@ class KostService {
   Future<List<KostModel>> readdatapemilik(int id_auth, String token) async {
     List<KostModel> hasilnya = [];
 
+    // var url = Uri.parse(
+    //     "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_auth=eq.$id_auth&select=*");
+
     var url = Uri.parse(
-        "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_auth=eq.$id_auth&select=*");
+        "${SupabaseCadanganApi.masterurl}/rest/v1/kost?id_auth=eq.$id_auth&select=*");
 
     var simpan = await htpp.get(url, headers: {
       "Content-Type": 'application/json',
-      'apikey': '${SupabaseApiConfig.apipublic}',
+      // 'apikey': '${SupabaseApiConfig.apipublic}',
+      'apikey': '${SupabaseCadanganApi.apipublic}',
       'Authorization': 'Bearer $token',
       'Prefer': 'return=representation',
       'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
@@ -429,7 +477,9 @@ class KostService {
     String per,
     String fasilitas,
   ) async {
-    var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/kost");
+    // var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/kost");
+
+    var url = Uri.parse("${SupabaseCadanganApi.masterurl}/rest/v1/kost");
 
     final isian = KostModel(
       id_auth: id_auth,
@@ -461,7 +511,8 @@ class KostService {
       url,
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apipublic}',
+        // 'apikey': '${SupabaseApiConfig.apipublic}',
+        'apikey': '${SupabaseCadanganApi.apipublic}',
         'Authorization': 'Bearer $token',
         'Prefer': 'return=representation',
       },
@@ -501,8 +552,11 @@ class KostService {
     String per,
     String fasilitas,
   ) async {
+    // var url = Uri.parse(
+    //     "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_kost=eq.$id_kost");
+
     var url = Uri.parse(
-        "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_kost=eq.$id_kost");
+        "${SupabaseCadanganApi.masterurl}/rest/v1/kost?id_kost=eq.$id_kost");
 
     var isian = KostModel(
       id_auth: id_auth,
@@ -535,7 +589,8 @@ class KostService {
       url,
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apipublic}',
+        // 'apikey': '${SupabaseApiConfig.apipublic}',
+        'apikey': '${SupabaseCadanganApi.apipublic}',
         'Authorization': 'Bearer $token',
         // 'Prefer': 'return=representation'
       },
@@ -560,15 +615,19 @@ class KostService {
     int id_auth,
     num noTelpBaru,
   ) async {
+    // final url = Uri.parse(
+    //   "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_auth=eq.$id_auth&or=(notlp_kost.eq.0,notlp_kost.is.null)",
+    // );
     final url = Uri.parse(
-      "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_auth=eq.$id_auth&or=(notlp_kost.eq.0,notlp_kost.is.null)",
+      "${SupabaseCadanganApi.masterurl}/rest/v1/kost?id_auth=eq.$id_auth&or=(notlp_kost.eq.0,notlp_kost.is.null)",
     );
 
     final updated = await htpp.patch(
       url,
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apipublic}',
+        // 'apikey': '${SupabaseApiConfig.apipublic}',
+        'apikey': '${SupabaseCadanganApi.apipublic}',
         'Authorization': 'Bearer $token',
       },
       body: json.encode({
@@ -594,15 +653,20 @@ class KostService {
     int id_auth,
     String? noTelpBaru,
   ) async {
+    // final url = Uri.parse(
+    //   "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_auth=eq.$id_auth",
+    // );
+
     final url = Uri.parse(
-      "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_auth=eq.$id_auth",
+      "${SupabaseCadanganApi.masterurl}/rest/v1/kost?id_auth=eq.$id_auth",
     );
 
     final updated = await htpp.patch(
       url,
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apipublic}',
+        // 'apikey': '${SupabaseApiConfig.apipublic}',
+        'apikey': '${SupabaseCadanganApi.apipublic}',
         'Authorization': 'Bearer $token',
       },
       body: json.encode({
@@ -627,15 +691,20 @@ class KostService {
     int id_auth,
     String namaPemilikBaru,
   ) async {
+    // final url = Uri.parse(
+    //   "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_auth=eq.$id_auth",
+    // );
+
     final url = Uri.parse(
-      "${SupabaseApiConfig.masterurl}/rest/v1/kost?id_auth=eq.$id_auth",
+      "${SupabaseCadanganApi.masterurl}/rest/v1/kost?id_auth=eq.$id_auth",
     );
 
     final updated = await htpp.patch(
       url,
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apipublic}',
+        // 'apikey': '${SupabaseApiConfig.apipublic}',
+        'apikey': '${SupabaseCadanganApi.apipublic}',
         'Authorization': 'Bearer $token',
       },
       body: json.encode({
@@ -687,8 +756,12 @@ class KostService {
     // Update semua kost yang menggunakan nama subkriteria lama
     // Encode value untuk handle spasi dan karakter khusus
     final encodedOldName = Uri.encodeComponent(oldSubkriteriaName);
+    // final url = Uri.parse(
+    //   "${SupabaseApiConfig.masterurl}/rest/v1/kost?$fieldName=eq.$encodedOldName",
+    // );
+
     final url = Uri.parse(
-      "${SupabaseApiConfig.masterurl}/rest/v1/kost?$fieldName=eq.$encodedOldName",
+      "${SupabaseCadanganApi.masterurl}/rest/v1/kost?$fieldName=eq.$encodedOldName",
     );
 
     print(
@@ -698,8 +771,10 @@ class KostService {
       url,
       headers: {
         'Content-Type': 'application/json',
-        'apikey': '${SupabaseApiConfig.apisecret}',
-        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        // 'apikey': '${SupabaseApiConfig.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        'apikey': '${SupabaseCadanganApi.apisecret}',
+        'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}',
         'Prefer': 'return=minimal',
       },
       body: json.encode({
