@@ -193,6 +193,112 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
         lower.contains('jarak');
   }
 
+  // ---------------- Range overlap validation ----------------
+  // Untuk kriteria range (biaya/fasilitas/luas/jarak), pastikan rentang tidak saling overlap.
+  // Contoh yang ditolak: 4-10 sudah ada, lalu tambah 8-9 atau >5.
+  // (Jika admin memang ingin membagi rentang, hapus/ubah rentang lama dulu.)
+
+  bool _isMinInclusiveFromOperator(String? op) {
+    if (op == null) return true; // default inclusive
+    return op.trim() != '>';
+  }
+
+  bool _isMaxInclusiveFromOperator(String? op) {
+    if (op == null) return true; // default inclusive
+    return op.trim() != '<';
+  }
+
+  String _formatIntervalDisplay({
+    required num? min,
+    required num? max,
+    required bool minInclusive,
+    required bool maxInclusive,
+  }) {
+    if (min == null && max == null) return '-';
+
+    if (min != null && max != null) {
+      final opMin = minInclusive ? '≥' : '>';
+      final opMax = maxInclusive ? '≤' : '<';
+      return '$opMin ${_formatNumDisplay(min)} & $opMax ${_formatNumDisplay(max)}';
+    }
+
+    if (min == null && max != null) {
+      final opMax = maxInclusive ? '≤' : '<';
+      return '$opMax ${_formatNumDisplay(max)}';
+    }
+
+    final opMin = minInclusive ? '≥' : '>';
+    return '$opMin ${_formatNumDisplay(min!)}';
+  }
+
+  bool _intervalsOverlap({
+    required num? aMin,
+    required num? aMax,
+    required bool aMinInclusive,
+    required bool aMaxInclusive,
+    required num? bMin,
+    required num? bMax,
+    required bool bMinInclusive,
+    required bool bMaxInclusive,
+  }) {
+    // Disjoint if aMax < bMin, or aMax == bMin but at least one side is exclusive.
+    if (aMax != null && bMin != null) {
+      if (aMax < bMin) return false;
+      if (aMax == bMin && !(aMaxInclusive && bMinInclusive)) return false;
+    }
+
+    // Disjoint if bMax < aMin, or bMax == aMin but at least one side is exclusive.
+    if (bMax != null && aMin != null) {
+      if (bMax < aMin) return false;
+      if (bMax == aMin && !(bMaxInclusive && aMinInclusive)) return false;
+    }
+
+    return true;
+  }
+
+  String? _validateNoRangeOverlap({
+    required num? minVal,
+    required num? maxVal,
+    required bool minInclusive,
+    required bool maxInclusive,
+    int? ignoreIndex,
+  }) {
+    if (minVal == null && maxVal == null) return null;
+
+    for (final entry in _isinya.asMap().entries) {
+      if (ignoreIndex != null && entry.key == ignoreIndex) continue;
+      final other = entry.value;
+      if (other.nilaiMin == null && other.nilaiMax == null) continue;
+
+      final otherMinInclusive = _isMinInclusiveFromOperator(other.minOperator);
+      final otherMaxInclusive = _isMaxInclusiveFromOperator(other.maxOperator);
+
+      final overlap = _intervalsOverlap(
+        aMin: minVal,
+        aMax: maxVal,
+        aMinInclusive: minInclusive,
+        aMaxInclusive: maxInclusive,
+        bMin: other.nilaiMin,
+        bMax: other.nilaiMax,
+        bMinInclusive: otherMinInclusive,
+        bMaxInclusive: otherMaxInclusive,
+      );
+
+      if (overlap) {
+        final otherLabel = _decodeKategoriLabel(other.kategori.text).trim();
+        final otherInterval = _formatIntervalDisplay(
+          min: other.nilaiMin,
+          max: other.nilaiMax,
+          minInclusive: otherMinInclusive,
+          maxInclusive: otherMaxInclusive,
+        );
+        return 'Rentang bentrok dengan subkriteria "$otherLabel" (rentang: $otherInterval).';
+      }
+    }
+
+    return null;
+  }
+
   num? _tryParseNumFlexible(String raw) {
     // Ambil angka pertama dari string, dukung koma/titik sebagai desimal.
     // Contoh: "<=1 km" -> 1, "1.1" -> 1.1, "1,9" -> 1.9
@@ -1595,6 +1701,33 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                   return;
                                                 }
 
+                                                // Validasi overlap rentang khusus kriteria range
+                                                if (_isRangeKriteria(
+                                                        penghubung.nama) &&
+                                                    (nilaiMin != null ||
+                                                        nilaiMax != null)) {
+                                                  final candidateMinInclusive =
+                                                      !_strictMin;
+                                                  final candidateMaxInclusive =
+                                                      !_strictMax;
+                                                  final overlapError =
+                                                      _validateNoRangeOverlap(
+                                                    minVal: nilaiMin,
+                                                    maxVal: nilaiMax,
+                                                    minInclusive:
+                                                        candidateMinInclusive,
+                                                    maxInclusive:
+                                                        candidateMaxInclusive,
+                                                  );
+                                                  if (overlapError != null) {
+                                                    setStateDialog(() {
+                                                      dialogError =
+                                                          overlapError;
+                                                    });
+                                                    return;
+                                                  }
+                                                }
+
                                                 setState(() {
                                                   final kSekarang = penghubung
                                                       .mydata
@@ -2716,6 +2849,44 @@ class _SubcriteriaManagementState extends State<SubcriteriaManagement> {
                                                                               }
                                                                               nilaiMin = null;
                                                                               nilaiMax = maxVal;
+                                                                            }
+
+                                                                            // Validasi overlap rentang khusus kriteria range.
+                                                                            // Supaya data lama yang sudah overlap tidak "ngunci" user,
+                                                                            // skip validasi jika rentang tidak berubah.
+                                                                            final oldMin =
+                                                                                _isinya[editinde!].nilaiMin;
+                                                                            final oldMax =
+                                                                                _isinya[editinde!].nilaiMax;
+                                                                            final oldMinInclusive =
+                                                                                _isMinInclusiveFromOperator(_isinya[editinde!].minOperator);
+                                                                            final oldMaxInclusive =
+                                                                                _isMaxInclusiveFromOperator(_isinya[editinde!].maxOperator);
+
+                                                                            final newMinInclusive =
+                                                                                !_strictMin;
+                                                                            final newMaxInclusive =
+                                                                                !_strictMax;
+
+                                                                            final rangeUnchanged = oldMin == nilaiMin &&
+                                                                                oldMax == nilaiMax &&
+                                                                                oldMinInclusive == newMinInclusive &&
+                                                                                oldMaxInclusive == newMaxInclusive;
+
+                                                                            if (!rangeUnchanged) {
+                                                                              final overlapError = _validateNoRangeOverlap(
+                                                                                minVal: nilaiMin,
+                                                                                maxVal: nilaiMax,
+                                                                                minInclusive: newMinInclusive,
+                                                                                maxInclusive: newMaxInclusive,
+                                                                                ignoreIndex: editinde,
+                                                                              );
+                                                                              if (overlapError != null) {
+                                                                                setStateDialog(() {
+                                                                                  dialogError = overlapError;
+                                                                                });
+                                                                                return;
+                                                                              }
                                                                             }
 
                                                                             // Simpan nilai min/max ke item (kolom DB)
