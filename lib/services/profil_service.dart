@@ -3,6 +3,7 @@ import '../configs/supabase_api_config.dart';
 import '../models/profil_model.dart';
 import 'package:http/http.dart' as htpp;
 import 'package:image_picker/image_picker.dart';
+// import '../configs/supabase_cadangan_api.dart';
 
 class ProfilService {
   // CD foto
@@ -17,6 +18,9 @@ class ProfilService {
 
     var url = Uri.parse(
         "${SupabaseApiConfig.masterurl}/storage/v1/object/profil/$si");
+
+    // var url = Uri.parse(
+    //     "${SupabaseCadanganApi.masterurl}/storage/v1/object/profil/$si");
     print("upload foto 2 profil");
 
     var namanya = await foto.readAsBytes();
@@ -29,6 +33,8 @@ class ProfilService {
         'Content-Type': '/images/$si.jpg',
         'apikey': '${SupabaseApiConfig.apisecret}',
         'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        // 'apikey': '${SupabaseCadanganApi.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}',
       },
       body: namanya,
     );
@@ -37,6 +43,9 @@ class ProfilService {
     if (simpan.statusCode == 200 || simpan.statusCode == 201) {
       final link =
           "${SupabaseApiConfig.masterurl}/storage/v1/object/public/profil/$si";
+
+      // final link =
+      //     "${SupabaseCadanganApi.masterurl}/storage/v1/object/public/profil/$si";
       print("done $link");
       return link;
     } else {
@@ -56,6 +65,9 @@ class ProfilService {
 
     var arah = Uri.parse(
         "${SupabaseApiConfig.masterurl}/storage/v1/object/profil/$akhir");
+
+    // var arah = Uri.parse(
+    //     "${SupabaseCadanganApi.masterurl}/storage/v1/object/profil/$akhir");
     print("hapus gambar 3 profil");
 
     var hapus = await htpp.delete(
@@ -64,6 +76,8 @@ class ProfilService {
         'Content-Type': 'application/octet-stream',
         'apikey': '${SupabaseApiConfig.apisecret}',
         'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+        // 'apikey': '${SupabaseCadanganApi.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}'
       },
     );
     print("hapus gambar 4 profil");
@@ -90,10 +104,15 @@ class ProfilService {
     var url = Uri.parse(
         "${SupabaseApiConfig.masterurl}/storage/v1/object/profil/$namanya");
 
+    // var url = Uri.parse(
+    // "${SupabaseCadanganApi.masterurl}/storage/v1/object/profil/$namanya");
+
     var delete = await htpp.delete(url, headers: {
       'Content-Type': '/images/$namanya.jpg',
       'apikey': '${SupabaseApiConfig.apisecret}',
       'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+      // 'apikey': '${SupabaseCadanganApi.apisecret}',
+      // 'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}'
     });
 
     if (delete.statusCode == 200 || delete.statusCode == 204) {
@@ -116,10 +135,14 @@ class ProfilService {
     var url = Uri.parse(
         "${SupabaseApiConfig.masterurl}/rest/v1/profil?id_auth=eq.$idAuth&select=*");
 
+    // var url = Uri.parse(
+    //     "${SupabaseCadanganApi.masterurl}/rest/v1/profil?id_auth=eq.$idAuth&select=*");
+
     var simpan = await htpp.get(url, headers: {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $token',
       'apikey': '${SupabaseApiConfig.apipublic}'
+      // 'apikey': '${SupabaseCadanganApi.apipublic}'
     });
 
     if (simpan.statusCode == 200 || simpan.statusCode == 201) {
@@ -144,6 +167,7 @@ class ProfilService {
     print("inisiasi buat data");
 
     var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/profil");
+    // var url = Uri.parse("${SupabaseCadanganApi.masterurl}/rest/v1/profil");
     print("buat data 1 profil");
 
     // Kirim field `foto` secara eksplisit (boleh null) agar database tidak
@@ -161,6 +185,7 @@ class ProfilService {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
         'apikey': '${SupabaseApiConfig.apipublic}'
+        // 'apikey': '${SupabaseCadanganApi.apipublic}'
       },
       body: json.encode(isian),
     );
@@ -186,6 +211,9 @@ class ProfilService {
 
     var url = Uri.parse(
         "${SupabaseApiConfig.masterurl}/rest/v1/profil?id_profil=eq.$idProfil");
+
+    // var url = Uri.parse(
+    // "${SupabaseCadanganApi.masterurl}/rest/v1/profil?id_profil=eq.$idProfil");
     print("ubah data 1 profil");
 
     // NOTE: kontak boleh NULL. Untuk bisa clear kontak di Supabase,
@@ -209,6 +237,7 @@ class ProfilService {
       headers: {
         'Content-Type': 'application/json',
         'apikey': '${SupabaseApiConfig.apipublic}',
+        // 'apikey': '${SupabaseCadanganApi.apipublic}',
         'Authorization': 'Bearer $token',
       },
       body: json.encode(body),
@@ -233,6 +262,9 @@ class ProfilService {
 
     var url = Uri.parse(
         "${SupabaseApiConfig.masterurl}/rest/v1/profil?id_profil=eq.$idProfil");
+
+    // var url = Uri.parse(
+    // "${SupabaseCadanganApi.masterurl}/rest/v1/profil?id_profil=eq.$idProfil");
     print("set foto 1 profil");
 
     final body = json.encode({
@@ -245,6 +277,7 @@ class ProfilService {
       headers: {
         'Content-Type': 'application/json',
         'apikey': '${SupabaseApiConfig.apipublic}',
+        // 'apikey': '${SupabaseCadanganApi.apipublic}',
         'Authorization': 'Bearer $token',
       },
       body: body,
@@ -265,12 +298,17 @@ class ProfilService {
     var url =
         Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/profil?select=*");
 
+    // var url =
+    // Uri.parse("${SupabaseCadanganApi.masterurl}/rest/v1/profil?select=*");
+
     var simpan = await htpp.get(
       url,
       headers: {
         'Content-Type': 'application/json',
         'apikey': '${SupabaseApiConfig.apisecret}',
         'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        // 'apikey': '${SupabaseCadanganApi.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}',
         'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
         'Pragma': 'no-cache',
       },
@@ -318,12 +356,17 @@ class ProfilService {
     final url = Uri.parse(
         "${SupabaseApiConfig.masterurl}/rest/v1/profil?id_profil=eq.$idProfil");
 
+    // final url = Uri.parse(
+    //     "${SupabaseCadanganApi.masterurl}/rest/v1/profil?id_profil=eq.$idProfil");
+
     final response = await htpp.patch(
       url,
       headers: {
         'Content-Type': 'application/json',
         'apikey': '${SupabaseApiConfig.apisecret}',
         'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        // 'apikey': '${SupabaseCadanganApi.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}',
       },
       body: json.encode(body),
     );
@@ -342,12 +385,17 @@ class ProfilService {
     final url = Uri.parse(
         "${SupabaseApiConfig.masterurl}/rest/v1/profil?id_profil=eq.$idProfil");
 
+    // final url = Uri.parse(
+    //     "${SupabaseCadanganApi.masterurl}/rest/v1/profil?id_profil=eq.$idProfil");
+
     final response = await htpp.delete(
       url,
       headers: {
         'Content-Type': 'application/json',
         'apikey': '${SupabaseApiConfig.apisecret}',
         'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        // 'apikey': '${SupabaseCadanganApi.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}',
       },
     );
 

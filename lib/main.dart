@@ -35,6 +35,7 @@ import 'screens/main/pemilik/profile_pemilik.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
+  // await dotenv.load(fileName: ".vars");
   runApp(MultiProvider(
     providers: [
       ChangeNotifierProvider(create: (context) => AuthProvider()),

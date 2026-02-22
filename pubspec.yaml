@@ -76,6 +76,7 @@ flutter:
     - lib/assets/6f07a055-196a-40b0-9344-833a80d267fb.png
     - lib/assets/icon_scaled.png
     - lib/assets/coba_scale.png
+    - .vars
 
 flutter_launcher_icons:
   android: true

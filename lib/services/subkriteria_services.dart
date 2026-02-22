@@ -1,5 +1,5 @@
 import 'dart:convert';
-
+// import '../configs/supabase_cadangan_api.dart';
 import '../configs/supabase_api_config.dart';
 import '../models/subkriteria_models.dart';
 import 'package:flutter/foundation.dart';
@@ -13,12 +13,17 @@ class SubkriteriaServices {
     var url = Uri.parse(
         "${SupabaseApiConfig.masterurl}/rest/v1/sub_kriteria?order=id_kriteria.asc,bobot.desc");
 
+    // var url = Uri.parse(
+    //     "${SupabaseCadanganApi.masterurl}/rest/v1/sub_kriteria?order=id_kriteria.asc,bobot.desc");
+
     var simpan = await htpp.get(
       url,
       headers: {
         'Content-Type': 'application/json',
         'apikey': '${SupabaseApiConfig.apisecret}',
         'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        // 'apikey': '${SupabaseCadanganApi.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}',
       },
     );
 
@@ -42,12 +47,17 @@ class SubkriteriaServices {
   Future<void> createdata(List<Map<String, dynamic>> mana) async {
     var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/sub_kriteria");
 
+    // var url =
+    //     Uri.parse("${SupabaseCadanganApi.masterurl}/rest/v1/sub_kriteria");
+
     var upload = await htpp.post(
       url,
       headers: {
         'Content-Type': 'application/json',
         'apikey': '${SupabaseApiConfig.apisecret}',
         'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        // 'apikey': '${SupabaseCadanganApi.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}',
         'Prefer': 'return=repsentation',
       },
       body: json.encode(mana),
@@ -65,10 +75,15 @@ class SubkriteriaServices {
     var url = Uri.parse(
         "${SupabaseApiConfig.masterurl}/rest/v1/sub_kriteria?id_subkriteria=eq.$id_subkriteria");
 
+    // var url = Uri.parse(
+    //     "${SupabaseCadanganApi.masterurl}/rest/v1/sub_kriteria?id_subkriteria=eq.$id_subkriteria");
+
     var delete = await htpp.delete(url, headers: {
       'Content-Type': 'application/json',
       'apikey': '${SupabaseApiConfig.apisecret}',
       'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}'
+      // 'apikey': '${SupabaseCadanganApi.apisecret}',
+      // 'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}'
     });
 
     if (delete.statusCode == 204) {
@@ -82,12 +97,17 @@ class SubkriteriaServices {
   Future<void> updateddata(List<Map<String, dynamic>> mana) async {
     var url = Uri.parse("${SupabaseApiConfig.masterurl}/rest/v1/sub_kriteria");
 
+    // var url =
+    //     Uri.parse("${SupabaseCadanganApi.masterurl}/rest/v1/sub_kriteria");
+
     var editan = await htpp.post(
       url,
       headers: {
         'Content-Type': 'application/json',
         'apikey': '${SupabaseApiConfig.apisecret}',
         'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        // 'apikey': '${SupabaseCadanganApi.apisecret}',
+        // 'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}',
         'Prefer': 'resolution=merge-duplicates'
       },
       body: json.encode(mana),
