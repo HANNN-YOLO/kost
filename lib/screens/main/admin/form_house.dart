@@ -21,6 +21,7 @@ import 'package:collection/collection.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../providers/profil_provider.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../services/nominatim_geocoding_service.dart';
 
 class listinputan {
   final TextEditingController namaFasilitasController = TextEditingController();
@@ -87,6 +88,18 @@ class _FormAddHouseState extends State<FormHouse> {
   // -------- WebView (Leaflet) ----------
   late final WebViewController _mapController;
   bool _mapLoaded = false;
+
+  // -------- Geocoding (Alamat -> Koordinat) ----------
+  bool _isGeocodingAddress = false;
+  int _geocodeRequestSerial = 0;
+  double? _pendingMarkerLat;
+  double? _pendingMarkerLng;
+
+  // -------- Autocomplete Alamat ----------
+  List<NominatimPlace> _alamatSuggestions = [];
+  bool _isLoadingAlamatSuggestions = false;
+  Timer? _alamatDebounceTimer;
+  final FocusNode _alamatFocusNode = FocusNode();
 
   // Debounce timer untuk update peta
   Timer? _debounceTimer;
@@ -172,6 +185,14 @@ class _FormAddHouseState extends State<FormHouse> {
     // Default teks untuk mode "Tujuan" saat pertama kali membuka form
     _koordinatController.text = 'Klik 2x pada peta';
 
+    // Default teks "Jalan " untuk field alamat agar user langsung lanjut ketik
+    // (akan di-override di didChangeDependencies jika mode edit)
+    _alamat.text = 'Jalan ';
+    // Posisikan cursor di akhir teks
+    _alamat.selection = TextSelection.fromPosition(
+      TextPosition(offset: _alamat.text.length),
+    );
+
     // 🔄 REFRESH kriteria/subkriteria + daftar user/pemilik agar dropdown selalu up-to-date
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -209,11 +230,20 @@ class _FormAddHouseState extends State<FormHouse> {
       ..enableZoom(true) // Aktifkan zoom
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageFinished: (url) {
+          onPageFinished: (url) async {
             if (mounted) {
               setState(() => _mapLoaded = true);
               // Sinkronkan mode peta dengan opsi lokasi yang terpilih
-              _syncMapModeWithLocationOption();
+              await _syncMapModeWithLocationOption();
+
+              // Jika ada marker hasil geocoding sebelum map selesai load, apply sekarang
+              final lat = _pendingMarkerLat;
+              final lng = _pendingMarkerLng;
+              if (lat != null && lng != null) {
+                _pendingMarkerLat = null;
+                _pendingMarkerLng = null;
+                await _updateMapLocation(lat, lng);
+              }
             }
           },
           onWebResourceError: (err) {
@@ -350,6 +380,272 @@ class _FormAddHouseState extends State<FormHouse> {
     } catch (e) {
       // Error handling ringan
     }
+  }
+
+  Future<void> _geocodeAlamatToKoordinat() async {
+    final query = _alamat.text.trim();
+    if (query.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Alamat masih kosong.')),
+      );
+      return;
+    }
+
+    final requestId = ++_geocodeRequestSerial;
+    if (mounted) setState(() => _isGeocodingAddress = true);
+
+    try {
+      final results = await NominatimGeocodingService.instance.searchAddress(
+        query,
+        limit: 5,
+        countryCodes: 'id',
+        acceptLanguage: 'id',
+        userAgent: 'kost-saw/1.0 (flutter; geocoding)',
+      );
+
+      if (!mounted || requestId != _geocodeRequestSerial) return;
+
+      if (results.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Alamat tidak ditemukan.')),
+        );
+        return;
+      }
+
+      NominatimPlace? selected;
+      if (results.length == 1) {
+        selected = results.first;
+      } else {
+        selected = await _pickNominatimResult(results);
+      }
+
+      if (!mounted || requestId != _geocodeRequestSerial) return;
+      if (selected == null) return;
+
+      await _applyLatLngToFormAndMap(selected.lat, selected.lng);
+    } catch (e) {
+      if (!mounted || requestId != _geocodeRequestSerial) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mencari koordinat: $e')),
+      );
+    } finally {
+      if (!mounted || requestId != _geocodeRequestSerial) return;
+      setState(() => _isGeocodingAddress = false);
+    }
+  }
+
+  Future<NominatimPlace?> _pickNominatimResult(
+    List<NominatimPlace> results,
+  ) async {
+    if (!mounted) return null;
+
+    return showModalBottomSheet<NominatimPlace>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: results.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final place = results[index];
+              return ListTile(
+                title: Text(
+                  place.displayName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text('${place.lat}, ${place.lng}'),
+                onTap: () => Navigator.of(context).pop(place),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _applyLatLngToFormAndMap(double lat, double lng) async {
+    if (!mounted) return;
+
+    setState(() {
+      _selectedLocationOption = _optManualKoordinat;
+      _koordinatController.text = '$lat, $lng';
+    });
+
+    if (!_mapLoaded) {
+      _pendingMarkerLat = lat;
+      _pendingMarkerLng = lng;
+      return;
+    }
+
+    await _syncMapModeWithLocationOption();
+    await _updateMapLocation(lat, lng);
+  }
+
+  // -------- Autocomplete Alamat: Fetch Suggestions ----------
+  void _fetchAlamatSuggestions(String query) {
+    // Cancel timer sebelumnya
+    _alamatDebounceTimer?.cancel();
+
+    final trimmed = query.trim();
+    if (trimmed.length < 3) {
+      if (_alamatSuggestions.isNotEmpty) {
+        setState(() => _alamatSuggestions = []);
+      }
+      return;
+    }
+
+    // Debounce 600ms agar tidak spam request
+    _alamatDebounceTimer = Timer(const Duration(milliseconds: 600), () async {
+      if (!mounted) return;
+      setState(() => _isLoadingAlamatSuggestions = true);
+
+      try {
+        final results = await NominatimGeocodingService.instance.searchAddress(
+          trimmed,
+          limit: 5,
+          countryCodes: 'id',
+          acceptLanguage: 'id',
+          userAgent: 'kost-saw/1.0 (flutter; autocomplete)',
+        );
+
+        if (!mounted) return;
+        setState(() {
+          _alamatSuggestions = results;
+          _isLoadingAlamatSuggestions = false;
+        });
+      } catch (_) {
+        if (!mounted) return;
+        setState(() {
+          _alamatSuggestions = [];
+          _isLoadingAlamatSuggestions = false;
+        });
+      }
+    });
+  }
+
+  // -------- Widget Alamat dengan Autocomplete ----------
+  Widget _buildAlamatAutocompleteField(double tinggi, double lebar) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Alamat',
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: lebar * 0.035,
+          ),
+        ),
+        SizedBox(height: tinggi * 0.005),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300, width: 1),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _alamat,
+                focusNode: _alamatFocusNode,
+                textInputAction: TextInputAction.search,
+                onChanged: _fetchAlamatSuggestions,
+                onSubmitted: (_) => _geocodeAlamatToKoordinat(),
+                decoration: InputDecoration(
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: lebar * 0.04,
+                    vertical: tinggi * 0.018,
+                  ),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  hintText: 'Ketik alamat lengkap...',
+                  suffixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_isLoadingAlamatSuggestions)
+                        const Padding(
+                          padding: EdgeInsets.only(right: 8),
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      IconButton(
+                        tooltip: 'Cari koordinat dari alamat',
+                        onPressed: _isGeocodingAddress
+                            ? null
+                            : _geocodeAlamatToKoordinat,
+                        icon: _isGeocodingAddress
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.search),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Suggestions dropdown
+              if (_alamatSuggestions.isNotEmpty)
+                Container(
+                  constraints: BoxConstraints(maxHeight: tinggi * 0.25),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: Colors.grey.shade300, width: 1),
+                    ),
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.zero,
+                    itemCount: _alamatSuggestions.length,
+                    separatorBuilder: (_, __) => Divider(
+                      height: 1,
+                      color: Colors.grey.shade200,
+                    ),
+                    itemBuilder: (context, index) {
+                      final place = _alamatSuggestions[index];
+                      return ListTile(
+                        dense: true,
+                        title: Text(
+                          place.displayName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: lebar * 0.032),
+                        ),
+                        trailing: Icon(
+                          Icons.north_west,
+                          size: 16,
+                          color: Colors.grey.shade600,
+                        ),
+                        onTap: () {
+                          // Isi alamat dan apply koordinat
+                          setState(() {
+                            _alamat.text = place.displayName;
+                            _alamatSuggestions = [];
+                          });
+                          _applyLatLngToFormAndMap(place.lat, place.lng);
+                          // Hilangkan focus
+                          _alamatFocusNode.unfocus();
+                        },
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+        SizedBox(height: tinggi * 0.025),
+      ],
+    );
   }
 
   // Minta lokasi sekarang perangkat (menggunakan Geolocator)
@@ -533,6 +829,8 @@ class _FormAddHouseState extends State<FormHouse> {
     _lebar.dispose();
     _panjang.dispose();
     _debounceTimer?.cancel();
+    _alamatDebounceTimer?.cancel();
+    _alamatFocusNode.dispose();
     _koordinatController.removeListener(_onKoordinatChanged);
     _koordinatController.dispose();
 
@@ -856,80 +1154,6 @@ class _FormAddHouseState extends State<FormHouse> {
                       },
                     ),
 
-                    Label1barisFull(
-                      label: "Tipe Penghuni",
-                      lebar: lebarLayar,
-                      jarak: 1,
-                    ),
-                    SizedBox(height: tinggiLayar * 0.005),
-                    Consumer<KostProvider>(
-                      builder: (context, value, child) {
-                        return Container(
-                          width: lebarLayar,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: RadioListTile<String>(
-                                  contentPadding: EdgeInsets.zero,
-                                  title: Text(
-                                    "Umum",
-                                    style: TextStyle(
-                                      fontSize: lebarLayar * 0.035,
-                                    ),
-                                  ),
-                                  value: "Umum",
-                                  groupValue: penghubung.penghunis == "Pilih"
-                                      ? null
-                                      : penghubung.penghunis,
-                                  onChanged: (val) {
-                                    penghubung.pilihpenghuni(val!);
-                                  },
-                                ),
-                              ),
-                              Expanded(
-                                child: RadioListTile<String>(
-                                  contentPadding: EdgeInsets.zero,
-                                  title: Text(
-                                    "Khusus Putra",
-                                    style: TextStyle(
-                                      fontSize: lebarLayar * 0.035,
-                                    ),
-                                  ),
-                                  value: "Khusus Putra",
-                                  groupValue: penghubung.penghunis == "Pilih"
-                                      ? null
-                                      : penghubung.penghunis,
-                                  onChanged: (val) {
-                                    penghubung.pilihpenghuni(val!);
-                                  },
-                                ),
-                              ),
-                              Expanded(
-                                child: RadioListTile<String>(
-                                  contentPadding: EdgeInsets.zero,
-                                  title: Text(
-                                    "Khusus Putri",
-                                    style: TextStyle(
-                                      fontSize: lebarLayar * 0.035,
-                                    ),
-                                  ),
-                                  value: "Khusus Putri",
-                                  groupValue: penghubung.penghunis == "Pilih"
-                                      ? null
-                                      : penghubung.penghunis,
-                                  onChanged: (val) {
-                                    penghubung.pilihpenghuni(val!);
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                    SizedBox(height: tinggiLayar * 0.025),
-
                     Consumer<KostProvider>(
                       builder: (context, value, child) {
                         return terima != null
@@ -945,26 +1169,6 @@ class _FormAddHouseState extends State<FormHouse> {
                                 tinggiLayar,
                                 lebarLayar,
                                 _notlpn,
-                                false,
-                              );
-                      },
-                    ),
-
-                    Consumer<KostProvider>(
-                      builder: (context, value, child) {
-                        return terima != null
-                            ? _inputField(
-                                'Alamat',
-                                tinggiLayar,
-                                lebarLayar,
-                                _alamat,
-                                false,
-                              )
-                            : _inputField(
-                                'Alamat',
-                                tinggiLayar,
-                                lebarLayar,
-                                _alamat,
                                 false,
                               );
                       },
@@ -1025,6 +1229,18 @@ class _FormAddHouseState extends State<FormHouse> {
                                 pilihan: penghubung.jeniskosts,
                                 fungsi: (value) {
                                   penghubung.pilihkost(value);
+                                  // Auto-set tipe penghuni berdasarkan jenis kost
+                                  if (value.toLowerCase().contains('umum')) {
+                                    penghubung.pilihpenghuni('Umum');
+                                  } else if (value
+                                      .toLowerCase()
+                                      .contains('khusus')) {
+                                    if (penghubung.penghunis == 'Umum') {
+                                      penghubung.pilihpenghuni('Pilih');
+                                    }
+                                  } else {
+                                    penghubung.pilihpenghuni('Pilih');
+                                  }
                                 },
                               )
                             : CustomDropdownSearchv2(
@@ -1035,8 +1251,103 @@ class _FormAddHouseState extends State<FormHouse> {
                                 pilihan: penghubung.jeniskosts,
                                 fungsi: (value) {
                                   penghubung.pilihkost(value);
+                                  // Auto-set tipe penghuni berdasarkan jenis kost
+                                  if (value.toLowerCase().contains('umum')) {
+                                    penghubung.pilihpenghuni('Umum');
+                                  } else if (value
+                                      .toLowerCase()
+                                      .contains('khusus')) {
+                                    if (penghubung.penghunis == 'Umum') {
+                                      penghubung.pilihpenghuni('Pilih');
+                                    }
+                                  } else {
+                                    penghubung.pilihpenghuni('Pilih');
+                                  }
                                 },
                               );
+                      },
+                    ),
+                    SizedBox(height: tinggiLayar * 0.025),
+
+                    Label1barisFull(
+                      label: "Tipe Penghuni",
+                      lebar: lebarLayar,
+                      jarak: 1,
+                    ),
+                    SizedBox(height: tinggiLayar * 0.005),
+                    Consumer<KostProvider>(
+                      builder: (context, value, child) {
+                        // Tentukan status enable/disable radio berdasarkan jenis kost
+                        final bool isJenisKostKhusus = penghubung.jeniskosts
+                            .toLowerCase()
+                            .contains('khusus');
+                        return Container(
+                          width: lebarLayar,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: RadioListTile<String>(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(
+                                    "Umum",
+                                    style: TextStyle(
+                                      fontSize: lebarLayar * 0.035,
+                                    ),
+                                  ),
+                                  value: "Umum",
+                                  groupValue: penghubung.penghunis == "Pilih"
+                                      ? null
+                                      : penghubung.penghunis,
+                                  // Umum otomatis terpilih & terkunci saat jenis kost Umum
+                                  onChanged: null,
+                                ),
+                              ),
+                              Expanded(
+                                child: RadioListTile<String>(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(
+                                    "Khusus Putra",
+                                    style: TextStyle(
+                                      fontSize: lebarLayar * 0.035,
+                                    ),
+                                  ),
+                                  value: "Khusus Putra",
+                                  groupValue: penghubung.penghunis == "Pilih"
+                                      ? null
+                                      : penghubung.penghunis,
+                                  // Aktif hanya jika jenis kost mengandung "Khusus"
+                                  onChanged: isJenisKostKhusus
+                                      ? (val) {
+                                          penghubung.pilihpenghuni(val!);
+                                        }
+                                      : null,
+                                ),
+                              ),
+                              Expanded(
+                                child: RadioListTile<String>(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(
+                                    "Khusus Putri",
+                                    style: TextStyle(
+                                      fontSize: lebarLayar * 0.035,
+                                    ),
+                                  ),
+                                  value: "Khusus Putri",
+                                  groupValue: penghubung.penghunis == "Pilih"
+                                      ? null
+                                      : penghubung.penghunis,
+                                  // Aktif hanya jika jenis kost mengandung "Khusus"
+                                  onChanged: isJenisKostKhusus
+                                      ? (val) {
+                                          penghubung.pilihpenghuni(val!);
+                                        }
+                                      : null,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
                       },
                     ),
                     SizedBox(height: tinggiLayar * 0.025),
@@ -1413,6 +1724,8 @@ class _FormAddHouseState extends State<FormHouse> {
                     ),
                     SizedBox(height: tinggiLayar * 0.025),
 
+                    // Field Alamat dengan Autocomplete sugesti
+                    _buildAlamatAutocompleteField(tinggiLayar, lebarLayar),
                     Consumer<KostProvider>(
                       builder: (context, value, child) {
                         return terima != null
@@ -2164,6 +2477,7 @@ class _FormAddHouseState extends State<FormHouse> {
   ) {
     final bool isPhoneField = label == 'Nomor Telepon';
     final bool isNumericField = isPhoneField || label == 'Harga';
+    final bool isAlamatField = label == 'Alamat';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2189,6 +2503,9 @@ class _FormAddHouseState extends State<FormHouse> {
             readOnly: isPhoneField ? true : keadaan,
             keyboardType:
                 isNumericField ? TextInputType.number : TextInputType.text,
+            textInputAction: isAlamatField ? TextInputAction.search : null,
+            onSubmitted:
+                isAlamatField ? (_) => _geocodeAlamatToKoordinat() : null,
             inputFormatters: isNumericField
                 ? [FilteringTextInputFormatter.digitsOnly]
                 : null,
@@ -2201,6 +2518,21 @@ class _FormAddHouseState extends State<FormHouse> {
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
               hintText: isPhoneField ? 'Otomatis dari profil pemilik' : null,
+              suffixIcon: isAlamatField
+                  ? IconButton(
+                      tooltip: 'Cari koordinat dari alamat',
+                      onPressed: _isGeocodingAddress
+                          ? null
+                          : _geocodeAlamatToKoordinat,
+                      icon: _isGeocodingAddress
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.search),
+                    )
+                  : null,
             ),
           ),
         ),

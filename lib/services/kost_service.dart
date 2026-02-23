@@ -84,8 +84,8 @@ class KostService {
       url,
       headers: {
         'Content-Type': '/images/$siapa.jpg',
-        // 'apikey': '${SupabaseApiConfig.apisecret}',
-        // 'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
+        'apikey': '${SupabaseApiConfig.apisecret}',
+        'Authorization': 'Bearer ${SupabaseApiConfig.apisecret}',
         // 'apikey': '${SupabaseCadanganApi.apisecret}',
         // 'Authorization': 'Bearer ${SupabaseCadanganApi.apisecret}'
       },
