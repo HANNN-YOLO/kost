@@ -7,7 +7,6 @@ import '../models/auth_model.dart';
 import '../models/kriteria_models.dart';
 import '../models/subkriteria_models.dart';
 import '../services/kost_service.dart';
-import '../services/fasilitas_service.dart';
 import '../services/kriteria_services.dart';
 import '../services/subkriteria_services.dart';
 import '../algoritma/simple_additive_weighting.dart';
@@ -15,7 +14,6 @@ import '../algoritma/simple_additive_weighting.dart';
 class KostProvider with ChangeNotifier {
   // state penting
   String? _token, _email;
-  DateTime? _expires_in;
 
   List<AuthModel> _listauth = [];
   List<AuthModel> get listauth => _listauth;
@@ -23,6 +21,7 @@ class KostProvider with ChangeNotifier {
   int? id_authnya;
 
   String? get token => _token;
+  String? get email => _email;
 
   List<ProfilModel> _dataku = [];
   List<ProfilModel> get dataku => _dataku;
@@ -38,39 +37,37 @@ class KostProvider with ChangeNotifier {
   ) {
     _token = value;
     _email = ada;
-    _expires_in = waktunya;
     _listauth = manalistya;
     id_authnya = id_auth;
-    if (_token != null && _email != null && _listauth != null) {
-      final cek = listauth.firstWhere((element) => element.id_auth == id_auth);
-      // if (!keadaan) {
-      if (cek.role == "Admin") {
-        readdata();
-      } else if (cek.role == "Penyewa") {
-        readdatapenyewa(_token!);
-      } else if (cek.role == "Pemilik") {
-        // Hindari reload berulang jika isi() terpanggil berkali-kali (ProxyProvider)
-        // final bool shouldForce =
-        //     !_hasLoadedPemilikKost || _loadedPemilikAuthId != id_auth;
-        readdatapemilik(id_auth, _token!);
-      } else {
-        print("gagal verifikasi role login");
-        throw "Gagal verifikasi role login";
-      }
 
-      // Pastikan data kriteria & subkriteria SAW ikut ter-load
-      // (dipakai juga untuk opsi dropdown keamanan, listrik, dll.)
-
-      fetchKriteria();
-      fetchSubkriteria();
-      // }
+    final cek = listauth.firstWhere((element) => element.id_auth == id_auth);
+    // if (!keadaan) {
+    if (cek.role == "Admin") {
+      readdata();
+    } else if (cek.role == "Penyewa") {
+      readdatapenyewa(_token!);
+    } else if (cek.role == "Pemilik") {
+      // Hindari reload berulang jika isi() terpanggil berkali-kali (ProxyProvider)
+      readdatapemilik(id_auth, _token!);
+    } else {
+      print("gagal verifikasi role login");
+      throw "Gagal verifikasi role login";
     }
+
+    // Pastikan data kriteria & subkriteria SAW ikut ter-load
+    // (dipakai juga untuk opsi dropdown keamanan, listrik, dll.)
+    fetchKriteria();
+    fetchSubkriteria();
+    // }
   }
 
   void inilist(List<ProfilModel>? mana) {
-    _dataku = mana!;
-    if (_dataku != null && id_authnya != null && token != null) {
-      readdatapemilik(id_authnya!, token!);
+    if (mana == null) return;
+    _dataku = mana;
+    final id = id_authnya;
+    final t = token;
+    if (id != null && t != null) {
+      readdatapemilik(id, t);
     }
   }
 
@@ -199,9 +196,7 @@ class KostProvider with ChangeNotifier {
 
   List<String> get jeniskeamananan {
     final dinamis = _getSubkriteriaOptions((nama) => nama.contains('keamanan'));
-    return dinamis
-        // .isNotEmpty ? dinamis : _jeniskeamanan
-        ;
+    return dinamis.isNotEmpty ? dinamis : _jeniskeamanan;
   }
 
   String jeniskeamanans = "Pilih";
@@ -414,13 +409,11 @@ class KostProvider with ChangeNotifier {
     resetpilihan();
     _token = null;
     _email = null;
-    _expires_in = null;
     _listauth = [];
     id_authnya = null;
     _dataku = [];
 
     _hasLoadedPemilikKost = false;
-    _loadedPemilikAuthId = null;
     notifyListeners();
   }
 
@@ -712,7 +705,6 @@ class KostProvider with ChangeNotifier {
 
   List<FasilitasModel> _fasilitas = [];
   List<FasilitasModel> get faslitas => _fasilitas;
-  final FasilitasService _kefasilitas = FasilitasService();
 
   // Penyewa
   List<KostModel> _kostpenyewa = [];
@@ -734,7 +726,6 @@ class KostProvider with ChangeNotifier {
   bool get hasLoadedPemilikKost => _hasLoadedPemilikKost;
 
   // Cache id_auth pemilik terakhir yang sudah di-load
-  int? _loadedPemilikAuthId;
 
   // Loading flags untuk daftar kost
   bool _isLoadingAdminKost = false;
@@ -780,52 +771,47 @@ class KostProvider with ChangeNotifier {
   ) async {
     try {
       final upload = await _kekost.uploadgambar(gambar);
-      if (upload != null) {
-        // final all_fasilitas = await _kefasilitas.createdata(
-        //   id_auth = id_auth,
-        //   tempat_tidur,
-        //   kamar_mandi_dalam,
-        //   meja,
-        //   tempat_parkir,
-        //   lemari,
-        //   ac,
-        //   tv,
-        //   kipas,
-        //   dapur_dalam,
-        //   wifi,
-        // );
 
-        List<String> pembeda = titik_koordinat.split(',');
-        double latitude = double.parse(pembeda[0].trim());
-        double longitudo = double.parse(pembeda[1].trim());
+      // final all_fasilitas = await _kefasilitas.createdata(
+      //   id_auth = id_auth,
+      //   tempat_tidur,
+      //   kamar_mandi_dalam,
+      //   meja,
+      //   tempat_parkir,
+      //   lemari,
+      //   ac,
+      //   tv,
+      //   kipas,
+      //   dapur_dalam,
+      //   wifi,
+      // );
 
-        if (
-            // all_fasilitas['id_fasilitas'] != null &&
-            upload != null && latitude != null && longitudo != null) {
-          await _kekost.createdata(
-            id_auth,
-            // all_fasilitas['id_fasilitas'],
-            notlp_kost,
-            nama_kost,
-            alamat_kost,
-            pemilik_kost,
-            harga_kost,
-            jenis_kost,
-            penghuni,
-            keamanan,
-            batas_jam_malam,
-            jenis_pembayaran_air,
-            jenis_listrik,
-            panjang,
-            lebar,
-            latitude,
-            longitudo,
-            upload,
-            per,
-            fasilitas,
-          );
-        }
-      }
+      List<String> pembeda = titik_koordinat.split(',');
+      double latitude = double.parse(pembeda[0].trim());
+      double longitudo = double.parse(pembeda[1].trim());
+
+      await _kekost.createdata(
+        id_auth,
+        // all_fasilitas['id_fasilitas'],
+        notlp_kost,
+        nama_kost,
+        alamat_kost,
+        pemilik_kost,
+        harga_kost,
+        jenis_kost,
+        penghuni,
+        keamanan,
+        batas_jam_malam,
+        jenis_pembayaran_air,
+        jenis_listrik,
+        panjang,
+        lebar,
+        latitude,
+        longitudo,
+        upload,
+        per,
+        fasilitas,
+      );
     } catch (e) {
       throw e;
     }
@@ -925,7 +911,7 @@ class KostProvider with ChangeNotifier {
     try {
       DateTime edit = DateTime.now();
 
-      if (fotolama != null && foto == null) {
+      if (foto == null) {
         // await _kefasilitas.updateddata(
         //   id_fasilitas,
         //   id_auth,
@@ -946,83 +932,78 @@ class KostProvider with ChangeNotifier {
         double latitude = double.parse(bedakan[0].trim());
         double longitudo = double.parse(bedakan[1].trim());
 
-        if (fotolama != null && latitude != null && longitudo != null) {
-          await _kekost.updatedata(
-            id_kost,
-            // id_fasilitas,
-            id_auth,
-            nama_kost,
-            pemilik_kost,
-            alamat_kost,
-            notlp_kost,
-            harga_kost,
-            batas_jam_malam,
-            jenis_listrik,
-            jenis_pembayaran_air,
-            keamanan,
-            jenis_kost,
-            penghuni,
-            panjang,
-            lebar,
-            fotolama,
-            latitude,
-            longitudo,
-            edit,
-            per,
-            fasilitas,
-          );
-        }
+        await _kekost.updatedata(
+          id_kost,
+          // id_fasilitas,
+          id_auth,
+          nama_kost,
+          pemilik_kost,
+          alamat_kost,
+          notlp_kost,
+          harga_kost,
+          batas_jam_malam,
+          jenis_listrik,
+          jenis_pembayaran_air,
+          keamanan,
+          jenis_kost,
+          penghuni,
+          panjang,
+          lebar,
+          fotolama,
+          latitude,
+          longitudo,
+          edit,
+          per,
+          fasilitas,
+        );
       } else {
         await _kekost.deletegambar(fotolama);
-        final upload = await _kekost.uploadgambar(foto!);
-        if (upload != null) {
-          // await _kefasilitas.updateddata(
-          //   id_fasilitas,
-          //   id_auth,
-          //   tempat_tidur,
-          //   kamar_mandi_dalam,
-          //   meja,
-          //   tempat_parkir,
-          //   lemari,
-          //   ac,
-          //   tv,
-          //   kipas,
-          //   dapur_dalam,
-          //   wifi,
-          //   edit,
-          // );
+        final upload = await _kekost.uploadgambar(foto);
 
-          List<String> bedakan = koordinnat.split(',');
-          double latitude = double.parse(bedakan[0].trim());
-          double longitudo = double.parse(bedakan[1].trim());
+        // await _kefasilitas.updateddata(
+        //   id_fasilitas,
+        //   id_auth,
+        //   tempat_tidur,
+        //   kamar_mandi_dalam,
+        //   meja,
+        //   tempat_parkir,
+        //   lemari,
+        //   ac,
+        //   tv,
+        //   kipas,
+        //   dapur_dalam,
+        //   wifi,
+        //   edit,
+        // );
 
-          if (upload != null && latitude != null && longitudo != null) {
-            await _kekost.updatedata(
-              id_kost,
-              // id_fasilitas,
-              id_auth,
-              nama_kost,
-              pemilik_kost,
-              alamat_kost,
-              notlp_kost,
-              harga_kost,
-              batas_jam_malam,
-              jenis_listrik,
-              jenis_pembayaran_air,
-              keamanan,
-              jenis_kost,
-              penghuni,
-              panjang,
-              lebar,
-              upload,
-              latitude,
-              longitudo,
-              edit,
-              per,
-              fasilitas,
-            );
-          }
-        }
+        List<String> bedakan = koordinnat.split(',');
+        double latitude = double.parse(bedakan[0].trim());
+        double longitudo = double.parse(bedakan[1].trim());
+
+        await _kekost.updatedata(
+          id_kost,
+          // id_fasilitas,
+          id_auth,
+          nama_kost,
+          pemilik_kost,
+          alamat_kost,
+          notlp_kost,
+          harga_kost,
+          batas_jam_malam,
+          jenis_listrik,
+          jenis_pembayaran_air,
+          keamanan,
+          jenis_kost,
+          penghuni,
+          panjang,
+          lebar,
+          upload,
+          latitude,
+          longitudo,
+          edit,
+          per,
+          fasilitas,
+        );
       }
     } catch (e) {
       throw e;
@@ -1223,7 +1204,7 @@ class KostProvider with ChangeNotifier {
     try {
       final hari_ini = DateTime.now();
 
-      if (fotolama != null && foto == null) {
+      if (foto == null) {
         // await _kefasilitas.updateddatapemilik(
         //   token,
         //   id_authnya!,
@@ -1244,38 +1225,36 @@ class KostProvider with ChangeNotifier {
         double garis_lintang = double.parse(cek[0].trim());
         double garis_bujur = double.parse(cek[1].trim());
 
-        if (garis_lintang != null && garis_bujur != null) {
-          await _kekost.updateddatapemmilik(
-            token,
-            id_kost,
-            id_auth,
-            // id_fasilitas,
-            nama_pemilik,
-            nama_kost,
-            telpon,
-            alamat_kost,
-            harga_kost,
-            jenis_kost,
-            penghuni,
-            keamanan,
-            panjang,
-            lebar,
-            batas_jam_malam,
-            jenis_pembayaran_air,
-            jenis_listrik,
-            garis_lintang,
-            garis_bujur,
-            fotolama,
-            hari_ini,
-            per,
-            fasilitas,
-          );
-        }
+        await _kekost.updateddatapemmilik(
+          token,
+          id_kost,
+          id_auth,
+          // id_fasilitas,
+          nama_pemilik,
+          nama_kost,
+          telpon,
+          alamat_kost,
+          harga_kost,
+          jenis_kost,
+          penghuni,
+          keamanan,
+          panjang,
+          lebar,
+          batas_jam_malam,
+          jenis_pembayaran_air,
+          jenis_listrik,
+          garis_lintang,
+          garis_bujur,
+          fotolama,
+          hari_ini,
+          per,
+          fasilitas,
+        );
       } else {
         await _kekost.deletegambar(fotolama);
-        final namanya = await _kekost.uploadgambar(foto!);
+        final namanya = await _kekost.uploadgambar(foto);
 
-        if (namanya != null) {
+        {
           // await _kefasilitas.updateddatapemilik(
           //   token,
           //   id_authnya!,
@@ -1296,33 +1275,31 @@ class KostProvider with ChangeNotifier {
           double garis_lintang = double.parse(path[0].trim());
           double garis_bujur = double.parse(path[1].trim());
 
-          if (namanya != null && garis_lintang != null && garis_bujur != null) {
-            await _kekost.updateddatapemmilik(
-              token,
-              id_kost,
-              id_auth,
-              // id_fasilitas,
-              nama_pemilik,
-              nama_kost,
-              telpon,
-              alamat_kost,
-              harga_kost,
-              jenis_kost,
-              penghuni,
-              keamanan,
-              panjang,
-              lebar,
-              batas_jam_malam,
-              jenis_pembayaran_air,
-              jenis_listrik,
-              garis_lintang,
-              garis_bujur,
-              namanya,
-              hari_ini,
-              per,
-              fasilitas,
-            );
-          }
+          await _kekost.updateddatapemmilik(
+            token,
+            id_kost,
+            id_auth,
+            // id_fasilitas,
+            nama_pemilik,
+            nama_kost,
+            telpon,
+            alamat_kost,
+            harga_kost,
+            jenis_kost,
+            penghuni,
+            keamanan,
+            panjang,
+            lebar,
+            batas_jam_malam,
+            jenis_pembayaran_air,
+            jenis_listrik,
+            garis_lintang,
+            garis_bujur,
+            namanya,
+            hari_ini,
+            per,
+            fasilitas,
+          );
         }
       }
     } catch (e) {

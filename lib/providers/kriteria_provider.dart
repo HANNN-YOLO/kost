@@ -546,12 +546,12 @@ class KriteriaProvider with ChangeNotifier {
       }
     }
 
-    if (newdata != null) {
+    if (newdata.isNotEmpty) {
       await createdadtasubkriteria(newdata);
       await readdatasubkriteria();
     }
 
-    if (lastdata != null) {
+    if (lastdata.isNotEmpty) {
       await updateddatasubkritera(lastdata);
       await readdatasubkriteria();
 

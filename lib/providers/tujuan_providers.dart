@@ -61,15 +61,11 @@ class TujuanProviders with ChangeNotifier {
 
   Future<void> createdata(String tujuan, String koordinat) async {
     try {
-      if (koordinat != null) {
-        List<String> sementara = koordinat.split(',');
-        double lintang = double.parse(sementara[0]);
-        double bujur = double.parse(sementara[1]);
+      List<String> sementara = koordinat.split(',');
+      double lintang = double.parse(sementara[0]);
+      double bujur = double.parse(sementara[1]);
 
-        if (lintang != null && bujur != null) {
-          await _ref.createdata(tujuan, lintang, bujur);
-        }
-      }
+      await _ref.createdata(tujuan, lintang, bujur);
     } catch (e) {
       throw e;
     }
@@ -104,15 +100,11 @@ class TujuanProviders with ChangeNotifier {
   ) async {
     final editan = DateTime.now();
     try {
-      if (koordinat != null) {
-        final List<String> nama = koordinat.split(',');
-        double lintang = double.parse(nama[0]);
-        double bujur = double.parse(nama[1]);
+      final List<String> nama = koordinat.split(',');
+      double lintang = double.parse(nama[0]);
+      double bujur = double.parse(nama[1]);
 
-        if (lintang != null && bujur != null) {
-          await _ref.updateddata(id_tujuan, tujuan, lintang, bujur, editan);
-        }
-      }
+      await _ref.updateddata(id_tujuan, tujuan, lintang, bujur, editan);
     } catch (e) {
       throw e;
     }

@@ -532,7 +532,7 @@ class SimpleAdditiveWeighting {
                 .add('$namaKritAsli: belum ada subkriteria untuk menilai.');
           } else if (kategori.contains('jarak') && nilaiAsli is num) {
             alasanTerskip.add(
-              '$namaKritAsli: nilai "${(nilaiAsli as num).toDouble().toStringAsFixed(2)} km" tidak cocok dengan subkriteria.',
+              '$namaKritAsli: nilai "${nilaiAsli.toDouble().toStringAsFixed(2)} km" tidak cocok dengan subkriteria.',
             );
           } else if (!kategori.contains('jarak')) {
             final nilaiDisplay =
@@ -563,7 +563,7 @@ class SimpleAdditiveWeighting {
         } else if (kategori.contains('jarak')) {
           if (nilaiAsli is num) {
             nilaiMentah[kriteria.kategori ?? ''] =
-                '${(nilaiAsli as num).toDouble().toStringAsFixed(2)} km';
+                '${nilaiAsli.toDouble().toStringAsFixed(2)} km';
           } else {
             nilaiMentah[kriteria.kategori ?? ''] = '-';
           }
@@ -1240,19 +1240,6 @@ class SimpleAdditiveWeighting {
       }
       // Default: anggap km
       return val;
-    }
-
-    /// Helper: Extract angka dan satuan dari string seperti "500m", "3km", "3"
-    Map<String, dynamic> extractValue(String s) {
-      // Coba match angka dengan satuan
-      final match = RegExp(r'(\d+\.?\d*)(m|km)?').firstMatch(s);
-      if (match != null) {
-        return {
-          'value': match.group(1),
-          'unit': match.group(2) ?? 'km', // default km jika tidak ada satuan
-        };
-      }
-      return {'value': '0', 'unit': 'km'};
     }
 
     // ========== FORMAT RANGE: ">= X - Y" atau ">= Xm - Ykm" ==========

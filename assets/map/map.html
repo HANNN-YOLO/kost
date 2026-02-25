@@ -53,7 +53,14 @@
       window._mode = 'normal';
 
       // init map (Makassar default)
-      var map = L.map('map', { zoomControl: true }).setView([-5.147665, 119.432731], 13);
+      // UX: jangan zoom saat scroll wheel / double click. Zoom hanya via pinch/cubit
+      // (touch) atau tombol +/-.
+      var map = L.map('map', {
+        zoomControl: true,
+        scrollWheelZoom: false,
+        doubleClickZoom: false,
+        touchZoom: true
+      }).setView([-5.147665, 119.432731], 13);
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
@@ -65,6 +72,7 @@
       window._myLocationMarker = null;  // marker lokasi saya (hijau)
       window._destinationMarker = null; // marker tujuan (merah)
       window._routeLayer = null;        // polyline rute jalan
+      window._bboxLayer = null;         // layer kotak pembatas (merah)
       window._allKostMarkers = [];
 
       // icon khusus untuk lokasi kost (bulat biru)
@@ -97,6 +105,10 @@
       // double-click handler: hanya dipakai saat mode == 'destination'
       map.on('dblclick', function(e) {
         if (window._mode === 'destination') {
+          // Bersihkan marker tujuan sebelumnya (termasuk yang diset dari Flutter)
+          // agar tidak ada dua marker tujuan sekaligus.
+          try { window.clearDestination(); } catch (e) {}
+
           window._lastClick = { lat: e.latlng.lat, lng: e.latlng.lng };
 
           if (window._lastMarker) {
@@ -193,6 +205,21 @@
           try { map.removeLayer(window._lastMarker); } catch (e) {}
           window._lastMarker = null;
         }
+      };
+
+      // hapus kotak pembatas merah
+      window.clearBoundingBox = function() {
+        if (window._bboxLayer) {
+          try { map.removeLayer(window._bboxLayer); } catch (e) {}
+          window._bboxLayer = null;
+        }
+      };
+
+      // gambar kotak pembatas merah berdasarkan bounding box dari geocoding
+      // parameter: south, north, west, east
+      window.setBoundingBox = function(south, north, west, east) {
+        // Feature intentionally disabled (area pembatas dihilangkan).
+        return;
       };
 
       // tampilkan semua titik kost (dipanggil dari Flutter)

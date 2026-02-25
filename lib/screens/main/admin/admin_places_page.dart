@@ -863,8 +863,7 @@ class _AdminPlacesPageState extends State<AdminPlacesPage> {
                                             color: Colors.red.shade400,
                                           ),
                                           onPressed: () async {
-                                            final confirm =
-                                                await showDialog<bool>(
+                                            await showDialog<bool>(
                                               context: context,
                                               builder: (ctx) {
                                                 return AlertDialog(

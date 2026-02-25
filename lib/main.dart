@@ -64,7 +64,6 @@ void main() async {
           if (value.accesstoken != null &&
               value.email != null &&
               value.id_auth != null &&
-              value.hasilnya != null &&
               value.expiresIn != null) {
             previous?.isi(
               value.accesstoken!,

@@ -28,9 +28,9 @@ class KriteriaItem {
 class CriteriaManagement extends StatefulWidget {
   static const arah = "/criteria-admin";
 
-  CriteriaManagement({super.key});
+  const CriteriaManagement({super.key, this.index = 0});
 
-  int index = 0;
+  final int index;
 
   @override
   State<CriteriaManagement> createState() => _CriteriaManagementState();

@@ -48,6 +48,10 @@ Komponen utama yang terlibat:
    - Field **Koordinat** otomatis terisi format `lat, lng`.
    - Marker peta berpindah ke lokasi tersebut.
 
+Tambahan (reverse geocoding):
+
+- Jika user **memilih titik langsung di peta** (double tap pada mode “Lokasi Tujuan”), aplikasi akan mengisi field **Alamat** otomatis berdasarkan koordinat tersebut.
+
 ### 3.2. Mekanisme Teknis
 
 - Flutter memanggil service:
@@ -80,11 +84,17 @@ Proteksi pemakaian public Nominatim:
 
 Parameter request penting:
 
-- `format=json`
+- `format=jsonv2` (lebih kaya metadata, tetap kompatibel)
 - `limit=5`
 - `countrycodes=id` (membatasi ke Indonesia)
 - `accept-language=id`
 - `addressdetails=1`
+- `dedupe=1` (mengurangi duplikasi hasil)
+
+Peningkatan akurasi (khusus alamat dengan nomor rumah/blok):
+
+- Service akan mendeteksi query yang terlihat mengandung **nomor rumah/blok** (contoh: `No 12`, `Blok B No 12`, `F2/14`).
+- Untuk query seperti itu, service akan **mengurutkan kandidat** agar hasil yang paling spesifik (punya `house_number` / tipe `house`/`building`) muncul di urutan teratas.
 
 ## 5. Integrasi di Form (Admin dan Pemilik)
 

@@ -81,9 +81,6 @@ class FasilitasModel with ChangeNotifier {
     );
   }
 
-  List<FasilitasModel> _mydata = [];
-  List<FasilitasModel> get mydata => mydata;
-
   void booltempattidur() {
     this.tempat_tidur = !this.tempat_tidur;
     notifyListeners();

@@ -72,7 +72,12 @@ class _RegisterPageState extends State<RegisterPage> {
         child: SingleChildScrollView(
           child: Container(
             width: lebarLayar,
-            padding: EdgeInsets.only(top: 200, left: 30, right: 30, bottom: 60),
+            padding: EdgeInsets.only(
+              top: 200,
+              left: paddingHorizontal,
+              right: paddingHorizontal,
+              bottom: 60,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,

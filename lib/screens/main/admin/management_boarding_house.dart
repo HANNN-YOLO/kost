@@ -317,8 +317,6 @@ class _ManagementBoardingHouseState extends State<ManagementBoardingHouse>
                                   },
                                   //
                                   fungsitap: () {
-                                    final test = penghubung.kost[index];
-
                                     // if (cek == null) {
                                     //   ScaffoldMessenger.of(context).showSnackBar(
                                     //     const SnackBar(

@@ -79,10 +79,10 @@ class _FormAddHouseState extends State<FormHouse> {
       ValueKey('admin_webview_${DateTime.now().microsecondsSinceEpoch}');
 
   // Opsi lokasi untuk titik koordinat (mirip halaman rekomendasi penyewa)
-  String _selectedLocationOption = 'Lokasi Tujuan';
+  String _selectedLocationOption = 'Tujuan';
 
   static const String _optLokasiSekarang = 'Lokasi Sekarang';
-  static const String _optLokasiTujuan = 'Lokasi Tujuan';
+  static const String _optLokasiTujuan = 'Tujuan';
   static const String _optManualKoordinat = 'Masukkan Titik Koordinat';
 
   // -------- WebView (Leaflet) ----------
@@ -94,6 +94,12 @@ class _FormAddHouseState extends State<FormHouse> {
   int _geocodeRequestSerial = 0;
   double? _pendingMarkerLat;
   double? _pendingMarkerLng;
+
+  // -------- Reverse Geocoding (Koordinat -> Alamat) ----------
+  int _reverseGeocodeRequestSerial = 0;
+  String? _lastReverseGeocodedAddress;
+  double? _lastReverseGeocodedLat;
+  double? _lastReverseGeocodedLng;
 
   // -------- Autocomplete Alamat ----------
   List<NominatimPlace> _alamatSuggestions = [];
@@ -263,13 +269,16 @@ class _FormAddHouseState extends State<FormHouse> {
               if (!mounted) return;
 
               // Saat user double tap di peta pada mode Tujuan,
-              // isikan titik koordinat dan tampilkan marker biru.
+              // isikan titik koordinat dan tampilkan marker.
               setState(() {
                 _selectedLocationOption = _optLokasiTujuan;
                 _koordinatController.text = '$lat, $lng';
               });
 
               await _updateMapLocation(lat, lng);
+
+              // Isi alamat berdasarkan titik yang dipilih di peta.
+              unawaited(_reverseGeocodeLatLngToAlamat(lat, lng));
             }
           } catch (_) {
             // Abaikan pesan yang tidak valid
@@ -305,6 +314,37 @@ class _FormAddHouseState extends State<FormHouse> {
       // onPageFinished nanti akan set _mapLoaded = true
     } catch (e) {
       if (mounted) setState(() => _mapLoaded = false);
+    }
+  }
+
+  Future<void> _reverseGeocodeLatLngToAlamat(double lat, double lng) async {
+    final requestId = ++_reverseGeocodeRequestSerial;
+
+    try {
+      final address = await NominatimGeocodingService.instance.reverseGeocode(
+        lat,
+        lng,
+        acceptLanguage: 'id',
+        userAgent: 'kost-saw/1.0 (flutter; reverse-geocoding)',
+        zoom: 18,
+      );
+
+      if (!mounted || requestId != _reverseGeocodeRequestSerial) return;
+      final resolved = address?.trim();
+      if (resolved == null || resolved.isEmpty) return;
+
+      setState(() {
+        _lastReverseGeocodedAddress = resolved;
+        _lastReverseGeocodedLat = lat;
+        _lastReverseGeocodedLng = lng;
+        _alamat.text = resolved;
+        _alamat.selection = TextSelection.fromPosition(
+          TextPosition(offset: _alamat.text.length),
+        );
+        _alamatSuggestions = [];
+      });
+    } catch (_) {
+      // Abaikan jika reverse gagal (user masih bisa isi manual)
     }
   }
 
@@ -396,7 +436,8 @@ class _FormAddHouseState extends State<FormHouse> {
     if (mounted) setState(() => _isGeocodingAddress = true);
 
     try {
-      final results = await NominatimGeocodingService.instance.searchAddress(
+      final results =
+          await NominatimGeocodingService.instance.searchAddressSmart(
         query,
         limit: 5,
         countryCodes: 'id',
@@ -423,7 +464,7 @@ class _FormAddHouseState extends State<FormHouse> {
       if (!mounted || requestId != _geocodeRequestSerial) return;
       if (selected == null) return;
 
-      await _applyLatLngToFormAndMap(selected.lat, selected.lng);
+      await _applyPlaceToFormAndMap(selected);
     } catch (e) {
       if (!mounted || requestId != _geocodeRequestSerial) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -451,13 +492,17 @@ class _FormAddHouseState extends State<FormHouse> {
             separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final place = results[index];
+              final postcode = place.address?['postcode'] ??
+                  RegExp(r'\b\d{5}\b').firstMatch(place.displayName)?.group(0);
               return ListTile(
                 title: Text(
                   place.displayName,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                subtitle: Text('${place.lat}, ${place.lng}'),
+                subtitle: Text(
+                  '${place.lat}, ${place.lng}${postcode != null ? ' • $postcode' : ''}',
+                ),
                 onTap: () => Navigator.of(context).pop(place),
               );
             },
@@ -467,12 +512,22 @@ class _FormAddHouseState extends State<FormHouse> {
     );
   }
 
-  Future<void> _applyLatLngToFormAndMap(double lat, double lng) async {
+  Future<void> _applyPlaceToFormAndMap(NominatimPlace place) async {
     if (!mounted) return;
 
+    final lat = place.lat;
+    final lng = place.lng;
+
     setState(() {
-      _selectedLocationOption = _optManualKoordinat;
       _koordinatController.text = '$lat, $lng';
+      _alamat.text = place.displayName;
+      _alamat.selection = TextSelection.fromPosition(
+        TextPosition(offset: _alamat.text.length),
+      );
+      _alamatSuggestions = [];
+      if (_selectedLocationOption != _optLokasiTujuan) {
+        _selectedLocationOption = _optLokasiTujuan;
+      }
     });
 
     if (!_mapLoaded) {
@@ -498,25 +553,85 @@ class _FormAddHouseState extends State<FormHouse> {
       return;
     }
 
-    // Debounce 600ms agar tidak spam request
+    // Debounce 600ms agar tidak spam request ke Nominatim.
+    // Pakai autocomplete fleksibel + ranking keyword (lebih mirip pencarian produk).
     _alamatDebounceTimer = Timer(const Duration(milliseconds: 600), () async {
       if (!mounted) return;
       setState(() => _isLoadingAlamatSuggestions = true);
 
       try {
-        final results = await NominatimGeocodingService.instance.searchAddress(
+        final results =
+            await NominatimGeocodingService.instance.searchAddressAutocomplete(
           trimmed,
-          limit: 5,
+          limit: 7,
           countryCodes: 'id',
           acceptLanguage: 'id',
           userAgent: 'kost-saw/1.0 (flutter; autocomplete)',
         );
 
+        // Jika user mencari alamat yang barusan didapat dari klik peta (reverse-geocode),
+        // sisipkan sebagai sugesti teratas agar "alamat yang sama" pasti muncul.
+        final lastAddr = _lastReverseGeocodedAddress;
+        final lastLat = _lastReverseGeocodedLat;
+        final lastLng = _lastReverseGeocodedLng;
+
+        List<NominatimPlace> finalResults = results;
+        if (lastAddr != null && lastLat != null && lastLng != null) {
+          final qNorm =
+              NominatimGeocodingService.cleanForSearch(trimmed).toLowerCase();
+          final lNorm =
+              NominatimGeocodingService.cleanForSearch(lastAddr).toLowerCase();
+
+          final relevant = qNorm.length >= 3 &&
+              (lNorm.contains(qNorm) || qNorm.contains(lNorm));
+
+          if (relevant) {
+            final postcode =
+                RegExp(r'\b\d{5}\b').firstMatch(lastAddr)?.group(0);
+            final injected = NominatimPlace(
+              lat: lastLat,
+              lng: lastLng,
+              displayName: lastAddr,
+              address: postcode != null
+                  ? <String, String>{'postcode': postcode}
+                  : null,
+            );
+
+            final alreadyExists = results.any(
+              (p) =>
+                  (p.lat - lastLat).abs() < 1e-5 &&
+                  (p.lng - lastLng).abs() < 1e-5,
+            );
+
+            if (!alreadyExists) {
+              finalResults = [injected, ...results];
+            }
+          }
+        }
+
         if (!mounted) return;
         setState(() {
-          _alamatSuggestions = results;
+          _alamatSuggestions = finalResults;
           _isLoadingAlamatSuggestions = false;
         });
+
+        // Auto-update peta dari hasil teratas saat user mengetik alamat.
+        // Ini membuat: alamat diketik -> lokasi langsung tampil di peta.
+        final current = _alamat.text.trim();
+        if (_alamatFocusNode.hasFocus && current == trimmed) {
+          if (finalResults.isNotEmpty) {
+            final first = finalResults.first;
+            if (mounted && _selectedLocationOption != _optLokasiTujuan) {
+              setState(() => _selectedLocationOption = _optLokasiTujuan);
+              await _syncMapModeWithLocationOption();
+            }
+            final coordText = '${first.lat}, ${first.lng}';
+            if (_koordinatController.text.trim() != coordText) {
+              _koordinatController.text = coordText;
+            }
+            _parseAndUpdateMap(coordText);
+          }
+        }
       } catch (_) {
         if (!mounted) return;
         setState(() {
@@ -613,6 +728,10 @@ class _FormAddHouseState extends State<FormHouse> {
                     ),
                     itemBuilder: (context, index) {
                       final place = _alamatSuggestions[index];
+                      final postcode = place.address?['postcode'] ??
+                          RegExp(r'\b\d{5}\b')
+                              .firstMatch(place.displayName)
+                              ?.group(0);
                       return ListTile(
                         dense: true,
                         title: Text(
@@ -621,6 +740,14 @@ class _FormAddHouseState extends State<FormHouse> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: lebar * 0.032),
                         ),
+                        subtitle: postcode == null
+                            ? null
+                            : Text(
+                                'Kode pos: $postcode',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: lebar * 0.028),
+                              ),
                         trailing: Icon(
                           Icons.north_west,
                           size: 16,
@@ -632,7 +759,7 @@ class _FormAddHouseState extends State<FormHouse> {
                             _alamat.text = place.displayName;
                             _alamatSuggestions = [];
                           });
-                          _applyLatLngToFormAndMap(place.lat, place.lng);
+                          _applyPlaceToFormAndMap(place);
                           // Hilangkan focus
                           _alamatFocusNode.unfocus();
                         },
@@ -696,7 +823,13 @@ class _FormAddHouseState extends State<FormHouse> {
       }
 
       final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        desiredAccuracy: LocationAccuracy.medium,
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => Geolocator.getLastKnownPosition().then((p) {
+          if (p != null) return p;
+          throw TimeoutException('Timeout mendapatkan lokasi');
+        }),
       );
 
       if (!mounted) return;
@@ -706,6 +839,9 @@ class _FormAddHouseState extends State<FormHouse> {
 
       _koordinatController.text = '$lat, $lng';
       await _updateMapLocation(lat, lng);
+
+      // Reverse geocode agar alamat terisi otomatis
+      unawaited(_reverseGeocodeLatLngToAlamat(lat, lng));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -746,8 +882,8 @@ class _FormAddHouseState extends State<FormHouse> {
         _harga.text = ThousandsSeparatorInputFormatter.formatDigits(
           (pakai.harga_kost ?? 0).toString(),
         );
-        _panjang.text = pakai.panjang.toString() ?? "00";
-        _lebar.text = pakai.lebar.toString() ?? "00";
+        _panjang.text = pakai.panjang.toString();
+        _lebar.text = pakai.lebar.toString();
         _koordinatController.text =
             "${pakai.garis_lintang}, ${pakai.garis_bujur}";
 
@@ -887,7 +1023,7 @@ class _FormAddHouseState extends State<FormHouse> {
       'panjang': (panjang ?? 0).toStringAsFixed(3),
       'lebar': (lebar ?? 0).toStringAsFixed(3),
       'koordinat': coordKey,
-      'pemilik': _normalizedTextKey(penghubung.namanya ?? 'Pilih'),
+      'pemilik': _normalizedTextKey(penghubung.namanya),
       'jenisKost': _normalizedTextKey(penghubung.jeniskosts),
       'penghuni': _normalizedTextKey(penghubung.penghunis),
       'keamanan': _normalizedTextKey(penghubung.jeniskeamanans),
@@ -1049,1360 +1185,1327 @@ class _FormAddHouseState extends State<FormHouse> {
       );
     }
 
-    return penghubung3 == null
-        ? Center(child: CircularProgressIndicator())
-        : Scaffold(
-            backgroundColor: warnaLatar,
-            appBar: PreferredSize(
-              preferredSize: Size.fromHeight(tinggiLayar * 0.08),
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: lebarLayar * 0.06),
-                color: warnaLatar,
-                alignment: Alignment.centerLeft,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        penghubung.inputan.resetcheckbox();
-                        penghubung.resetpilihan();
-                        Navigator.pop(context);
-                      },
-                      child: const Icon(Icons.arrow_back, color: Colors.black),
-                    ),
-                    terima != null
-                        ? Text(
-                            'Form Update Kost',
-                            style: TextStyle(
-                              fontSize: lebarLayar * 0.045,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                          )
-                        : Text(
-                            'Form Tambah Kost',
-                            style: TextStyle(
-                              fontSize: lebarLayar * 0.045,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                          ),
-                    const SizedBox(width: 24), // Placeholder untuk alignment
-                  ],
-                ),
+    return Scaffold(
+      backgroundColor: warnaLatar,
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(tinggiLayar * 0.08),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: lebarLayar * 0.06),
+          color: warnaLatar,
+          alignment: Alignment.centerLeft,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  penghubung.inputan.resetcheckbox();
+                  penghubung.resetpilihan();
+                  Navigator.pop(context);
+                },
+                child: const Icon(Icons.arrow_back, color: Colors.black),
               ),
-            ),
-            body: SafeArea(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: EdgeInsets.symmetric(
-                  horizontal: lebarLayar * 0.06,
-                  vertical: tinggiLayar * 0.02,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Label1barisFull(
-                      label: "Pemilik Kost",
-                      lebar: lebarLayar,
-                      jarak: 1,
+              terima != null
+                  ? Text(
+                      'Form Update Kost',
+                      style: TextStyle(
+                        fontSize: lebarLayar * 0.045,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    )
+                  : Text(
+                      'Form Tambah Kost',
+                      style: TextStyle(
+                        fontSize: lebarLayar * 0.045,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
                     ),
-                    Consumer<KostProvider>(
-                      builder: (context, value, child) {
-                        return terima != null
-                            ? CustomDropdownSearchv2(
-                                lebar: lebarLayar,
-                                tinggi: tinggiLayar,
-                                manalistnya: penghubung.naman,
-                                label: penghubung.namanya,
-                                pilihan: penghubung.namanya,
-                                fungsi: (value) {
-                                  penghubung.pilihpemilik(value);
-                                },
-                              )
-                            : CustomDropdownSearchv2(
-                                lebar: lebarLayar,
-                                tinggi: tinggiLayar,
-                                manalistnya: penghubung.naman,
-                                label: penghubung.namanya,
-                                pilihan: penghubung.namanya,
-                                fungsi: (value) {
-                                  penghubung.pilihpemilik(value);
-                                },
-                              );
-                      },
-                    ),
-                    SizedBox(height: tinggiLayar * 0.025),
+              const SizedBox(width: 24), // Placeholder untuk alignment
+            ],
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: EdgeInsets.symmetric(
+            horizontal: lebarLayar * 0.06,
+            vertical: tinggiLayar * 0.02,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Label1barisFull(
+                label: "Pemilik Kost",
+                lebar: lebarLayar,
+                jarak: 1,
+              ),
+              Consumer<KostProvider>(
+                builder: (context, value, child) {
+                  return terima != null
+                      ? CustomDropdownSearchv2(
+                          lebar: lebarLayar,
+                          tinggi: tinggiLayar,
+                          manalistnya: penghubung.naman,
+                          label: penghubung.namanya,
+                          pilihan: penghubung.namanya,
+                          fungsi: (value) {
+                            penghubung.pilihpemilik(value);
+                          },
+                        )
+                      : CustomDropdownSearchv2(
+                          lebar: lebarLayar,
+                          tinggi: tinggiLayar,
+                          manalistnya: penghubung.naman,
+                          label: penghubung.namanya,
+                          pilihan: penghubung.namanya,
+                          fungsi: (value) {
+                            penghubung.pilihpemilik(value);
+                          },
+                        );
+                },
+              ),
+              SizedBox(height: tinggiLayar * 0.025),
 
-                    Consumer<KostProvider>(
-                      builder: (context, value, child) {
-                        return terima != null
-                            ? _inputField(
-                                'Nama Kost',
-                                tinggiLayar,
-                                lebarLayar,
-                                _namakost,
-                                false,
-                              )
-                            : _inputField(
-                                'Nama Kost',
-                                tinggiLayar,
-                                lebarLayar,
-                                _namakost,
-                                false,
-                              );
-                      },
-                    ),
+              Consumer<KostProvider>(
+                builder: (context, value, child) {
+                  return terima != null
+                      ? _inputField(
+                          'Nama Kost',
+                          tinggiLayar,
+                          lebarLayar,
+                          _namakost,
+                          false,
+                        )
+                      : _inputField(
+                          'Nama Kost',
+                          tinggiLayar,
+                          lebarLayar,
+                          _namakost,
+                          false,
+                        );
+                },
+              ),
 
-                    Consumer<KostProvider>(
-                      builder: (context, value, child) {
-                        return terima != null
-                            ? _inputField(
-                                'Nomor Telepon',
-                                tinggiLayar,
-                                lebarLayar,
-                                _notlpn,
-                                false,
-                              )
-                            : _inputField(
-                                'Nomor Telepon',
-                                tinggiLayar,
-                                lebarLayar,
-                                _notlpn,
-                                false,
-                              );
-                      },
-                    ),
+              Consumer<KostProvider>(
+                builder: (context, value, child) {
+                  return terima != null
+                      ? _inputField(
+                          'Nomor Telepon',
+                          tinggiLayar,
+                          lebarLayar,
+                          _notlpn,
+                          false,
+                        )
+                      : _inputField(
+                          'Nomor Telepon',
+                          tinggiLayar,
+                          lebarLayar,
+                          _notlpn,
+                          false,
+                        );
+                },
+              ),
 
-                    Consumer<KostProvider>(
-                      builder: (context, value, child) {
-                        return terima != null
-                            ? TextfieldWithDropdown(
-                                label: "Harga_kost",
-                                lebar: lebarLayar,
-                                tinggi: tinggiLayar,
-                                isi: _harga,
-                                jenis: TextInputType.number,
-                                inputFormatters: const [
-                                  ThousandsSeparatorInputFormatter(),
-                                ],
-                                manalistnya: penghubung.per,
-                                label2: penghubung.pernama,
-                                pilihan: penghubung.pernama,
-                                fungsi: (value) {
-                                  penghubung.pilihbayar(value);
-                                },
-                              )
-                            : TextfieldWithDropdown(
-                                label: "Harga Kost",
-                                lebar: lebarLayar,
-                                tinggi: tinggiLayar,
-                                isi: _harga,
-                                jenis: TextInputType.number,
-                                inputFormatters: const [
-                                  ThousandsSeparatorInputFormatter(),
-                                ],
-                                manalistnya: penghubung.per,
-                                label2: penghubung.pernama,
-                                pilihan: penghubung.pernama,
-                                fungsi: (value) {
-                                  penghubung.pilihbayar(value);
-                                },
-                              );
-                      },
-                    ),
+              Consumer<KostProvider>(
+                builder: (context, value, child) {
+                  return terima != null
+                      ? TextfieldWithDropdown(
+                          label: "Harga_kost",
+                          lebar: lebarLayar,
+                          tinggi: tinggiLayar,
+                          isi: _harga,
+                          jenis: TextInputType.number,
+                          inputFormatters: const [
+                            ThousandsSeparatorInputFormatter(),
+                          ],
+                          manalistnya: penghubung.per,
+                          label2: penghubung.pernama,
+                          pilihan: penghubung.pernama,
+                          fungsi: (value) {
+                            penghubung.pilihbayar(value);
+                          },
+                        )
+                      : TextfieldWithDropdown(
+                          label: "Harga Kost",
+                          lebar: lebarLayar,
+                          tinggi: tinggiLayar,
+                          isi: _harga,
+                          jenis: TextInputType.number,
+                          inputFormatters: const [
+                            ThousandsSeparatorInputFormatter(),
+                          ],
+                          manalistnya: penghubung.per,
+                          label2: penghubung.pernama,
+                          pilihan: penghubung.pernama,
+                          fungsi: (value) {
+                            penghubung.pilihbayar(value);
+                          },
+                        );
+                },
+              ),
 
-                    Label1barisFull(
-                      label: "Jenis Kost",
-                      lebar: lebarLayar,
-                      jarak: 1,
-                    ),
-                    SizedBox(height: tinggiLayar * 0.005),
-                    Consumer<KostProvider>(
-                      builder: (context, value, child) {
-                        return terima != null
-                            ? CustomDropdownSearchv2(
-                                lebar: lebarLayar,
-                                tinggi: tinggiLayar,
-                                manalistnya: penghubung.jeniskost,
-                                label: "Pilihlah",
-                                pilihan: penghubung.jeniskosts,
-                                fungsi: (value) {
-                                  penghubung.pilihkost(value);
-                                  // Auto-set tipe penghuni berdasarkan jenis kost
-                                  if (value.toLowerCase().contains('umum')) {
-                                    penghubung.pilihpenghuni('Umum');
-                                  } else if (value
-                                      .toLowerCase()
-                                      .contains('khusus')) {
-                                    if (penghubung.penghunis == 'Umum') {
-                                      penghubung.pilihpenghuni('Pilih');
-                                    }
-                                  } else {
-                                    penghubung.pilihpenghuni('Pilih');
+              Label1barisFull(
+                label: "Jenis Kost",
+                lebar: lebarLayar,
+                jarak: 1,
+              ),
+              SizedBox(height: tinggiLayar * 0.005),
+              Consumer<KostProvider>(
+                builder: (context, value, child) {
+                  return terima != null
+                      ? CustomDropdownSearchv2(
+                          lebar: lebarLayar,
+                          tinggi: tinggiLayar,
+                          manalistnya: penghubung.jeniskost,
+                          label: "Pilihlah",
+                          pilihan: penghubung.jeniskosts,
+                          fungsi: (value) {
+                            penghubung.pilihkost(value);
+                            // Auto-set tipe penghuni berdasarkan jenis kost
+                            if (value.toLowerCase().contains('umum')) {
+                              penghubung.pilihpenghuni('Umum');
+                            } else if (value.toLowerCase().contains('khusus')) {
+                              if (penghubung.penghunis == 'Umum') {
+                                penghubung.pilihpenghuni('Pilih');
+                              }
+                            } else {
+                              penghubung.pilihpenghuni('Pilih');
+                            }
+                          },
+                        )
+                      : CustomDropdownSearchv2(
+                          lebar: lebarLayar,
+                          tinggi: tinggiLayar,
+                          manalistnya: penghubung.jeniskost,
+                          label: "Pilih",
+                          pilihan: penghubung.jeniskosts,
+                          fungsi: (value) {
+                            penghubung.pilihkost(value);
+                            // Auto-set tipe penghuni berdasarkan jenis kost
+                            if (value.toLowerCase().contains('umum')) {
+                              penghubung.pilihpenghuni('Umum');
+                            } else if (value.toLowerCase().contains('khusus')) {
+                              if (penghubung.penghunis == 'Umum') {
+                                penghubung.pilihpenghuni('Pilih');
+                              }
+                            } else {
+                              penghubung.pilihpenghuni('Pilih');
+                            }
+                          },
+                        );
+                },
+              ),
+              SizedBox(height: tinggiLayar * 0.025),
+
+              Label1barisFull(
+                label: "Tipe Penghuni",
+                lebar: lebarLayar,
+                jarak: 1,
+              ),
+              SizedBox(height: tinggiLayar * 0.005),
+              Consumer<KostProvider>(
+                builder: (context, value, child) {
+                  // Tentukan status enable/disable radio berdasarkan jenis kost
+                  final bool isJenisKostKhusus =
+                      penghubung.jeniskosts.toLowerCase().contains('khusus');
+                  return Container(
+                    width: lebarLayar,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: RadioListTile<String>(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              "Umum",
+                              style: TextStyle(
+                                fontSize: lebarLayar * 0.035,
+                              ),
+                            ),
+                            value: "Umum",
+                            groupValue: penghubung.penghunis == "Pilih"
+                                ? null
+                                : penghubung.penghunis,
+                            // Umum otomatis terpilih & terkunci saat jenis kost Umum
+                            onChanged: null,
+                          ),
+                        ),
+                        Expanded(
+                          child: RadioListTile<String>(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              "Khusus Putra",
+                              style: TextStyle(
+                                fontSize: lebarLayar * 0.035,
+                              ),
+                            ),
+                            value: "Khusus Putra",
+                            groupValue: penghubung.penghunis == "Pilih"
+                                ? null
+                                : penghubung.penghunis,
+                            // Aktif hanya jika jenis kost mengandung "Khusus"
+                            onChanged: isJenisKostKhusus
+                                ? (val) {
+                                    penghubung.pilihpenghuni(val!);
                                   }
-                                },
-                              )
-                            : CustomDropdownSearchv2(
-                                lebar: lebarLayar,
-                                tinggi: tinggiLayar,
-                                manalistnya: penghubung.jeniskost,
-                                label: "Pilih",
-                                pilihan: penghubung.jeniskosts,
-                                fungsi: (value) {
-                                  penghubung.pilihkost(value);
-                                  // Auto-set tipe penghuni berdasarkan jenis kost
-                                  if (value.toLowerCase().contains('umum')) {
-                                    penghubung.pilihpenghuni('Umum');
-                                  } else if (value
-                                      .toLowerCase()
-                                      .contains('khusus')) {
-                                    if (penghubung.penghunis == 'Umum') {
-                                      penghubung.pilihpenghuni('Pilih');
-                                    }
-                                  } else {
-                                    penghubung.pilihpenghuni('Pilih');
+                                : null,
+                          ),
+                        ),
+                        Expanded(
+                          child: RadioListTile<String>(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              "Khusus Putri",
+                              style: TextStyle(
+                                fontSize: lebarLayar * 0.035,
+                              ),
+                            ),
+                            value: "Khusus Putri",
+                            groupValue: penghubung.penghunis == "Pilih"
+                                ? null
+                                : penghubung.penghunis,
+                            // Aktif hanya jika jenis kost mengandung "Khusus"
+                            onChanged: isJenisKostKhusus
+                                ? (val) {
+                                    penghubung.pilihpenghuni(val!);
                                   }
-                                },
-                              );
-                      },
+                                : null,
+                          ),
+                        ),
+                      ],
                     ),
-                    SizedBox(height: tinggiLayar * 0.025),
+                  );
+                },
+              ),
+              SizedBox(height: tinggiLayar * 0.025),
 
-                    Label1barisFull(
-                      label: "Tipe Penghuni",
-                      lebar: lebarLayar,
-                      jarak: 1,
-                    ),
-                    SizedBox(height: tinggiLayar * 0.005),
-                    Consumer<KostProvider>(
-                      builder: (context, value, child) {
-                        // Tentukan status enable/disable radio berdasarkan jenis kost
-                        final bool isJenisKostKhusus = penghubung.jeniskosts
-                            .toLowerCase()
-                            .contains('khusus');
-                        return Container(
+              Label1barisFull(
+                label: "Keamanan",
+                lebar: lebarLayar,
+                jarak: 1,
+              ),
+              SizedBox(height: tinggiLayar * 0.005),
+              Consumer<KostProvider>(
+                builder: (context, value, child) {
+                  return terima != null
+                      ? CustomDropdownSearchv2(
+                          lebar: lebarLayar,
+                          tinggi: tinggiLayar,
+                          manalistnya: penghubung.jeniskeamananan,
+                          label: penghubung.jeniskeamanans,
+                          pilihan: penghubung.jeniskeamanans,
+                          fungsi: (value) {
+                            penghubung.pilihkeamanan(value);
+                          },
+                        )
+                      : CustomDropdownSearchv2(
+                          lebar: lebarLayar,
+                          tinggi: tinggiLayar,
+                          manalistnya: penghubung.jeniskeamananan,
+                          label: penghubung.jeniskeamanans,
+                          pilihan: penghubung.jeniskeamanans,
+                          fungsi: (value) {
+                            penghubung.pilihkeamanan(value);
+                          },
+                        );
+                },
+              ),
+              SizedBox(height: tinggiLayar * 0.025),
+
+              Label1barisFull(
+                label: "Luas Kamar",
+                lebar: lebarLayar,
+                jarak: 1,
+              ),
+              Consumer<KostProvider>(
+                builder: (context, value, child) {
+                  return terima != null
+                      ? Container(
                           width: lebarLayar,
+                          height: tinggiLayar * 0.1,
                           child: Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
                             children: [
-                              Expanded(
-                                child: RadioListTile<String>(
-                                  contentPadding: EdgeInsets.zero,
-                                  title: Text(
-                                    "Umum",
-                                    style: TextStyle(
-                                      fontSize: lebarLayar * 0.035,
+                              Container(
+                                width: lebarLayar * 0.4,
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      "Panjang",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: lebarLayar * 0.035,
+                                      ),
                                     ),
-                                  ),
-                                  value: "Umum",
-                                  groupValue: penghubung.penghunis == "Pilih"
-                                      ? null
-                                      : penghubung.penghunis,
-                                  // Umum otomatis terpilih & terkunci saat jenis kost Umum
-                                  onChanged: null,
+                                    SizedBox(width: lebarLayar * 0.01),
+                                    Expanded(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          color: Colors.white,
+                                          border: Border.all(
+                                            color: Colors.grey.shade300,
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: TextField(
+                                          controller: _panjang,
+                                          keyboardType:
+                                              TextInputType.numberWithOptions(
+                                                  decimal: true),
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter.allow(
+                                              RegExp(r'^\d+\.?\d{0,2}'),
+                                            ),
+                                          ],
+                                          decoration: InputDecoration(
+                                            hintText: "00",
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                              horizontal: lebarLayar * 0.04,
+                                              vertical: tinggiLayar * 0.018,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              Expanded(
-                                child: RadioListTile<String>(
-                                  contentPadding: EdgeInsets.zero,
-                                  title: Text(
-                                    "Khusus Putra",
-                                    style: TextStyle(
-                                      fontSize: lebarLayar * 0.035,
+                              SizedBox(width: lebarLayar * 0.07),
+                              Container(
+                                // color: Colors.cyan,
+                                width: lebarLayar * 0.4,
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      "Lebar",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: lebarLayar * 0.035,
+                                      ),
                                     ),
-                                  ),
-                                  value: "Khusus Putra",
-                                  groupValue: penghubung.penghunis == "Pilih"
-                                      ? null
-                                      : penghubung.penghunis,
-                                  // Aktif hanya jika jenis kost mengandung "Khusus"
-                                  onChanged: isJenisKostKhusus
-                                      ? (val) {
-                                          penghubung.pilihpenghuni(val!);
-                                        }
-                                      : null,
+                                    SizedBox(width: lebarLayar * 0.01),
+                                    Expanded(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          border: Border.all(
+                                            color: Colors.grey.shade300,
+                                            width: 1,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: TextField(
+                                          controller: _lebar,
+                                          keyboardType:
+                                              TextInputType.numberWithOptions(
+                                                  decimal: true),
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter.allow(
+                                              RegExp(r'^\d+\.?\d{0,2}'),
+                                            ),
+                                          ],
+                                          decoration: InputDecoration(
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                              horizontal: lebarLayar * 0.04,
+                                              vertical: tinggiLayar * 0.018,
+                                            ),
+                                            hintText: "00",
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              Expanded(
-                                child: RadioListTile<String>(
-                                  contentPadding: EdgeInsets.zero,
-                                  title: Text(
-                                    "Khusus Putri",
-                                    style: TextStyle(
-                                      fontSize: lebarLayar * 0.035,
+                            ],
+                          ),
+                        )
+                      : Container(
+                          width: lebarLayar,
+                          height: tinggiLayar * 0.1,
+                          child: Row(
+                            children: [
+                              Container(
+                                width: lebarLayar * 0.4,
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      "Panjang",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: lebarLayar * 0.035,
+                                      ),
                                     ),
-                                  ),
-                                  value: "Khusus Putri",
-                                  groupValue: penghubung.penghunis == "Pilih"
-                                      ? null
-                                      : penghubung.penghunis,
-                                  // Aktif hanya jika jenis kost mengandung "Khusus"
-                                  onChanged: isJenisKostKhusus
-                                      ? (val) {
-                                          penghubung.pilihpenghuni(val!);
-                                        }
-                                      : null,
+                                    SizedBox(width: lebarLayar * 0.01),
+                                    Expanded(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          color: Colors.white,
+                                          border: Border.all(
+                                            color: Colors.grey.shade300,
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: TextField(
+                                          controller: _panjang,
+                                          keyboardType:
+                                              TextInputType.numberWithOptions(
+                                                  decimal: true),
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter.allow(
+                                              RegExp(r'^\d+\.?\d{0,2}'),
+                                            ),
+                                          ],
+                                          decoration: InputDecoration(
+                                            hintText: "00",
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                              horizontal: lebarLayar * 0.04,
+                                              vertical: tinggiLayar * 0.018,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(width: lebarLayar * 0.07),
+                              Container(
+                                // color: Colors.cyan,
+                                width: lebarLayar * 0.4,
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      "Lebar",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: lebarLayar * 0.035,
+                                      ),
+                                    ),
+                                    SizedBox(width: lebarLayar * 0.01),
+                                    Expanded(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          border: Border.all(
+                                            color: Colors.grey.shade300,
+                                            width: 1,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: TextField(
+                                          controller: _lebar,
+                                          keyboardType:
+                                              TextInputType.numberWithOptions(
+                                                  decimal: true),
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter.allow(
+                                              RegExp(r'^\d+\.?\d{0,2}'),
+                                            ),
+                                          ],
+                                          decoration: InputDecoration(
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                              horizontal: lebarLayar * 0.04,
+                                              vertical: tinggiLayar * 0.018,
+                                            ),
+                                            hintText: "00",
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
                         );
-                      },
-                    ),
-                    SizedBox(height: tinggiLayar * 0.025),
+                },
+              ),
+              SizedBox(height: tinggiLayar * 0.025),
 
-                    Label1barisFull(
-                      label: "Keamanan",
-                      lebar: lebarLayar,
-                      jarak: 1,
-                    ),
-                    SizedBox(height: tinggiLayar * 0.005),
-                    Consumer<KostProvider>(
-                      builder: (context, value, child) {
-                        return terima != null
-                            ? CustomDropdownSearchv2(
-                                lebar: lebarLayar,
-                                tinggi: tinggiLayar,
-                                manalistnya: penghubung.jeniskeamananan,
-                                label: penghubung.jeniskeamanans,
-                                pilihan: penghubung.jeniskeamanans,
-                                fungsi: (value) {
-                                  penghubung.pilihkeamanan(value);
-                                },
-                              )
-                            : CustomDropdownSearchv2(
-                                lebar: lebarLayar,
-                                tinggi: tinggiLayar,
-                                manalistnya: penghubung.jeniskeamananan,
-                                label: penghubung.jeniskeamanans,
-                                pilihan: penghubung.jeniskeamanans,
-                                fungsi: (value) {
-                                  penghubung.pilihkeamanan(value);
-                                },
-                              );
-                      },
-                    ),
-                    SizedBox(height: tinggiLayar * 0.025),
+              Label1barisFull(
+                label: "Batas Jam Malam",
+                lebar: lebarLayar,
+                jarak: 1,
+              ),
+              SizedBox(height: tinggiLayar * 0.005),
+              Consumer<KostProvider>(
+                builder: (context, value, child) {
+                  return terima != null
+                      ? CustomDropdownSearchv2(
+                          lebar: lebarLayar,
+                          tinggi: tinggiLayar,
+                          manalistnya: penghubung.jenisbatasjammalam,
+                          label: penghubung.batasjammalams,
+                          pilihan: penghubung.batasjammalams,
+                          fungsi: (value) {
+                            penghubung.pilihbatasjammalam(value);
+                          },
+                        )
+                      : CustomDropdownSearchv2(
+                          lebar: lebarLayar,
+                          tinggi: tinggiLayar,
+                          manalistnya: penghubung.jenisbatasjammalam,
+                          label: penghubung.batasjammalams,
+                          pilihan: penghubung.batasjammalams,
+                          fungsi: (value) {
+                            penghubung.pilihbatasjammalam(value);
+                          },
+                        );
+                },
+              ),
+              SizedBox(height: tinggiLayar * 0.025),
 
-                    Label1barisFull(
-                      label: "Luas Kamar",
-                      lebar: lebarLayar,
-                      jarak: 1,
-                    ),
-                    Consumer<KostProvider>(
-                      builder: (context, value, child) {
-                        return terima != null
-                            ? Container(
-                                width: lebarLayar,
-                                height: tinggiLayar * 0.1,
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: lebarLayar * 0.4,
-                                      child: Row(
-                                        children: [
-                                          Text(
-                                            "Panjang",
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w500,
-                                              fontSize: lebarLayar * 0.035,
-                                            ),
-                                          ),
-                                          SizedBox(width: lebarLayar * 0.01),
-                                          Expanded(
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                  8,
-                                                ),
-                                                color: Colors.white,
-                                                border: Border.all(
-                                                  color: Colors.grey.shade300,
-                                                  width: 1,
-                                                ),
-                                              ),
-                                              child: TextField(
-                                                controller: _panjang,
-                                                keyboardType: TextInputType
-                                                    .numberWithOptions(
-                                                        decimal: true),
-                                                inputFormatters: [
-                                                  FilteringTextInputFormatter
-                                                      .allow(
-                                                    RegExp(r'^\d+\.?\d{0,2}'),
-                                                  ),
-                                                ],
-                                                decoration: InputDecoration(
-                                                  hintText: "00",
-                                                  contentPadding:
-                                                      EdgeInsets.symmetric(
-                                                    horizontal:
-                                                        lebarLayar * 0.04,
-                                                    vertical:
-                                                        tinggiLayar * 0.018,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    SizedBox(width: lebarLayar * 0.07),
-                                    Container(
-                                      // color: Colors.cyan,
-                                      width: lebarLayar * 0.4,
-                                      child: Row(
-                                        children: [
-                                          Text(
-                                            "Lebar",
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w500,
-                                              fontSize: lebarLayar * 0.035,
-                                            ),
-                                          ),
-                                          SizedBox(width: lebarLayar * 0.01),
-                                          Expanded(
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                color: Colors.white,
-                                                border: Border.all(
-                                                  color: Colors.grey.shade300,
-                                                  width: 1,
-                                                ),
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                  8,
-                                                ),
-                                              ),
-                                              child: TextField(
-                                                controller: _lebar,
-                                                keyboardType: TextInputType
-                                                    .numberWithOptions(
-                                                        decimal: true),
-                                                inputFormatters: [
-                                                  FilteringTextInputFormatter
-                                                      .allow(
-                                                    RegExp(r'^\d+\.?\d{0,2}'),
-                                                  ),
-                                                ],
-                                                decoration: InputDecoration(
-                                                  contentPadding:
-                                                      EdgeInsets.symmetric(
-                                                    horizontal:
-                                                        lebarLayar * 0.04,
-                                                    vertical:
-                                                        tinggiLayar * 0.018,
-                                                  ),
-                                                  hintText: "00",
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : Container(
-                                width: lebarLayar,
-                                height: tinggiLayar * 0.1,
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: lebarLayar * 0.4,
-                                      child: Row(
-                                        children: [
-                                          Text(
-                                            "Panjang",
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w500,
-                                              fontSize: lebarLayar * 0.035,
-                                            ),
-                                          ),
-                                          SizedBox(width: lebarLayar * 0.01),
-                                          Expanded(
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                  8,
-                                                ),
-                                                color: Colors.white,
-                                                border: Border.all(
-                                                  color: Colors.grey.shade300,
-                                                  width: 1,
-                                                ),
-                                              ),
-                                              child: TextField(
-                                                controller: _panjang,
-                                                keyboardType: TextInputType
-                                                    .numberWithOptions(
-                                                        decimal: true),
-                                                inputFormatters: [
-                                                  FilteringTextInputFormatter
-                                                      .allow(
-                                                    RegExp(r'^\d+\.?\d{0,2}'),
-                                                  ),
-                                                ],
-                                                decoration: InputDecoration(
-                                                  hintText: "00",
-                                                  contentPadding:
-                                                      EdgeInsets.symmetric(
-                                                    horizontal:
-                                                        lebarLayar * 0.04,
-                                                    vertical:
-                                                        tinggiLayar * 0.018,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    SizedBox(width: lebarLayar * 0.07),
-                                    Container(
-                                      // color: Colors.cyan,
-                                      width: lebarLayar * 0.4,
-                                      child: Row(
-                                        children: [
-                                          Text(
-                                            "Lebar",
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w500,
-                                              fontSize: lebarLayar * 0.035,
-                                            ),
-                                          ),
-                                          SizedBox(width: lebarLayar * 0.01),
-                                          Expanded(
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                color: Colors.white,
-                                                border: Border.all(
-                                                  color: Colors.grey.shade300,
-                                                  width: 1,
-                                                ),
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                  8,
-                                                ),
-                                              ),
-                                              child: TextField(
-                                                controller: _lebar,
-                                                keyboardType: TextInputType
-                                                    .numberWithOptions(
-                                                        decimal: true),
-                                                inputFormatters: [
-                                                  FilteringTextInputFormatter
-                                                      .allow(
-                                                    RegExp(r'^\d+\.?\d{0,2}'),
-                                                  ),
-                                                ],
-                                                decoration: InputDecoration(
-                                                  contentPadding:
-                                                      EdgeInsets.symmetric(
-                                                    horizontal:
-                                                        lebarLayar * 0.04,
-                                                    vertical:
-                                                        tinggiLayar * 0.018,
-                                                  ),
-                                                  hintText: "00",
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                      },
-                    ),
-                    SizedBox(height: tinggiLayar * 0.025),
+              Label1barisFull(
+                label: "Jenis Pembayaran Air",
+                lebar: lebarLayar,
+                jarak: 1,
+              ),
+              SizedBox(height: tinggiLayar * 0.005),
+              Consumer<KostProvider>(
+                builder: (context, value, child) {
+                  return terima != null
+                      ? CustomDropdownSearchv2(
+                          lebar: lebarLayar,
+                          tinggi: tinggiLayar,
+                          manalistnya: penghubung.jenispembayaranair,
+                          label: penghubung.jenispembayaranairs,
+                          pilihan: penghubung.jenispembayaranairs,
+                          fungsi: (value) {
+                            penghubung.pilihjenispembayaranair(value);
+                          },
+                        )
+                      : CustomDropdownSearchv2(
+                          lebar: lebarLayar,
+                          tinggi: tinggiLayar,
+                          manalistnya: penghubung.jenispembayaranair,
+                          label: penghubung.jenispembayaranairs,
+                          pilihan: penghubung.jenispembayaranairs,
+                          fungsi: (value) {
+                            penghubung.pilihjenispembayaranair(value);
+                          },
+                        );
+                },
+              ),
+              SizedBox(height: tinggiLayar * 0.025),
 
-                    Label1barisFull(
-                      label: "Batas Jam Malam",
-                      lebar: lebarLayar,
-                      jarak: 1,
-                    ),
-                    SizedBox(height: tinggiLayar * 0.005),
-                    Consumer<KostProvider>(
-                      builder: (context, value, child) {
-                        return terima != null
-                            ? CustomDropdownSearchv2(
-                                lebar: lebarLayar,
-                                tinggi: tinggiLayar,
-                                manalistnya: penghubung.jenisbatasjammalam,
-                                label: penghubung.batasjammalams,
-                                pilihan: penghubung.batasjammalams,
-                                fungsi: (value) {
-                                  penghubung.pilihbatasjammalam(value);
-                                },
-                              )
-                            : CustomDropdownSearchv2(
-                                lebar: lebarLayar,
-                                tinggi: tinggiLayar,
-                                manalistnya: penghubung.jenisbatasjammalam,
-                                label: penghubung.batasjammalams,
-                                pilihan: penghubung.batasjammalams,
-                                fungsi: (value) {
-                                  penghubung.pilihbatasjammalam(value);
-                                },
-                              );
-                      },
-                    ),
-                    SizedBox(height: tinggiLayar * 0.025),
+              Label1barisFull(
+                label: "Jenis Listrik",
+                lebar: lebarLayar,
+                jarak: 1,
+              ),
+              SizedBox(height: tinggiLayar * 0.005),
+              Consumer<KostProvider>(
+                builder: (context, value, child) {
+                  return terima != null
+                      ? CustomDropdownSearchv2(
+                          lebar: lebarLayar,
+                          tinggi: tinggiLayar,
+                          manalistnya: penghubung.jenislistrik,
+                          label: penghubung.jenislistriks,
+                          pilihan: penghubung.jenislistriks,
+                          fungsi: (value) {
+                            penghubung.pilihjenislistrik(value);
+                          },
+                        )
+                      : CustomDropdownSearchv2(
+                          lebar: lebarLayar,
+                          tinggi: tinggiLayar,
+                          manalistnya: penghubung.jenislistrik,
+                          label: penghubung.jenislistriks,
+                          pilihan: penghubung.jenislistriks,
+                          fungsi: (value) {
+                            penghubung.pilihjenislistrik(value);
+                          },
+                        );
+                },
+              ),
+              SizedBox(height: tinggiLayar * 0.025),
 
-                    Label1barisFull(
-                      label: "Jenis Pembayaran Air",
-                      lebar: lebarLayar,
-                      jarak: 1,
-                    ),
-                    SizedBox(height: tinggiLayar * 0.005),
-                    Consumer<KostProvider>(
-                      builder: (context, value, child) {
-                        return terima != null
-                            ? CustomDropdownSearchv2(
-                                lebar: lebarLayar,
-                                tinggi: tinggiLayar,
-                                manalistnya: penghubung.jenispembayaranair,
-                                label: penghubung.jenispembayaranairs,
-                                pilihan: penghubung.jenispembayaranairs,
-                                fungsi: (value) {
-                                  penghubung.pilihjenispembayaranair(value);
-                                },
-                              )
-                            : CustomDropdownSearchv2(
-                                lebar: lebarLayar,
-                                tinggi: tinggiLayar,
-                                manalistnya: penghubung.jenispembayaranair,
-                                label: penghubung.jenispembayaranairs,
-                                pilihan: penghubung.jenispembayaranairs,
-                                fungsi: (value) {
-                                  penghubung.pilihjenispembayaranair(value);
-                                },
-                              );
-                      },
-                    ),
-                    SizedBox(height: tinggiLayar * 0.025),
+              _buildAlamatAutocompleteField(
+                tinggiLayar,
+                lebarLayar,
+              ),
+              SizedBox(height: tinggiLayar * 0.025),
+              Consumer<KostProvider>(
+                builder: (context, value, child) {
+                  return terima != null
+                      ? _inputFieldKoordinat(tinggiLayar, lebarLayar)
+                      : _inputFieldKoordinat(tinggiLayar, lebarLayar);
+                },
+              ),
 
-                    Label1barisFull(
-                      label: "Jenis Listrik",
-                      lebar: lebarLayar,
-                      jarak: 1,
-                    ),
-                    SizedBox(height: tinggiLayar * 0.005),
-                    Consumer<KostProvider>(
-                      builder: (context, value, child) {
-                        return terima != null
-                            ? CustomDropdownSearchv2(
-                                lebar: lebarLayar,
-                                tinggi: tinggiLayar,
-                                manalistnya: penghubung.jenislistrik,
-                                label: penghubung.jenislistriks,
-                                pilihan: penghubung.jenislistriks,
-                                fungsi: (value) {
-                                  penghubung.pilihjenislistrik(value);
-                                },
-                              )
-                            : CustomDropdownSearchv2(
-                                lebar: lebarLayar,
-                                tinggi: tinggiLayar,
-                                manalistnya: penghubung.jenislistrik,
-                                label: penghubung.jenislistriks,
-                                pilihan: penghubung.jenislistriks,
-                                fungsi: (value) {
-                                  penghubung.pilihjenislistrik(value);
-                                },
-                              );
-                      },
-                    ),
-                    SizedBox(height: tinggiLayar * 0.025),
+              // 🖼️ Input Gambar Kost
+              RepaintBoundary(
+                child: Text(
+                  'Foto Kost',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: lebarLayar * 0.04,
+                  ),
+                ),
+              ),
+              SizedBox(height: tinggiLayar * 0.015),
 
-                    // Field Alamat dengan Autocomplete sugesti
-                    _buildAlamatAutocompleteField(tinggiLayar, lebarLayar),
-                    Consumer<KostProvider>(
-                      builder: (context, value, child) {
-                        return terima != null
-                            ? _inputFieldKoordinat(tinggiLayar, lebarLayar)
-                            : _inputFieldKoordinat(tinggiLayar, lebarLayar);
-                      },
-                    ),
+              Consumer<KostProvider>(
+                builder: (context, value, child) {
+                  return terima != null
+                      ? custom_editfotov2(
+                          fungsi: () {
+                            penghubung.uploadfoto();
+                          },
+                          path: penghubung.foto?.path,
+                          pathlama: pakai!.gambar_kost ?? "",
+                          tinggi: tinggiLayar * 0.4,
+                          panjang: lebarLayar * 2,
+                        )
+                      : CustomUploadfotov2(
+                          tinggi: tinggiLayar * 0.4,
+                          radius: 10,
+                          fungsi: () {
+                            penghubung.uploadfoto();
+                          },
+                          path: penghubung.foto?.path,
+                        );
+                },
+              ),
 
-                    // 🖼️ Input Gambar Kost
-                    RepaintBoundary(
-                      child: Text(
-                        'Foto Kost',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: lebarLayar * 0.04,
+              SizedBox(height: tinggiLayar * 0.015),
+              // ChangeNotifierProvider.value(
+              //   value: penghubung.inputan,
+              //   child: Consumer<KostProvider>(
+              //     builder: (context, value, child) {
+              //       return terima != null
+              //           ? Consumer<FasilitasModel>(
+              //               builder: (context, value, child) {
+              //                 return Wrap(
+              //                   spacing: lebarLayar * 0.02,
+              //                   runSpacing: tinggiLayar * 0.015,
+              //                   children: [
+              //                     _buildCustomItem(
+              //                       "Tempat Tidur",
+              //                       Icons.bed,
+              //                       value.tempat_tidur,
+              //                       () => value.booltempattidur(),
+              //                       lebarLayar,
+              //                       tinggiLayar,
+              //                     ),
+              //                     _buildCustomItem(
+              //                       "Kamar Mandi Dalam",
+              //                       Icons.bathtub_outlined,
+              //                       value.kamar_mandi_dalam,
+              //                       () => value.boolkamarmandidalam(),
+              //                       lebarLayar,
+              //                       tinggiLayar,
+              //                     ),
+              //                     _buildCustomItem(
+              //                       "Meja",
+              //                       Icons.desk,
+              //                       value.meja,
+              //                       () => value.boolmeja(),
+              //                       lebarLayar,
+              //                       tinggiLayar,
+              //                     ),
+              //                     _buildCustomItem(
+              //                       "Tempat Parkir",
+              //                       Icons.local_parking,
+              //                       value.tempat_parkir,
+              //                       () => value.booltempatparkir(),
+              //                       lebarLayar,
+              //                       tinggiLayar,
+              //                     ),
+              //                     _buildCustomItem(
+              //                       "Lemari",
+              //                       PhosphorIconsBold.gridFour,
+              //                       value.lemari,
+              //                       () => value.boollemari(),
+              //                       lebarLayar,
+              //                       tinggiLayar,
+              //                     ),
+              //                     _buildCustomItem(
+              //                       "AC",
+              //                       Icons.ac_unit,
+              //                       value.ac,
+              //                       () => value.boolac(),
+              //                       lebarLayar,
+              //                       tinggiLayar,
+              //                     ),
+              //                     _buildCustomItem(
+              //                       "TV",
+              //                       Icons.tv,
+              //                       value.tv,
+              //                       () => value.booltv(),
+              //                       lebarLayar,
+              //                       tinggiLayar,
+              //                     ),
+              //                     _buildCustomItem(
+              //                       "Kipas Angin",
+              //                       Icons.wind_power,
+              //                       value.kipas,
+              //                       () => value.boolkipas(),
+              //                       lebarLayar,
+              //                       tinggiLayar,
+              //                     ),
+              //                     _buildCustomItem(
+              //                       "Dapur Dalam",
+              //                       Icons.kitchen,
+              //                       value.dapur_dalam,
+              //                       () => value
+              //                           .booldapurdalam(), // Perbaikan typo pemanggilan fungsi
+              //                       lebarLayar,
+              //                       tinggiLayar,
+              //                     ),
+              //                     _buildCustomItem(
+              //                       "WiFi",
+              //                       Icons.wifi,
+              //                       value.wifi,
+              //                       () => value.boolwifi(),
+              //                       lebarLayar,
+              //                       tinggiLayar,
+              //                     ),
+              //                   ],
+              //                 );
+              //               },
+              //             )
+              //           : Consumer<FasilitasModel>(
+              //               builder: (context, value, child) {
+              //                 return Wrap(
+              //                   spacing: lebarLayar * 0.02,
+              //                   runSpacing: tinggiLayar * 0.015,
+              //                   children: [
+              //                     _buildCustomItem(
+              //                       "Tempat Tidur",
+              //                       Icons.bed,
+              //                       value.tempat_tidur,
+              //                       () => value.booltempattidur(),
+              //                       lebarLayar,
+              //                       tinggiLayar,
+              //                     ),
+              //                     _buildCustomItem(
+              //                       "Kamar Mandi Dalam",
+              //                       Icons.bathtub_outlined,
+              //                       value.kamar_mandi_dalam,
+              //                       () => value.boolkamarmandidalam(),
+              //                       lebarLayar,
+              //                       tinggiLayar,
+              //                     ),
+              //                     _buildCustomItem(
+              //                       "Meja",
+              //                       Icons.desk,
+              //                       value.meja,
+              //                       () => value.boolmeja(),
+              //                       lebarLayar,
+              //                       tinggiLayar,
+              //                     ),
+              //                     _buildCustomItem(
+              //                       "Tempat Parkir",
+              //                       Icons.local_parking,
+              //                       value.tempat_parkir,
+              //                       () => value.booltempatparkir(),
+              //                       lebarLayar,
+              //                       tinggiLayar,
+              //                     ),
+              //                     _buildCustomItem(
+              //                       "Lemari",
+              //                       PhosphorIconsBold.gridFour,
+              //                       value.lemari,
+              //                       () => value.boollemari(),
+              //                       lebarLayar,
+              //                       tinggiLayar,
+              //                     ),
+              //                     _buildCustomItem(
+              //                       "AC",
+              //                       Icons.ac_unit,
+              //                       value.ac,
+              //                       () => value.boolac(),
+              //                       lebarLayar,
+              //                       tinggiLayar,
+              //                     ),
+              //                     _buildCustomItem(
+              //                       "TV",
+              //                       Icons.tv,
+              //                       value.tv,
+              //                       () => value.booltv(),
+              //                       lebarLayar,
+              //                       tinggiLayar,
+              //                     ),
+              //                     _buildCustomItem(
+              //                       "Kipas Angin",
+              //                       Icons.wind_power,
+              //                       value.kipas,
+              //                       () => value.boolkipas(),
+              //                       lebarLayar,
+              //                       tinggiLayar,
+              //                     ),
+              //                     _buildCustomItem(
+              //                       "Dapur Dalam",
+              //                       Icons.kitchen,
+              //                       value.dapur_dalam,
+              //                       () => value
+              //                           .booldapurdalam(), // Perbaikan typo pemanggilan fungsi
+              //                       lebarLayar,
+              //                       tinggiLayar,
+              //                     ),
+              //                     _buildCustomItem(
+              //                       "WiFi",
+              //                       Icons.wifi,
+              //                       value.wifi,
+              //                       () => value.boolwifi(),
+              //                       lebarLayar,
+              //                       tinggiLayar,
+              //                     ),
+              //                   ],
+              //                 );
+              //               },
+              //             );
+              //     },
+              //   ),
+              // ),
+              Label1barisFull(
+                label: "Fasilitas",
+                lebar: lebarLayar,
+                jarak: 1,
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                padding: EdgeInsets.all(lebarLayar * 0.03),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: _facilityInputController,
+                      focusNode: _facilityFocusNode,
+                      textCapitalization: TextCapitalization.words,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => _applyFacilityInput(),
+                      decoration: InputDecoration(
+                        hintText: _editingFacilityIndex != null
+                            ? 'Edit fasilitas (Enter untuk simpan)'
+                            : 'Tulis nama fasilitas (Enter untuk tambah)',
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                     ),
                     SizedBox(height: tinggiLayar * 0.015),
-
-                    Consumer<KostProvider>(
-                      builder: (context, value, child) {
-                        return terima != null
-                            ? custom_editfotov2(
-                                fungsi: () {
-                                  penghubung.uploadfoto();
-                                },
-                                path: penghubung.foto?.path,
-                                pathlama: pakai!.gambar_kost ?? "",
-                                tinggi: tinggiLayar * 0.4,
-                                panjang: lebarLayar * 2,
-                              )
-                            : CustomUploadfotov2(
-                                tinggi: tinggiLayar * 0.4,
-                                radius: 10,
-                                fungsi: () {
-                                  penghubung.uploadfoto();
-                                },
-                                path: penghubung.foto?.path,
-                              );
-                      },
-                    ),
-
-                    SizedBox(height: tinggiLayar * 0.015),
-                    // ChangeNotifierProvider.value(
-                    //   value: penghubung.inputan,
-                    //   child: Consumer<KostProvider>(
-                    //     builder: (context, value, child) {
-                    //       return terima != null
-                    //           ? Consumer<FasilitasModel>(
-                    //               builder: (context, value, child) {
-                    //                 return Wrap(
-                    //                   spacing: lebarLayar * 0.02,
-                    //                   runSpacing: tinggiLayar * 0.015,
-                    //                   children: [
-                    //                     _buildCustomItem(
-                    //                       "Tempat Tidur",
-                    //                       Icons.bed,
-                    //                       value.tempat_tidur,
-                    //                       () => value.booltempattidur(),
-                    //                       lebarLayar,
-                    //                       tinggiLayar,
-                    //                     ),
-                    //                     _buildCustomItem(
-                    //                       "Kamar Mandi Dalam",
-                    //                       Icons.bathtub_outlined,
-                    //                       value.kamar_mandi_dalam,
-                    //                       () => value.boolkamarmandidalam(),
-                    //                       lebarLayar,
-                    //                       tinggiLayar,
-                    //                     ),
-                    //                     _buildCustomItem(
-                    //                       "Meja",
-                    //                       Icons.desk,
-                    //                       value.meja,
-                    //                       () => value.boolmeja(),
-                    //                       lebarLayar,
-                    //                       tinggiLayar,
-                    //                     ),
-                    //                     _buildCustomItem(
-                    //                       "Tempat Parkir",
-                    //                       Icons.local_parking,
-                    //                       value.tempat_parkir,
-                    //                       () => value.booltempatparkir(),
-                    //                       lebarLayar,
-                    //                       tinggiLayar,
-                    //                     ),
-                    //                     _buildCustomItem(
-                    //                       "Lemari",
-                    //                       PhosphorIconsBold.gridFour,
-                    //                       value.lemari,
-                    //                       () => value.boollemari(),
-                    //                       lebarLayar,
-                    //                       tinggiLayar,
-                    //                     ),
-                    //                     _buildCustomItem(
-                    //                       "AC",
-                    //                       Icons.ac_unit,
-                    //                       value.ac,
-                    //                       () => value.boolac(),
-                    //                       lebarLayar,
-                    //                       tinggiLayar,
-                    //                     ),
-                    //                     _buildCustomItem(
-                    //                       "TV",
-                    //                       Icons.tv,
-                    //                       value.tv,
-                    //                       () => value.booltv(),
-                    //                       lebarLayar,
-                    //                       tinggiLayar,
-                    //                     ),
-                    //                     _buildCustomItem(
-                    //                       "Kipas Angin",
-                    //                       Icons.wind_power,
-                    //                       value.kipas,
-                    //                       () => value.boolkipas(),
-                    //                       lebarLayar,
-                    //                       tinggiLayar,
-                    //                     ),
-                    //                     _buildCustomItem(
-                    //                       "Dapur Dalam",
-                    //                       Icons.kitchen,
-                    //                       value.dapur_dalam,
-                    //                       () => value
-                    //                           .booldapurdalam(), // Perbaikan typo pemanggilan fungsi
-                    //                       lebarLayar,
-                    //                       tinggiLayar,
-                    //                     ),
-                    //                     _buildCustomItem(
-                    //                       "WiFi",
-                    //                       Icons.wifi,
-                    //                       value.wifi,
-                    //                       () => value.boolwifi(),
-                    //                       lebarLayar,
-                    //                       tinggiLayar,
-                    //                     ),
-                    //                   ],
-                    //                 );
-                    //               },
-                    //             )
-                    //           : Consumer<FasilitasModel>(
-                    //               builder: (context, value, child) {
-                    //                 return Wrap(
-                    //                   spacing: lebarLayar * 0.02,
-                    //                   runSpacing: tinggiLayar * 0.015,
-                    //                   children: [
-                    //                     _buildCustomItem(
-                    //                       "Tempat Tidur",
-                    //                       Icons.bed,
-                    //                       value.tempat_tidur,
-                    //                       () => value.booltempattidur(),
-                    //                       lebarLayar,
-                    //                       tinggiLayar,
-                    //                     ),
-                    //                     _buildCustomItem(
-                    //                       "Kamar Mandi Dalam",
-                    //                       Icons.bathtub_outlined,
-                    //                       value.kamar_mandi_dalam,
-                    //                       () => value.boolkamarmandidalam(),
-                    //                       lebarLayar,
-                    //                       tinggiLayar,
-                    //                     ),
-                    //                     _buildCustomItem(
-                    //                       "Meja",
-                    //                       Icons.desk,
-                    //                       value.meja,
-                    //                       () => value.boolmeja(),
-                    //                       lebarLayar,
-                    //                       tinggiLayar,
-                    //                     ),
-                    //                     _buildCustomItem(
-                    //                       "Tempat Parkir",
-                    //                       Icons.local_parking,
-                    //                       value.tempat_parkir,
-                    //                       () => value.booltempatparkir(),
-                    //                       lebarLayar,
-                    //                       tinggiLayar,
-                    //                     ),
-                    //                     _buildCustomItem(
-                    //                       "Lemari",
-                    //                       PhosphorIconsBold.gridFour,
-                    //                       value.lemari,
-                    //                       () => value.boollemari(),
-                    //                       lebarLayar,
-                    //                       tinggiLayar,
-                    //                     ),
-                    //                     _buildCustomItem(
-                    //                       "AC",
-                    //                       Icons.ac_unit,
-                    //                       value.ac,
-                    //                       () => value.boolac(),
-                    //                       lebarLayar,
-                    //                       tinggiLayar,
-                    //                     ),
-                    //                     _buildCustomItem(
-                    //                       "TV",
-                    //                       Icons.tv,
-                    //                       value.tv,
-                    //                       () => value.booltv(),
-                    //                       lebarLayar,
-                    //                       tinggiLayar,
-                    //                     ),
-                    //                     _buildCustomItem(
-                    //                       "Kipas Angin",
-                    //                       Icons.wind_power,
-                    //                       value.kipas,
-                    //                       () => value.boolkipas(),
-                    //                       lebarLayar,
-                    //                       tinggiLayar,
-                    //                     ),
-                    //                     _buildCustomItem(
-                    //                       "Dapur Dalam",
-                    //                       Icons.kitchen,
-                    //                       value.dapur_dalam,
-                    //                       () => value
-                    //                           .booldapurdalam(), // Perbaikan typo pemanggilan fungsi
-                    //                       lebarLayar,
-                    //                       tinggiLayar,
-                    //                     ),
-                    //                     _buildCustomItem(
-                    //                       "WiFi",
-                    //                       Icons.wifi,
-                    //                       value.wifi,
-                    //                       () => value.boolwifi(),
-                    //                       lebarLayar,
-                    //                       tinggiLayar,
-                    //                     ),
-                    //                   ],
-                    //                 );
-                    //               },
-                    //             );
-                    //     },
-                    //   ),
-                    // ),
-                    Label1barisFull(
-                      label: "Fasilitas",
-                      lebar: lebarLayar,
-                      jarak: 1,
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      padding: EdgeInsets.all(lebarLayar * 0.03),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          TextField(
-                            controller: _facilityInputController,
-                            focusNode: _facilityFocusNode,
-                            textCapitalization: TextCapitalization.words,
-                            textInputAction: TextInputAction.done,
-                            onSubmitted: (_) => _applyFacilityInput(),
-                            decoration: InputDecoration(
-                              hintText: _editingFacilityIndex != null
-                                  ? 'Edit fasilitas (Enter untuk simpan)'
-                                  : 'Tulis nama fasilitas (Enter untuk tambah)',
-                              isDense: true,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _inilist
+                          .asMap()
+                          .entries
+                          .where((e) => e.value.namaFasilitasController.text
+                              .trim()
+                              .isNotEmpty)
+                          .map((entry) {
+                        final idx = entry.key;
+                        final label =
+                            entry.value.namaFasilitasController.text.trim();
+                        return GestureDetector(
+                          onDoubleTap: () => _startEditFacility(idx),
+                          child: Chip(
+                            label: Text(label),
+                            onDeleted: () {
+                              if (!mounted) return;
+                              setState(() {
+                                _removeFacilityAt(idx);
+                              });
+                            },
+                            deleteIcon: const Icon(Icons.close, size: 18),
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: VisualDensity.compact,
                           ),
-                          SizedBox(height: tinggiLayar * 0.015),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: _inilist
-                                .asMap()
-                                .entries
-                                .where((e) => e
-                                    .value.namaFasilitasController.text
-                                    .trim()
-                                    .isNotEmpty)
-                                .map((entry) {
-                              final idx = entry.key;
-                              final label = entry
-                                  .value.namaFasilitasController.text
-                                  .trim();
-                              return GestureDetector(
-                                onDoubleTap: () => _startEditFacility(idx),
-                                child: Chip(
-                                  label: Text(label),
-                                  onDeleted: () {
-                                    if (!mounted) return;
-                                    setState(() {
-                                      _removeFacilityAt(idx);
-                                    });
-                                  },
-                                  deleteIcon: const Icon(Icons.close, size: 18),
-                                  materialTapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                  visualDensity: VisualDensity.compact,
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ],
-                      ),
+                        );
+                      }).toList(),
                     ),
-
-                    SizedBox(height: tinggiLayar * 0.05),
                   ],
                 ),
               ),
-            ),
-            //
-            bottomNavigationBar: Consumer<KostProvider>(
-              builder: (context, value, child) {
-                final bool isEdit = terima != null;
-                return AnimatedBuilder(
-                  animation: _formFieldsListenable,
-                  builder: (context, _) {
-                    final bool isReady = _isFormReadyAdmin(
-                      value,
-                      isEdit: isEdit,
+
+              SizedBox(height: tinggiLayar * 0.05),
+            ],
+          ),
+        ),
+      ),
+      //
+      bottomNavigationBar: Consumer<KostProvider>(
+        builder: (context, value, child) {
+          final bool isEdit = terima != null;
+          return AnimatedBuilder(
+            animation: _formFieldsListenable,
+            builder: (context, _) {
+              final bool isReady = _isFormReadyAdmin(
+                value,
+                isEdit: isEdit,
+              );
+              final bool hasChanges = !isEdit || _hasEditChangesAdmin(value);
+              final bool canSubmit = isReady && !_isSubmitting && hasChanges;
+
+              return terima != null
+                  ? Padding(
+                      padding: EdgeInsets.all(lebarLayar * 0.05),
+                      child: SizedBox(
+                        height: tinggiLayar * 0.065,
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                canSubmit ? warnaTombol : Colors.grey.shade400,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(50),
+                            ),
+                          ),
+                          onPressed: canSubmit
+                              ? () async {
+                                  setState(() {
+                                    _isSubmitting = true;
+                                  });
+
+                                  try {
+                                    final String? errorMessage =
+                                        _validateFormAdmin(
+                                      value,
+                                      isEdit: true,
+                                      currentKostId: pakai!.id_kost,
+                                    );
+
+                                    if (errorMessage != null) {
+                                      await _showErrorDialog(
+                                        errorMessage,
+                                      );
+                                      return;
+                                    }
+
+                                    // await penghubung.updatedata(
+                                    //   penghubung.foto,
+                                    //   pakai!.gambar_kost!,
+                                    //   pakai.id_fasilitas!,
+                                    //   penghubung.inputan.tempat_tidur,
+                                    //   penghubung.inputan.kamar_mandi_dalam,
+                                    //   penghubung.inputan.meja,
+                                    //   penghubung.inputan.tempat_parkir,
+                                    //   penghubung.inputan.lemari,
+                                    //   penghubung.inputan.ac,
+                                    //   penghubung.inputan.tv,
+                                    //   penghubung.inputan.kipas,
+                                    //   penghubung.inputan.dapur_dalam,
+                                    //   penghubung.inputan.wifi,
+                                    //   pakai.id_kost!,
+                                    //   pakai.id_auth!,
+                                    //   _namakost.text,
+                                    //   penghubung.namanya,
+                                    //   _alamat.text,
+                                    //   int.parse(_notlpn.text),
+                                    //   ThousandsSeparatorInputFormatter
+                                    //           .tryParseInt(
+                                    //         _harga.text,
+                                    //       ) ??
+                                    //       0,
+                                    //   penghubung.batasjammalams,
+                                    //   penghubung.jenislistriks,
+                                    //   penghubung.jenispembayaranairs,
+                                    //   penghubung.jeniskeamanans,
+                                    //   penghubung.jeniskosts,
+                                    //   int.parse(_panjang.text),
+                                    //   int.parse(_lebar.text),
+                                    //   _koordinatController.text,
+                                    //   penghubung.pernama,
+                                    // );
+
+                                    // Parse dimensions with error handling
+                                    num? panjangValue;
+                                    num? lebarValue;
+                                    try {
+                                      panjangValue = num.parse(
+                                          _panjang.text.replaceAll(',', '.'));
+                                      lebarValue = num.parse(
+                                          _lebar.text.replaceAll(',', '.'));
+                                    } catch (e) {
+                                      if (mounted) {
+                                        setState(() {
+                                          _isSubmitting = false;
+                                        });
+                                      }
+                                      await _showErrorDialog(
+                                        "Format angka tidak valid untuk panjang/lebar kamar.",
+                                      );
+                                      return;
+                                    }
+
+                                    await value.konversiupdatedata(
+                                      value.foto,
+                                      pakai.gambar_kost!,
+                                      pakai.id_kost!,
+                                      pakai.id_auth!,
+                                      _namakost.text,
+                                      value.namanya,
+                                      _alamat.text,
+                                      _notlpn.text.trim().isEmpty
+                                          ? null
+                                          : _notlpn.text.trim(),
+                                      ThousandsSeparatorInputFormatter
+                                              .tryParseInt(_harga.text) ??
+                                          0,
+                                      value.batasjammalams,
+                                      value.jenislistriks,
+                                      value.jenispembayaranairs,
+                                      value.jeniskeamanans,
+                                      value.jeniskosts,
+                                      value.penghunis,
+                                      panjangValue,
+                                      lebarValue,
+                                      _koordinatController.text,
+                                      value.pernama,
+                                      _inilist,
+                                    );
+                                    Navigator.of(context).pop();
+                                  } catch (e) {
+                                    await _showErrorDialog(e.toString());
+                                  } finally {
+                                    if (mounted) {
+                                      setState(() {
+                                        _isSubmitting = false;
+                                      });
+                                    }
+                                  }
+                                }
+                              : null,
+                          child: _isSubmitting
+                              ? Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation(
+                                          Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Menyimpan...',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: lebarLayar * 0.04,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Text(
+                                  'Simpan Perubahan',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: lebarLayar * 0.04,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    )
+                  : Padding(
+                      padding: EdgeInsets.all(lebarLayar * 0.05),
+                      child: SizedBox(
+                        height: tinggiLayar * 0.065,
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                canSubmit ? warnaTombol : Colors.grey.shade400,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(50),
+                            ),
+                          ),
+                          onPressed: canSubmit
+                              ? () async {
+                                  if (!mounted) return;
+                                  setState(() {
+                                    _isSubmitting = true;
+                                  });
+
+                                  try {
+                                    final String? errorMessage =
+                                        _validateFormAdmin(
+                                      value,
+                                      isEdit: false,
+                                    );
+
+                                    if (errorMessage != null) {
+                                      await _showErrorDialog(
+                                        errorMessage,
+                                      );
+                                      return;
+                                    }
+
+                                    final inilist = value.listauth;
+
+                                    var cek = inilist.firstWhere(
+                                      (element) =>
+                                          element.username == value.namanya,
+                                    );
+
+                                    // await penghubung.createdata(
+                                    //   int.parse(cek.id_auth.toString()),
+                                    //   penghubung.inputan.tempat_tidur,
+                                    //   penghubung.inputan.kamar_mandi_dalam,
+                                    //   penghubung.inputan.meja,
+                                    //   penghubung.inputan.tempat_parkir,
+                                    //   penghubung.inputan.lemari,
+                                    //   penghubung.inputan.ac,
+                                    //   penghubung.inputan.tv,
+                                    //   penghubung.inputan.kipas,
+                                    //   penghubung.inputan.dapur_dalam,
+                                    //   penghubung.inputan.wifi,
+                                    //   int.parse(_notlpn.text),
+                                    //   _namakost.text,
+                                    //   _alamat.text,
+                                    //   penghubung.namanya,
+                                    //   ThousandsSeparatorInputFormatter
+                                    //           .tryParseInt(
+                                    //         _harga.text,
+                                    //       ) ??
+                                    //       0,
+                                    //   _koordinatController.text,
+                                    //   penghubung.jeniskosts,
+                                    //   penghubung.jeniskeamanans,
+                                    //   penghubung.batasjammalams,
+                                    //   penghubung.jenispembayaranairs,
+                                    //   penghubung.jenislistriks,
+                                    //   int.parse(_panjang.text),
+                                    //   int.parse(_lebar.text),
+                                    //   penghubung.foto!,
+                                    //   penghubung.pernama,
+                                    // );
+
+                                    // Parse dimensions with error handling
+                                    num? panjangValue;
+                                    num? lebarValue;
+                                    try {
+                                      panjangValue = num.parse(
+                                          _panjang.text.replaceAll(',', '.'));
+                                      lebarValue = num.parse(
+                                          _lebar.text.replaceAll(',', '.'));
+                                    } catch (e) {
+                                      if (mounted) {
+                                        setState(() {
+                                          _isSubmitting = false;
+                                        });
+                                      }
+                                      await _showErrorDialog(
+                                        "Format angka tidak valid untuk panjang/lebar kamar.",
+                                      );
+                                      return;
+                                    }
+
+                                    await value.konversicreatedataAdmin(
+                                      int.parse(cek.id_auth.toString()),
+                                      _notlpn.text.trim().isEmpty
+                                          ? null
+                                          : _notlpn.text.trim(),
+                                      _namakost.text,
+                                      _alamat.text,
+                                      value.namanya,
+                                      ThousandsSeparatorInputFormatter
+                                              .tryParseInt(
+                                            _harga.text,
+                                          ) ??
+                                          0,
+                                      _koordinatController.text,
+                                      value.jeniskosts,
+                                      value.penghunis,
+                                      value.jeniskeamanans,
+                                      value.batasjammalams,
+                                      value.jenispembayaranairs,
+                                      value.jenislistriks,
+                                      panjangValue,
+                                      lebarValue,
+                                      value.foto!,
+                                      value.pernama,
+                                      _inilist,
+                                    );
+
+                                    setState(() {
+                                      value.inputan.resetcheckbox();
+                                      value.resetpilihan();
+                                    });
+
+                                    Navigator.of(context).pop();
+                                  } catch (e) {
+                                    await _showErrorDialog(e.toString());
+                                  } finally {
+                                    if (mounted) {
+                                      setState(() {
+                                        _isSubmitting = false;
+                                      });
+                                    }
+                                  }
+                                }
+                              : null,
+                          child: _isSubmitting
+                              ? Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation(
+                                          Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Menyimpan...',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: lebarLayar * 0.04,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Text(
+                                  'Simpan Data',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: lebarLayar * 0.04,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                        ),
+                      ),
                     );
-                    final bool hasChanges =
-                        !isEdit || _hasEditChangesAdmin(value);
-                    final bool canSubmit =
-                        isReady && !_isSubmitting && hasChanges;
-
-                    return terima != null
-                        ? Padding(
-                            padding: EdgeInsets.all(lebarLayar * 0.05),
-                            child: SizedBox(
-                              height: tinggiLayar * 0.065,
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: canSubmit
-                                      ? warnaTombol
-                                      : Colors.grey.shade400,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(50),
-                                  ),
-                                ),
-                                onPressed: canSubmit
-                                    ? () async {
-                                        setState(() {
-                                          _isSubmitting = true;
-                                        });
-
-                                        try {
-                                          final String? errorMessage =
-                                              _validateFormAdmin(
-                                            value,
-                                            isEdit: true,
-                                            currentKostId: pakai!.id_kost,
-                                          );
-
-                                          if (errorMessage != null) {
-                                            await _showErrorDialog(
-                                              errorMessage,
-                                            );
-                                            return;
-                                          }
-
-                                          // await penghubung.updatedata(
-                                          //   penghubung.foto,
-                                          //   pakai!.gambar_kost!,
-                                          //   pakai.id_fasilitas!,
-                                          //   penghubung.inputan.tempat_tidur,
-                                          //   penghubung.inputan.kamar_mandi_dalam,
-                                          //   penghubung.inputan.meja,
-                                          //   penghubung.inputan.tempat_parkir,
-                                          //   penghubung.inputan.lemari,
-                                          //   penghubung.inputan.ac,
-                                          //   penghubung.inputan.tv,
-                                          //   penghubung.inputan.kipas,
-                                          //   penghubung.inputan.dapur_dalam,
-                                          //   penghubung.inputan.wifi,
-                                          //   pakai.id_kost!,
-                                          //   pakai.id_auth!,
-                                          //   _namakost.text,
-                                          //   penghubung.namanya,
-                                          //   _alamat.text,
-                                          //   int.parse(_notlpn.text),
-                                          //   ThousandsSeparatorInputFormatter
-                                          //           .tryParseInt(
-                                          //         _harga.text,
-                                          //       ) ??
-                                          //       0,
-                                          //   penghubung.batasjammalams,
-                                          //   penghubung.jenislistriks,
-                                          //   penghubung.jenispembayaranairs,
-                                          //   penghubung.jeniskeamanans,
-                                          //   penghubung.jeniskosts,
-                                          //   int.parse(_panjang.text),
-                                          //   int.parse(_lebar.text),
-                                          //   _koordinatController.text,
-                                          //   penghubung.pernama,
-                                          // );
-
-                                          // Parse dimensions with error handling
-                                          num? panjangValue;
-                                          num? lebarValue;
-                                          try {
-                                            panjangValue = num.parse(_panjang
-                                                .text
-                                                .replaceAll(',', '.'));
-                                            lebarValue = num.parse(_lebar.text
-                                                .replaceAll(',', '.'));
-                                          } catch (e) {
-                                            if (mounted) {
-                                              setState(() {
-                                                _isSubmitting = false;
-                                              });
-                                            }
-                                            await _showErrorDialog(
-                                              "Format angka tidak valid untuk panjang/lebar kamar.",
-                                            );
-                                            return;
-                                          }
-
-                                          await value.konversiupdatedata(
-                                            value.foto,
-                                            pakai.gambar_kost!,
-                                            pakai.id_kost!,
-                                            pakai.id_auth!,
-                                            _namakost.text,
-                                            value.namanya,
-                                            _alamat.text,
-                                            _notlpn.text.trim().isEmpty
-                                                ? null
-                                                : _notlpn.text.trim(),
-                                            ThousandsSeparatorInputFormatter
-                                                    .tryParseInt(_harga.text) ??
-                                                0,
-                                            value.batasjammalams,
-                                            value.jenislistriks,
-                                            value.jenispembayaranairs,
-                                            value.jeniskeamanans,
-                                            value.jeniskosts,
-                                            value.penghunis,
-                                            panjangValue,
-                                            lebarValue,
-                                            _koordinatController.text,
-                                            value.pernama,
-                                            _inilist,
-                                          );
-                                          Navigator.of(context).pop();
-                                        } catch (e) {
-                                          await _showErrorDialog(e.toString());
-                                        } finally {
-                                          if (mounted) {
-                                            setState(() {
-                                              _isSubmitting = false;
-                                            });
-                                          }
-                                        }
-                                      }
-                                    : null,
-                                child: _isSubmitting
-                                    ? Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          SizedBox(
-                                            width: 18,
-                                            height: 18,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              valueColor:
-                                                  AlwaysStoppedAnimation(
-                                                Colors.white,
-                                              ),
-                                            ),
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            'Menyimpan...',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: lebarLayar * 0.04,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      )
-                                    : Text(
-                                        'Simpan Perubahan',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: lebarLayar * 0.04,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                              ),
-                            ),
-                          )
-                        : Padding(
-                            padding: EdgeInsets.all(lebarLayar * 0.05),
-                            child: SizedBox(
-                              height: tinggiLayar * 0.065,
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: canSubmit
-                                      ? warnaTombol
-                                      : Colors.grey.shade400,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(50),
-                                  ),
-                                ),
-                                onPressed: canSubmit
-                                    ? () async {
-                                        if (!mounted) return;
-                                        setState(() {
-                                          _isSubmitting = true;
-                                        });
-
-                                        try {
-                                          final String? errorMessage =
-                                              _validateFormAdmin(
-                                            value,
-                                            isEdit: false,
-                                          );
-
-                                          if (errorMessage != null) {
-                                            await _showErrorDialog(
-                                              errorMessage,
-                                            );
-                                            return;
-                                          }
-
-                                          final inilist = value.listauth;
-
-                                          var cek = inilist.firstWhere(
-                                            (element) =>
-                                                element.username ==
-                                                value.namanya,
-                                          );
-
-                                          // await penghubung.createdata(
-                                          //   int.parse(cek.id_auth.toString()),
-                                          //   penghubung.inputan.tempat_tidur,
-                                          //   penghubung.inputan.kamar_mandi_dalam,
-                                          //   penghubung.inputan.meja,
-                                          //   penghubung.inputan.tempat_parkir,
-                                          //   penghubung.inputan.lemari,
-                                          //   penghubung.inputan.ac,
-                                          //   penghubung.inputan.tv,
-                                          //   penghubung.inputan.kipas,
-                                          //   penghubung.inputan.dapur_dalam,
-                                          //   penghubung.inputan.wifi,
-                                          //   int.parse(_notlpn.text),
-                                          //   _namakost.text,
-                                          //   _alamat.text,
-                                          //   penghubung.namanya,
-                                          //   ThousandsSeparatorInputFormatter
-                                          //           .tryParseInt(
-                                          //         _harga.text,
-                                          //       ) ??
-                                          //       0,
-                                          //   _koordinatController.text,
-                                          //   penghubung.jeniskosts,
-                                          //   penghubung.jeniskeamanans,
-                                          //   penghubung.batasjammalams,
-                                          //   penghubung.jenispembayaranairs,
-                                          //   penghubung.jenislistriks,
-                                          //   int.parse(_panjang.text),
-                                          //   int.parse(_lebar.text),
-                                          //   penghubung.foto!,
-                                          //   penghubung.pernama,
-                                          // );
-
-                                          // Parse dimensions with error handling
-                                          num? panjangValue;
-                                          num? lebarValue;
-                                          try {
-                                            panjangValue = num.parse(_panjang
-                                                .text
-                                                .replaceAll(',', '.'));
-                                            lebarValue = num.parse(_lebar.text
-                                                .replaceAll(',', '.'));
-                                          } catch (e) {
-                                            if (mounted) {
-                                              setState(() {
-                                                _isSubmitting = false;
-                                              });
-                                            }
-                                            await _showErrorDialog(
-                                              "Format angka tidak valid untuk panjang/lebar kamar.",
-                                            );
-                                            return;
-                                          }
-
-                                          await value.konversicreatedataAdmin(
-                                            int.parse(cek.id_auth.toString()),
-                                            _notlpn.text.trim().isEmpty
-                                                ? null
-                                                : _notlpn.text.trim(),
-                                            _namakost.text,
-                                            _alamat.text,
-                                            value.namanya,
-                                            ThousandsSeparatorInputFormatter
-                                                    .tryParseInt(
-                                                  _harga.text,
-                                                ) ??
-                                                0,
-                                            _koordinatController.text,
-                                            value.jeniskosts,
-                                            value.penghunis,
-                                            value.jeniskeamanans,
-                                            value.batasjammalams,
-                                            value.jenispembayaranairs,
-                                            value.jenislistriks,
-                                            panjangValue,
-                                            lebarValue,
-                                            value.foto!,
-                                            value.pernama,
-                                            _inilist,
-                                          );
-
-                                          setState(() {
-                                            value.inputan.resetcheckbox();
-                                            value.resetpilihan();
-                                          });
-
-                                          Navigator.of(context).pop();
-                                        } catch (e) {
-                                          await _showErrorDialog(e.toString());
-                                        } finally {
-                                          if (mounted) {
-                                            setState(() {
-                                              _isSubmitting = false;
-                                            });
-                                          }
-                                        }
-                                      }
-                                    : null,
-                                child: _isSubmitting
-                                    ? Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          SizedBox(
-                                            width: 18,
-                                            height: 18,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              valueColor:
-                                                  AlwaysStoppedAnimation(
-                                                Colors.white,
-                                              ),
-                                            ),
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            'Menyimpan...',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: lebarLayar * 0.04,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      )
-                                    : Text(
-                                        'Simpan Data',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: lebarLayar * 0.04,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                              ),
-                            ),
-                          );
-                  },
-                );
-              },
-            ),
+            },
           );
+        },
+      ),
+    );
   }
 
   bool _isFormReadyAdmin(KostProvider penghubung, {required bool isEdit}) {
@@ -2429,7 +2532,7 @@ class _FormAddHouseState extends State<FormHouse> {
     if (lat == null || lng == null) return false;
 
     // Cek dropdown wajib sudah dipilih
-    if ((penghubung.namanya == null || penghubung.namanya == "Pilih") ||
+    if (penghubung.namanya == "Pilih" ||
         penghubung.jeniskosts == "Pilih" ||
         penghubung.penghunis == "Pilih" ||
         penghubung.jeniskeamanans == "Pilih" ||
@@ -2760,7 +2863,7 @@ class _FormAddHouseState extends State<FormHouse> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildLocationOptionIcon(
-              icon: Icons.flag_outlined,
+              icon: Icons.flag,
               label: 'Tujuan',
               value: _optLokasiTujuan,
               lebar: lebar,
@@ -2780,6 +2883,7 @@ class _FormAddHouseState extends State<FormHouse> {
           ],
         ),
         SizedBox(height: tinggi * 0.01),
+        // --- Koordinat field ---
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -2791,7 +2895,11 @@ class _FormAddHouseState extends State<FormHouse> {
             readOnly: _selectedLocationOption != _optManualKoordinat,
             keyboardType: TextInputType.text,
             decoration: InputDecoration(
-              hintText: 'Contoh: -5.147665, 119.432731',
+              hintText: _selectedLocationOption == _optLokasiTujuan
+                  ? 'Klik 2x pada peta'
+                  : (_selectedLocationOption == _optLokasiSekarang
+                      ? 'Koordinat terisi otomatis'
+                      : 'Contoh: -5.147665, 119.432731'),
               hintStyle: TextStyle(
                 color: Colors.grey.shade500,
                 fontSize: lebar * 0.032,
@@ -2833,17 +2941,8 @@ class _FormAddHouseState extends State<FormHouse> {
                         key: _mapViewKey,
                         controller: _mapController,
                         gestureRecognizers: {
-                          Factory<VerticalDragGestureRecognizer>(
-                            () => VerticalDragGestureRecognizer(),
-                          ),
-                          Factory<HorizontalDragGestureRecognizer>(
-                            () => HorizontalDragGestureRecognizer(),
-                          ),
-                          Factory<ScaleGestureRecognizer>(
-                            () => ScaleGestureRecognizer(),
-                          ),
-                          Factory<TapGestureRecognizer>(
-                            () => TapGestureRecognizer(),
+                          Factory<EagerGestureRecognizer>(
+                            () => EagerGestureRecognizer(),
                           ),
                         },
                       ),

@@ -1076,7 +1076,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
                                       );
                                     }
 
-                                    if (hpChanged) {
+                                    final bool shouldSyncHp = hpChanged ||
+                                        (hpToSave != null &&
+                                            hpToSave.trim().isNotEmpty);
+                                    if (shouldSyncHp) {
                                       await kostService
                                           .updateNoTelpKostPemilikSemua(
                                         penghubung2.accesstoken!,
@@ -1138,7 +1141,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
                                       );
                                     }
 
-                                    if (hpChanged) {
+                                    final bool shouldSyncHp = hpChanged ||
+                                        (hpToSave != null &&
+                                            hpToSave.trim().isNotEmpty);
+                                    if (shouldSyncHp) {
                                       await kostService
                                           .updateNoTelpKostPemilikSemua(
                                         penghubung2.accesstoken!,

@@ -68,7 +68,12 @@ class _LoginPageState extends State<LoginPage> {
           child: Container(
             height: tinggiLayar,
             width: lebarLayar,
-            padding: EdgeInsets.only(top: 250, left: 30, right: 30, bottom: 60),
+            padding: EdgeInsets.only(
+              top: 250,
+              left: paddingHorizontal,
+              right: paddingHorizontal,
+              bottom: 60,
+            ),
             child: Container(
               // color: Colors.red,
               child: Column(

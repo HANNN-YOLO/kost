@@ -665,7 +665,7 @@ class KostService {
       url,
       headers: {
         'Content-Type': 'application/json',
-        // 'apikey': '${SupabaseApiConfig.apipublic}',
+        'apikey': '${SupabaseApiConfig.apipublic}',
         // 'apikey': '${SupabaseCadanganApi.apipublic}',
         'Authorization': 'Bearer $token',
       },

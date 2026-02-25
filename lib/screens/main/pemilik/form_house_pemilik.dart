@@ -82,10 +82,10 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
       ValueKey('pemilik_webview_${DateTime.now().microsecondsSinceEpoch}');
 
   // Opsi lokasi untuk titik koordinat (mirip halaman rekomendasi penyewa)
-  String _selectedLocationOption = 'Lokasi Tujuan';
+  String _selectedLocationOption = 'Tujuan';
 
   static const String _optLokasiSekarang = 'Lokasi Sekarang';
-  static const String _optLokasiTujuan = 'Lokasi Tujuan';
+  static const String _optLokasiTujuan = 'Tujuan';
   static const String _optManualKoordinat = 'Masukkan Titik Koordinat';
 
   // -------- WebView (Leaflet) ----------
@@ -97,6 +97,12 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
   int _geocodeRequestSerial = 0;
   double? _pendingMarkerLat;
   double? _pendingMarkerLng;
+
+  // -------- Reverse Geocoding (Koordinat -> Alamat) ----------
+  int _reverseGeocodeRequestSerial = 0;
+  String? _lastReverseGeocodedAddress;
+  double? _lastReverseGeocodedLat;
+  double? _lastReverseGeocodedLng;
 
   // -------- Autocomplete Alamat ----------
   List<NominatimPlace> _alamatSuggestions = [];
@@ -214,13 +220,16 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
               if (!mounted) return;
 
               // Saat user double tap di peta pada mode Tujuan,
-              // isikan titik koordinat dan tampilkan marker biru.
+              // isikan titik koordinat dan tampilkan marker.
               setState(() {
                 _selectedLocationOption = _optLokasiTujuan;
                 _koordinatController.text = '$lat, $lng';
               });
 
               await _updateMapLocation(lat, lng);
+
+              // Isi alamat berdasarkan titik yang dipilih di peta.
+              unawaited(_reverseGeocodeLatLngToAlamat(lat, lng));
             }
           } catch (_) {
             // Abaikan pesan yang tidak valid
@@ -254,6 +263,37 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
       // onPageFinished nanti akan set _mapLoaded = true
     } catch (e) {
       if (mounted) setState(() => _mapLoaded = false);
+    }
+  }
+
+  Future<void> _reverseGeocodeLatLngToAlamat(double lat, double lng) async {
+    final requestId = ++_reverseGeocodeRequestSerial;
+
+    try {
+      final address = await NominatimGeocodingService.instance.reverseGeocode(
+        lat,
+        lng,
+        acceptLanguage: 'id',
+        userAgent: 'kost-saw/1.0 (flutter; reverse-geocoding)',
+        zoom: 18,
+      );
+
+      if (!mounted || requestId != _reverseGeocodeRequestSerial) return;
+      final resolved = address?.trim();
+      if (resolved == null || resolved.isEmpty) return;
+
+      setState(() {
+        _lastReverseGeocodedAddress = resolved;
+        _lastReverseGeocodedLat = lat;
+        _lastReverseGeocodedLng = lng;
+        _alamat.text = resolved;
+        _alamat.selection = TextSelection.fromPosition(
+          TextPosition(offset: _alamat.text.length),
+        );
+        _alamatSuggestions = [];
+      });
+    } catch (_) {
+      // Abaikan jika reverse gagal (user masih bisa isi manual)
     }
   }
 
@@ -425,7 +465,8 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
     if (mounted) setState(() => _isGeocodingAddress = true);
 
     try {
-      final results = await NominatimGeocodingService.instance.searchAddress(
+      final results =
+          await NominatimGeocodingService.instance.searchAddressSmart(
         query,
         limit: 5,
         countryCodes: 'id',
@@ -452,7 +493,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
       if (!mounted || requestId != _geocodeRequestSerial) return;
       if (selected == null) return;
 
-      await _applyLatLngToFormAndMap(selected.lat, selected.lng);
+      await _applyPlaceToFormAndMap(selected);
     } catch (e) {
       if (!mounted || requestId != _geocodeRequestSerial) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -480,13 +521,17 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
             separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final place = results[index];
+              final postcode = place.address?['postcode'] ??
+                  RegExp(r'\b\d{5}\b').firstMatch(place.displayName)?.group(0);
               return ListTile(
                 title: Text(
                   place.displayName,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                subtitle: Text('${place.lat}, ${place.lng}'),
+                subtitle: Text(
+                  '${place.lat}, ${place.lng}${postcode != null ? ' • $postcode' : ''}',
+                ),
                 onTap: () => Navigator.of(context).pop(place),
               );
             },
@@ -496,12 +541,22 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
     );
   }
 
-  Future<void> _applyLatLngToFormAndMap(double lat, double lng) async {
+  Future<void> _applyPlaceToFormAndMap(NominatimPlace place) async {
     if (!mounted) return;
 
+    final lat = place.lat;
+    final lng = place.lng;
+
     setState(() {
-      _selectedLocationOption = _optManualKoordinat;
       _koordinatController.text = '$lat, $lng';
+      _alamat.text = place.displayName;
+      _alamat.selection = TextSelection.fromPosition(
+        TextPosition(offset: _alamat.text.length),
+      );
+      _alamatSuggestions = [];
+      if (_selectedLocationOption != _optLokasiTujuan) {
+        _selectedLocationOption = _optLokasiTujuan;
+      }
     });
 
     if (!_mapLoaded) {
@@ -527,25 +582,85 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
       return;
     }
 
-    // Debounce 600ms agar tidak spam request
+    // Debounce 600ms agar tidak spam request ke Nominatim.
+    // Pakai autocomplete fleksibel + ranking keyword (lebih mirip pencarian produk).
     _alamatDebounceTimer = Timer(const Duration(milliseconds: 600), () async {
       if (!mounted) return;
       setState(() => _isLoadingAlamatSuggestions = true);
 
       try {
-        final results = await NominatimGeocodingService.instance.searchAddress(
+        final results =
+            await NominatimGeocodingService.instance.searchAddressAutocomplete(
           trimmed,
-          limit: 5,
+          limit: 7,
           countryCodes: 'id',
           acceptLanguage: 'id',
           userAgent: 'kost-saw/1.0 (flutter; autocomplete)',
         );
 
+        // Jika user mencari alamat yang barusan didapat dari klik peta (reverse-geocode),
+        // sisipkan sebagai sugesti teratas agar "alamat yang sama" pasti muncul.
+        final lastAddr = _lastReverseGeocodedAddress;
+        final lastLat = _lastReverseGeocodedLat;
+        final lastLng = _lastReverseGeocodedLng;
+
+        List<NominatimPlace> finalResults = results;
+        if (lastAddr != null && lastLat != null && lastLng != null) {
+          final qNorm =
+              NominatimGeocodingService.cleanForSearch(trimmed).toLowerCase();
+          final lNorm =
+              NominatimGeocodingService.cleanForSearch(lastAddr).toLowerCase();
+
+          final relevant = qNorm.length >= 3 &&
+              (lNorm.contains(qNorm) || qNorm.contains(lNorm));
+
+          if (relevant) {
+            final postcode =
+                RegExp(r'\b\d{5}\b').firstMatch(lastAddr)?.group(0);
+            final injected = NominatimPlace(
+              lat: lastLat,
+              lng: lastLng,
+              displayName: lastAddr,
+              address: postcode != null
+                  ? <String, String>{'postcode': postcode}
+                  : null,
+            );
+
+            final alreadyExists = results.any(
+              (p) =>
+                  (p.lat - lastLat).abs() < 1e-5 &&
+                  (p.lng - lastLng).abs() < 1e-5,
+            );
+
+            if (!alreadyExists) {
+              finalResults = [injected, ...results];
+            }
+          }
+        }
+
         if (!mounted) return;
         setState(() {
-          _alamatSuggestions = results;
+          _alamatSuggestions = finalResults;
           _isLoadingAlamatSuggestions = false;
         });
+
+        // Auto-update peta dari hasil teratas saat user mengetik alamat.
+        // Ini membuat: alamat diketik -> lokasi langsung tampil di peta.
+        final current = _alamat.text.trim();
+        if (_alamatFocusNode.hasFocus && current == trimmed) {
+          if (finalResults.isNotEmpty) {
+            final first = finalResults.first;
+            if (mounted && _selectedLocationOption != _optLokasiTujuan) {
+              setState(() => _selectedLocationOption = _optLokasiTujuan);
+              await _syncMapModeWithLocationOption();
+            }
+            final coordText = '${first.lat}, ${first.lng}';
+            if (_koordinatController.text.trim() != coordText) {
+              _koordinatController.text = coordText;
+            }
+            _parseAndUpdateMap(coordText);
+          }
+        }
       } catch (_) {
         if (!mounted) return;
         setState(() {
@@ -642,6 +757,10 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                     ),
                     itemBuilder: (context, index) {
                       final place = _alamatSuggestions[index];
+                      final postcode = place.address?['postcode'] ??
+                          RegExp(r'\b\d{5}\b')
+                              .firstMatch(place.displayName)
+                              ?.group(0);
                       return ListTile(
                         dense: true,
                         title: Text(
@@ -650,6 +769,14 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: lebar * 0.032),
                         ),
+                        subtitle: postcode == null
+                            ? null
+                            : Text(
+                                'Kode pos: $postcode',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: lebar * 0.028),
+                              ),
                         trailing: Icon(
                           Icons.north_west,
                           size: 16,
@@ -661,7 +788,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                             _alamat.text = place.displayName;
                             _alamatSuggestions = [];
                           });
-                          _applyLatLngToFormAndMap(place.lat, place.lng);
+                          _applyPlaceToFormAndMap(place);
                           // Hilangkan focus
                           _alamatFocusNode.unfocus();
                         },
@@ -762,7 +889,13 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
       }
 
       final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        desiredAccuracy: LocationAccuracy.medium,
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => Geolocator.getLastKnownPosition().then((p) {
+          if (p != null) return p;
+          throw TimeoutException('Timeout mendapatkan lokasi');
+        }),
       );
 
       if (!mounted) return;
@@ -772,6 +905,9 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
 
       _koordinatController.text = '$lat, $lng';
       await _updateMapLocation(lat, lng);
+
+      // Reverse geocode agar alamat terisi otomatis
+      unawaited(_reverseGeocodeLatLngToAlamat(lat, lng));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -785,148 +921,117 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    if (keadaan) {
-      final int? terima = ModalRoute.of(context)?.settings.arguments as int?;
-      final penghubung = Provider.of<KostProvider>(context, listen: false);
+    if (!keadaan) return;
+    keadaan = false;
 
-      // Pastikan tidak ada foto "tersisa" dari form sebelumnya.
-      // Jangan notify saat didChangeDependencies (fase build) untuk menghindari
-      // error: markNeedsBuild called during build.
-      penghubung.clearFoto(notify: false);
-      final penghubung2 = Provider.of<ProfilProvider>(context, listen: false)
-          .readdata(penghubung.token!, penghubung.id_authnya!);
+    final int? terima = ModalRoute.of(context)?.settings.arguments as int?;
+    final penghubung = Provider.of<KostProvider>(context, listen: false);
 
-      final cek = Provider.of<AuthProvider>(context, listen: false)
-          .mydata
-          .firstWhereOrNull(
-              (element) => element.id_auth == penghubung.id_authnya);
+    // Pastikan tidak ada foto "tersisa" dari form sebelumnya.
+    // Jangan notify saat didChangeDependencies (fase build) untuk menghindari
+    // error: markNeedsBuild called during build.
+    penghubung.clearFoto(notify: false);
+    Provider.of<ProfilProvider>(context, listen: false)
+        .readdata(penghubung.token!, penghubung.id_authnya!);
 
-      if (penghubung2 != null) {
-        if (cek != null) {
-          _namapemilik.text = cek.username ?? "";
-          if (terima != null) {
-            final pakai = Provider.of<KostProvider>(context, listen: false)
-                .kostpemilik
-                .firstWhereOrNull((element) => element.id_kost == terima);
+    final cek = Provider.of<AuthProvider>(context, listen: false)
+        .mydata
+        .firstWhereOrNull(
+            (element) => element.id_auth == penghubung.id_authnya);
+    if (cek == null) return;
 
-            if (pakai != null) {
-              _namapemilik.text = pakai.pemilik_kost ?? "";
-              _namakost.text = pakai.nama_kost ?? "";
-              // Nomor telepon mengikuti profil pemilik (bukan dari data kost)
-              _alamat.text = pakai.alamat_kost ?? "";
-              _harga.text = ThousandsSeparatorInputFormatter.formatDigits(
-                (pakai.harga_kost ?? 0).toString(),
-              );
-              _panjang.text = pakai.panjang.toString() ?? "00";
-              _lebar.text = pakai.lebar.toString() ?? "00";
-              _koordinatController.text =
-                  "${pakai.garis_lintang},${pakai.garis_bujur}";
+    _namapemilik.text = cek.username ?? "";
 
-              // penghubung.namanya = pakai.pemilik_kost ?? "Pilih";
-              penghubung.jeniskosts = pakai.jenis_kost ?? "Pilih";
-              penghubung.penghunis = pakai.penghuni ?? "Pilih";
-              penghubung.jeniskeamanans = pakai.keamanan ?? "Pilih";
-              penghubung.batasjammalams = pakai.batas_jam_malam ?? "Pilih";
-              penghubung.jenispembayaranairs =
-                  pakai.jenis_pembayaran_air ?? "Pilih";
-              penghubung.jenislistriks = pakai.jenis_listrik ?? "Pilih";
-              penghubung.pernama =
-                  (pakai.per == null || (pakai.per ?? '').trim().isEmpty)
-                      ? 'bulan'
-                      : pakai.per!;
+    // Mode tambah kost: tidak ada data kost yang perlu di-hydrate.
+    if (terima == null) return;
 
-              // Jika subkriteria terkait sudah dihapus, paksa kembali ke default.
-              _coerceDeletedSubkriteriaSelections(penghubung);
+    final pakai = Provider.of<KostProvider>(context, listen: false)
+        .kostpemilik
+        .firstWhereOrNull((element) => element.id_kost == terima);
+    if (pakai == null) return;
 
-              // Hydrate fasilitas dari data kost (edit mode) tanpa mutasi di build().
-              for (final item in _listini) {
-                item.bersih();
-              }
-              _listini.clear();
+    _namapemilik.text = pakai.pemilik_kost ?? "";
+    _namakost.text = pakai.nama_kost ?? "";
+    // Nomor telepon mengikuti profil pemilik (bukan dari data kost)
+    _alamat.text = pakai.alamat_kost ?? "";
+    _harga.text = ThousandsSeparatorInputFormatter.formatDigits(
+      (pakai.harga_kost ?? 0).toString(),
+    );
+    _panjang.text = pakai.panjang.toString();
+    _lebar.text = pakai.lebar.toString();
+    _koordinatController.text = "${pakai.garis_lintang},${pakai.garis_bujur}";
 
-              final String manafasilitas = (pakai.fasilitas ?? '').trim();
-              if (manafasilitas.isNotEmpty) {
-                final List<String> inisaja = manafasilitas
-                    .split(',')
-                    .map((e) => e.trim())
-                    .where((e) => e.isNotEmpty)
-                    .toList();
-                for (final hanyasaja in inisaja) {
-                  final namanya = inputanlist();
-                  namanya.fasilitas.text = hanyasaja;
-                  _listini.add(namanya);
-                }
-              }
+    // penghubung.namanya = pakai.pemilik_kost ?? "Pilih";
+    penghubung.jeniskosts = pakai.jenis_kost ?? "Pilih";
+    penghubung.penghunis = pakai.penghuni ?? "Pilih";
+    penghubung.jeniskeamanans = pakai.keamanan ?? "Pilih";
+    penghubung.batasjammalams = pakai.batas_jam_malam ?? "Pilih";
+    penghubung.jenispembayaranairs = pakai.jenis_pembayaran_air ?? "Pilih";
+    penghubung.jenislistriks = pakai.jenis_listrik ?? "Pilih";
+    penghubung.pernama = (pakai.per == null || (pakai.per ?? '').trim().isEmpty)
+        ? 'bulan'
+        : pakai.per!;
 
-              _editingFacilityIndex = null;
-              _facilityInputController.clear();
+    // Jika subkriteria terkait sudah dihapus, paksa kembali ke default.
+    _coerceDeletedSubkriteriaSelections(penghubung);
 
-              // Ambil snapshot awal untuk deteksi perubahan pada mode edit.
-              _initialEditSignature = _currentEditSignaturePemilik(penghubung);
+    // Hydrate fasilitas dari data kost (edit mode) tanpa mutasi di build().
+    for (final item in _listini) {
+      item.bersih();
+    }
+    _listini.clear();
 
-              // Sinkronkan ulang dengan data terbaru dari database + opsi subkriteria terbaru.
-              // Ini mencegah dropdown jatuh ke "Pilih" saat subkriteria di-rename.
-              if (!_didSyncLatestEditData) {
-                _didSyncLatestEditData = true;
-                WidgetsBinding.instance.addPostFrameCallback((_) async {
-                  if (!mounted) return;
-                  final penghubung =
-                      Provider.of<KostProvider>(context, listen: false);
-
-                  await penghubung.fetchSubkriteria();
-                  final latest = await penghubung.fetchKostById(terima);
-                  if (!mounted || latest == null) return;
-
-                  // Jangan overwrite jika user sudah mulai mengedit.
-                  final currentSig = _currentEditSignaturePemilik(penghubung);
-                  if (_initialEditSignature != null &&
-                      currentSig != _initialEditSignature) {
-                    return;
-                  }
-
-                  penghubung.jeniskosts = latest.jenis_kost ?? "Pilih";
-                  penghubung.penghunis = latest.penghuni ?? "Pilih";
-                  penghubung.jeniskeamanans = latest.keamanan ?? "Pilih";
-                  penghubung.batasjammalams = latest.batas_jam_malam ?? "Pilih";
-                  penghubung.jenispembayaranairs =
-                      latest.jenis_pembayaran_air ?? "Pilih";
-                  penghubung.jenislistriks = latest.jenis_listrik ?? "Pilih";
-
-                  _coerceDeletedSubkriteriaSelections(penghubung);
-
-                  _initialEditSignature =
-                      _currentEditSignaturePemilik(penghubung);
-                });
-              }
-
-              // fasilitas lama
-              // final cekker = Provider.of<KostProvider>(context, listen: false);
-              //       .fasilitaspemilik
-              //       .firstWhereOrNull(
-              //           (element) => element.id_fasilitas == pakai.id_fasilitas);
-
-              //   if (cekker != null) {
-              //     penghubung.inputan.tempat_tidur = cekker.tempat_tidur;
-              //     penghubung.inputan.kamar_mandi_dalam = cekker.kamar_mandi_dalam;
-              //     penghubung.inputan.meja = cekker.meja;
-              //     penghubung.inputan.tempat_parkir = cekker.tempat_parkir;
-              //     penghubung.inputan.lemari = cekker.lemari;
-              //     penghubung.inputan.ac = cekker.ac;
-              //     penghubung.inputan.tv = cekker.tv;
-              //     penghubung.inputan.kipas = cekker.kipas;
-              //     penghubung.inputan.dapur_dalam = cekker.dapur_dalam;
-              //     penghubung.inputan.wifi = cekker.wifi;
-              //   }
-            } else {}
-
-            // if (pakai != null) {
-            //
-            // }
-          }
-        }
+    final String manafasilitas = (pakai.fasilitas ?? '').trim();
+    if (manafasilitas.isNotEmpty) {
+      final List<String> inisaja = manafasilitas
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+      for (final hanyasaja in inisaja) {
+        final namanya = inputanlist();
+        namanya.fasilitas.text = hanyasaja;
+        _listini.add(namanya);
       }
     }
-    keadaan = false;
+
+    _editingFacilityIndex = null;
+    _facilityInputController.clear();
+
+    // Ambil snapshot awal untuk deteksi perubahan pada mode edit.
+    _initialEditSignature = _currentEditSignaturePemilik(penghubung);
+
+    // Sinkronkan ulang dengan data terbaru dari database + opsi subkriteria terbaru.
+    // Ini mencegah dropdown jatuh ke "Pilih" saat subkriteria di-rename.
+    if (!_didSyncLatestEditData) {
+      _didSyncLatestEditData = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        final penghubung = Provider.of<KostProvider>(context, listen: false);
+
+        await penghubung.fetchSubkriteria();
+        final latest = await penghubung.fetchKostById(terima);
+        if (!mounted || latest == null) return;
+
+        // Jangan overwrite jika user sudah mulai mengedit.
+        final currentSig = _currentEditSignaturePemilik(penghubung);
+        if (_initialEditSignature != null &&
+            currentSig != _initialEditSignature) {
+          return;
+        }
+
+        penghubung.jeniskosts = latest.jenis_kost ?? "Pilih";
+        penghubung.penghunis = latest.penghuni ?? "Pilih";
+        penghubung.jeniskeamanans = latest.keamanan ?? "Pilih";
+        penghubung.batasjammalams = latest.batas_jam_malam ?? "Pilih";
+        penghubung.jenispembayaranairs = latest.jenis_pembayaran_air ?? "Pilih";
+        penghubung.jenislistriks = latest.jenis_listrik ?? "Pilih";
+
+        _coerceDeletedSubkriteriaSelections(penghubung);
+
+        _initialEditSignature = _currentEditSignaturePemilik(penghubung);
+      });
+    }
   }
 
   @override
@@ -1656,8 +1761,11 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                         ),
                         SizedBox(height: tinggiLayar * 0.025),
 
-                        // Field Alamat dengan Autocomplete sugesti
-                        _buildAlamatAutocompleteField(tinggiLayar, lebarLayar),
+                        _buildAlamatAutocompleteField(
+                          tinggiLayar,
+                          lebarLayar,
+                        ),
+                        SizedBox(height: tinggiLayar * 0.025),
                         Consumer<KostProvider>(
                           builder: (context, value, child) {
                             return terima != null
@@ -2722,7 +2830,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildLocationOptionIcon(
-              icon: Icons.flag_outlined,
+              icon: Icons.flag,
               label: 'Tujuan',
               value: _optLokasiTujuan,
               lebar: lebar,
@@ -2742,6 +2850,7 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
           ],
         ),
         SizedBox(height: tinggi * 0.01),
+        // --- Koordinat field ---
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -2756,7 +2865,11 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
             readOnly: _selectedLocationOption != _optManualKoordinat,
             keyboardType: TextInputType.text,
             decoration: InputDecoration(
-              hintText: 'Contoh: -5.147665, 119.432731',
+              hintText: _selectedLocationOption == _optLokasiTujuan
+                  ? 'Klik 2x pada peta'
+                  : (_selectedLocationOption == _optLokasiSekarang
+                      ? 'Koordinat terisi otomatis'
+                      : 'Contoh: -5.147665, 119.432731'),
               hintStyle: TextStyle(
                 color: Colors.grey.shade500,
                 fontSize: lebar * 0.032,
@@ -2801,17 +2914,8 @@ class _FormAddHouseState extends State<FormAddHousePemilik> {
                       child: WebViewWidget(
                         controller: _mapController,
                         gestureRecognizers: {
-                          Factory<VerticalDragGestureRecognizer>(
-                            () => VerticalDragGestureRecognizer(),
-                          ),
-                          Factory<HorizontalDragGestureRecognizer>(
-                            () => HorizontalDragGestureRecognizer(),
-                          ),
-                          Factory<ScaleGestureRecognizer>(
-                            () => ScaleGestureRecognizer(),
-                          ),
-                          Factory<TapGestureRecognizer>(
-                            () => TapGestureRecognizer(),
+                          Factory<EagerGestureRecognizer>(
+                            () => EagerGestureRecognizer(),
                           ),
                         },
                       ),

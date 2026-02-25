@@ -1,5 +1,6 @@
 // lib/user_recommendation_page.dart
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -12,6 +13,7 @@ import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import '../../../providers/kost_provider.dart';
 import '../../../providers/tujuan_providers.dart';
+import '../../../services/nominatim_geocoding_service.dart';
 
 class UserRecommendationPage extends StatefulWidget {
   const UserRecommendationPage({Key? key}) : super(key: key);
@@ -22,6 +24,10 @@ class UserRecommendationPage extends StatefulWidget {
 
 class _UserRecommendationPageState extends State<UserRecommendationPage>
     with SingleTickerProviderStateMixin {
+  static const Color _kColorBackground = Color(0xFFF5F7FB);
+  static const Color _kColorPrimary = Color(0xFF1C3B98);
+  static const Color _kColorTextPrimary = Color(0xFF1F1F1F);
+
   // -------- dropdown floating ----------
   final LayerLink _dropdownLink = LayerLink();
   OverlayEntry? _dropdownOverlay;
@@ -35,8 +41,17 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
 
   late final TextEditingController _coordinateController;
 
+  // -------- Cari nama tempat (Nominatim) ----------
+  final TextEditingController _placeSearchController = TextEditingController();
+  final FocusNode _placeSearchFocusNode = FocusNode();
+  Timer? _placeSearchDebounceTimer;
+  int _placeSuggestSerial = 0;
+  bool _isLoadingPlaceSuggestions = false;
+  List<NominatimPlace> _placeSuggestions = const <NominatimPlace>[];
+
   static const String _optLokasiSekarang = "Lokasi Sekarang";
   static const String _optLokasiTujuan = "Pilih Tempat (Lewat Peta)";
+  static const String _optCariTempat = "Cari Tempat";
   static const String _optManualKoordinat = "Masukkan Titik Koordinat";
 
   // -------- Icon Toggle untuk Dropdown ----------
@@ -200,6 +215,16 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
       await _mapController.runJavaScript("clearMyLocation();");
       await _mapController.runJavaScript("clearDestination();");
       await _mapController.runJavaScript("setMode('readonly');");
+    } else if (_selectedLocation == _optCariTempat) {
+      // cari tempat: marker akan di-set setelah user memilih hasil pencarian
+      await _mapController.runJavaScript("clearMyLocation();");
+      await _mapController.runJavaScript("clearDestination();");
+      await _mapController.runJavaScript("setMode('readonly');");
+      if (!mounted) return;
+      setState(() {
+        _coordinateText = '';
+        _coordinateController.text = '';
+      });
     } else {
       await _mapController.runJavaScript("setMode('normal');");
     }
@@ -219,6 +244,101 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
     if (lat < -90 || lat > 90) return null;
     if (lng < -180 || lng > 180) return null;
     return (lat: lat, lng: lng);
+  }
+
+  void _clearPlaceSearchUi() {
+    _placeSearchDebounceTimer?.cancel();
+    // Invalidate request yang sedang berjalan agar tidak mengisi sugesti
+    // setelah user berpindah mode lokasi.
+    _placeSuggestSerial++;
+    if (_placeSuggestions.isNotEmpty || _isLoadingPlaceSuggestions) {
+      setState(() {
+        _isLoadingPlaceSuggestions = false;
+        _placeSuggestions = const <NominatimPlace>[];
+      });
+      _dropdownOverlay?.markNeedsBuild();
+    }
+  }
+
+  void _fetchPlaceSuggestions(String query) {
+    _placeSearchDebounceTimer?.cancel();
+
+    final trimmed = query.trim();
+    if (trimmed.length < 3) {
+      _clearPlaceSearchUi();
+      return;
+    }
+
+    final requestId = ++_placeSuggestSerial;
+    _placeSearchDebounceTimer =
+        Timer(const Duration(milliseconds: 600), () async {
+      if (!mounted) return;
+      setState(() => _isLoadingPlaceSuggestions = true);
+      _dropdownOverlay?.markNeedsBuild();
+
+      try {
+        final results =
+            await NominatimGeocodingService.instance.searchAddressAutocomplete(
+          trimmed,
+          limit: 7,
+          countryCodes: 'id',
+          acceptLanguage: 'id',
+          userAgent: 'kost-saw/1.0 (flutter; recommendation; place-search)',
+        );
+
+        if (!mounted || requestId != _placeSuggestSerial) return;
+        setState(() {
+          _placeSuggestions = results;
+        });
+        _dropdownOverlay?.markNeedsBuild();
+      } catch (_) {
+        if (!mounted || requestId != _placeSuggestSerial) return;
+        setState(() {
+          _placeSuggestions = const <NominatimPlace>[];
+        });
+        _dropdownOverlay?.markNeedsBuild();
+      } finally {
+        if (!mounted || requestId != _placeSuggestSerial) return;
+        setState(() => _isLoadingPlaceSuggestions = false);
+        _dropdownOverlay?.markNeedsBuild();
+      }
+    });
+  }
+
+  Future<void> _selectPlaceSuggestion(NominatimPlace place) async {
+    if (!mounted) return;
+
+    // Batalkan request yang sedang berjalan agar tidak menimpa pilihan user.
+    _placeSearchDebounceTimer?.cancel();
+    _placeSuggestSerial++;
+
+    final lat = place.lat;
+    final lng = place.lng;
+
+    final bool keepCariTempatLabel =
+        _dropdownMode == 0 && _selectedLocation == _optCariTempat;
+
+    setState(() {
+      _selectedLocation =
+          keepCariTempatLabel ? _optCariTempat : place.displayName;
+      _coordinateText = '$lat, $lng';
+      _coordinateController.text = _coordinateText;
+      _placeSearchController.text = place.displayName;
+      _placeSearchController.selection = TextSelection.fromPosition(
+        TextPosition(offset: _placeSearchController.text.length),
+      );
+      _placeSuggestions = const <NominatimPlace>[];
+      _isLoadingPlaceSuggestions = false;
+    });
+
+    if (_dropdownOpen) {
+      _closeDropdown();
+    }
+
+    // Tutup keyboard agar map bisa langsung dipakai.
+    FocusScope.of(context).unfocus();
+
+    await _applyDestinationToMap(lat, lng);
   }
 
   // =================================================
@@ -349,88 +469,50 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
   void _openDropdown(double Function(double) s, Color bg, Color txt) {
     final penghubung = Provider.of<TujuanProviders>(context, listen: false);
 
-    // Tentukan item dropdown berdasarkan mode
-    List<Widget> dropdownItems = [];
-
-    if (_dropdownMode == 0) {
-      // Mode Manual: 3 jenis inputan
-      dropdownItems = [
-        _dropdownItem(_optLokasiSekarang, s, txt, isFromSupabase: false),
-        _dropdownItem(_optLokasiTujuan, s, txt, isFromSupabase: false),
-        _dropdownItem(_optManualKoordinat, s, txt, isFromSupabase: false),
-      ];
-    } else {
-      // Mode Tempat Supabase: daftar tempat dari database
-      final daftarTempat = penghubung.daftarTempat;
-      if (daftarTempat.isEmpty) {
-        dropdownItems = [
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: s(16), vertical: s(12)),
-            child: Text(
-              'Belum ada tempat tersimpan',
-              style: TextStyle(
-                fontSize: s(14),
-                color: txt.withOpacity(0.5),
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ),
-        ];
-      } else {
-        dropdownItems = daftarTempat
-            .where((t) => t.namatujuan != null)
-            .map((tempat) => _dropdownItem(
-                  tempat.namatujuan!,
-                  s,
-                  txt,
-                  isFromSupabase: true,
-                  lat: tempat.garislintang,
-                  lng: tempat.garisbujur,
-                ))
-            .toList();
-      }
-    }
-
     _dropdownOverlay = OverlayEntry(
-      builder: (context) => Stack(
-        children: [
-          GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTap: _closeDropdown,
-            child: Container(color: Colors.transparent),
-          ),
-          Positioned(
-            width: _fieldSize.width > 0
-                ? _fieldSize.width
-                : MediaQuery.of(context).size.width - s(32),
-            child: CompositedTransformFollower(
-              link: _dropdownLink,
-              offset: Offset(0, _fieldSize.height + s(8)),
-              child: FadeTransition(
-                opacity: _opacity,
-                child: SlideTransition(
-                  position: _offset,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: Container(
-                      constraints: BoxConstraints(
-                        maxHeight: s(250), // Batasi tinggi dropdown
-                      ),
-                      decoration: BoxDecoration(
-                        color: bg,
-                        borderRadius: BorderRadius.circular(s(12)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.12),
-                            blurRadius: s(14),
-                            offset: Offset(0, s(6)),
+      builder: (context) {
+        final dropdownItems = _buildDropdownItems(s, txt, penghubung);
+
+        return Stack(
+          children: [
+            GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: _closeDropdown,
+              child: Container(color: Colors.transparent),
+            ),
+            Positioned(
+              width: _fieldSize.width > 0
+                  ? _fieldSize.width
+                  : MediaQuery.of(context).size.width - s(32),
+              child: CompositedTransformFollower(
+                link: _dropdownLink,
+                offset: Offset(0, _fieldSize.height + s(8)),
+                child: FadeTransition(
+                  opacity: _opacity,
+                  child: SlideTransition(
+                    position: _offset,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: Container(
+                        constraints: BoxConstraints(
+                          maxHeight: s(250),
+                        ),
+                        decoration: BoxDecoration(
+                          color: bg,
+                          borderRadius: BorderRadius.circular(s(12)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.12),
+                              blurRadius: s(14),
+                              offset: Offset(0, s(6)),
+                            ),
+                          ],
+                        ),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: dropdownItems,
                           ),
-                        ],
-                      ),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: dropdownItems,
                         ),
                       ),
                     ),
@@ -438,13 +520,59 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
                 ),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
     Overlay.of(context).insert(_dropdownOverlay!);
     _controller.forward();
     setState(() => _dropdownOpen = true);
+  }
+
+  List<Widget> _buildDropdownItems(
+    double Function(double) s,
+    Color txt,
+    TujuanProviders penghubung,
+  ) {
+    if (_dropdownMode == 0) {
+      // Manual mode: pilihan saja di dropdown (tanpa field).
+      return <Widget>[
+        _dropdownItem(_optLokasiSekarang, s, txt, isFromSupabase: false),
+        _dropdownItem(_optCariTempat, s, txt, isFromSupabase: false),
+        _dropdownItem(_optLokasiTujuan, s, txt, isFromSupabase: false),
+        _dropdownItem(_optManualKoordinat, s, txt, isFromSupabase: false),
+      ];
+    }
+
+    // Supabase mode: daftar tempat dari database
+    final daftarTempat = penghubung.daftarTempat;
+    if (daftarTempat.isEmpty) {
+      return [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: s(16), vertical: s(12)),
+          child: Text(
+            'Belum ada tempat tersimpan',
+            style: TextStyle(
+              fontSize: s(14),
+              color: txt.withOpacity(0.5),
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ),
+      ];
+    }
+
+    return daftarTempat
+        .where((t) => t.namatujuan != null)
+        .map((tempat) => _dropdownItem(
+              tempat.namatujuan!,
+              s,
+              txt,
+              isFromSupabase: true,
+              lat: tempat.garislintang,
+              lng: tempat.garisbujur,
+            ))
+        .toList();
   }
 
   Widget _dropdownItem(
@@ -459,6 +587,7 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
       onTap: () async {
         setState(() => _selectedLocation = text);
         _closeDropdown();
+        _clearPlaceSearchUi();
 
         if (isFromSupabase) {
           // Item dari Supabase - gunakan koordinat yang sudah ada
@@ -491,6 +620,23 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
           setState(() {
             _coordinateText = "Klik 2x pada peta";
             _coordinateController.text = _coordinateText;
+          });
+          // Kosongkan kotak pencarian tempat setiap kali user kembali ke mode peta.
+          _placeSearchController.clear();
+        } else if (text == _optCariTempat) {
+          await _mapController.runJavaScript("clearMyLocation();");
+          await _mapController.runJavaScript("clearDestination();");
+          await _mapController.runJavaScript("setMode('readonly');");
+          setState(() {
+            _coordinateText = '';
+            _coordinateController.text = '';
+            _placeSearchController.clear();
+            _placeSuggestions = const <NominatimPlace>[];
+            _isLoadingPlaceSuggestions = false;
+          });
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            FocusScope.of(context).requestFocus(_placeSearchFocusNode);
           });
         } else if (text == _optManualKoordinat) {
           await _mapController.runJavaScript("clearMyLocation();");
@@ -541,6 +687,7 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
       _dropdownOverlay?.remove();
       _dropdownOverlay = null;
       setState(() => _dropdownOpen = false);
+      _clearPlaceSearchUi();
     });
   }
 
@@ -550,6 +697,9 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
     _dropdownOverlay?.remove();
     _dropdownOverlay = null;
     _coordinateController.dispose();
+    _placeSearchDebounceTimer?.cancel();
+    _placeSearchController.dispose();
+    _placeSearchFocusNode.dispose();
     _controller.dispose();
     _httpClient.close();
     super.dispose();
@@ -675,11 +825,14 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
     double scale = screenWidth / figmaWidth;
     double s(double size) => size * scale;
 
-    const Color colorBackground = Color(0xFFF5F7FB);
-    const Color colorPrimary = Color(0xFF1C3B98);
+    const Color colorBackground = _kColorBackground;
+    const Color colorPrimary = _kColorPrimary;
     const Color colorWhite = Colors.white;
-    const Color colorTextPrimary = Color(0xFF1F1F1F);
+    const Color colorTextPrimary = _kColorTextPrimary;
     final Color shadowColor = Color.fromRGBO(0, 0, 0, 0.06);
+
+    final bool isCariTempatMode =
+        _dropdownMode == 0 && _selectedLocation == _optCariTempat;
 
     return Scaffold(
       backgroundColor: colorBackground,
@@ -736,218 +889,350 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
                       child: ConstrainedBox(
                         constraints:
                             BoxConstraints(minHeight: constraints.maxHeight),
-                        child: IntrinsicHeight(
-                          child: Container(
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: colorWhite,
-                              borderRadius: BorderRadius.circular(s(18)),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: shadowColor,
-                                  blurRadius: s(10),
-                                  offset: Offset(0, s(4)),
-                                ),
-                              ],
-                            ),
-                            padding: EdgeInsets.symmetric(
-                                horizontal: s(16), vertical: s(14)),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                // ===== 2 ICON TOGGLE =====
-                                Row(
-                                  children: [
-                                    Text(
-                                      'Pilih Lokasi',
-                                      style: TextStyle(
-                                        fontSize: s(12),
-                                        fontWeight: FontWeight.w500,
-                                        color:
-                                            colorTextPrimary.withOpacity(0.85),
-                                      ),
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: colorWhite,
+                            borderRadius: BorderRadius.circular(s(18)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: shadowColor,
+                                blurRadius: s(10),
+                                offset: Offset(0, s(4)),
+                              ),
+                            ],
+                          ),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: s(16), vertical: s(14)),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // ===== 2 ICON TOGGLE =====
+                              Row(
+                                children: [
+                                  Text(
+                                    'Pilih Lokasi',
+                                    style: TextStyle(
+                                      fontSize: s(12),
+                                      fontWeight: FontWeight.w500,
+                                      color: colorTextPrimary.withOpacity(0.85),
                                     ),
-                                    const Spacer(),
-                                    // Icon 1: Mode Manual (3 jenis inputan)
-                                    Tooltip(
-                                      message: 'Input Manual',
-                                      child: InkWell(
-                                        onTap: () {
-                                          if (_dropdownMode != 0) {
-                                            setState(() {
-                                              _dropdownMode = 0;
-                                              _selectedLocation =
-                                                  _optLokasiTujuan;
-                                              _coordinateText =
-                                                  'Klik 2x pada peta';
-                                              _coordinateController.text =
-                                                  _coordinateText;
-                                            });
-                                            _syncMapModeWithSelectedLocation();
-                                          }
-                                          // Buka dropdown otomatis
-                                          if (!_dropdownOpen) {
-                                            _openDropdown(s, colorWhite,
-                                                colorTextPrimary);
-                                          }
-                                        },
-                                        borderRadius:
-                                            BorderRadius.circular(s(8)),
-                                        child: Container(
-                                          padding: EdgeInsets.all(s(8)),
-                                          decoration: BoxDecoration(
-                                            color: _dropdownMode == 0
-                                                ? colorPrimary.withOpacity(0.1)
-                                                : Colors.transparent,
-                                            borderRadius:
-                                                BorderRadius.circular(s(8)),
-                                            border: Border.all(
-                                              color: _dropdownMode == 0
-                                                  ? colorPrimary
-                                                  : colorTextPrimary
-                                                      .withOpacity(0.2),
-                                              width: 1.5,
-                                            ),
-                                          ),
-                                          child: Icon(
-                                            Icons.edit_location_alt,
-                                            size: s(20),
+                                  ),
+                                  const Spacer(),
+                                  // Icon 1: Mode Manual (3 jenis inputan)
+                                  Tooltip(
+                                    message: 'Input Manual',
+                                    child: InkWell(
+                                      onTap: () {
+                                        if (_dropdownMode != 0) {
+                                          setState(() {
+                                            _dropdownMode = 0;
+                                            _selectedLocation =
+                                                _optLokasiTujuan;
+                                            _coordinateText =
+                                                'Klik 2x pada peta';
+                                            _coordinateController.text =
+                                                _coordinateText;
+                                          });
+                                          _syncMapModeWithSelectedLocation();
+                                        }
+                                        // Buka dropdown otomatis
+                                        if (!_dropdownOpen) {
+                                          _openDropdown(
+                                              s, colorWhite, colorTextPrimary);
+                                        }
+                                      },
+                                      borderRadius: BorderRadius.circular(s(8)),
+                                      child: Container(
+                                        padding: EdgeInsets.all(s(8)),
+                                        decoration: BoxDecoration(
+                                          color: _dropdownMode == 0
+                                              ? colorPrimary.withOpacity(0.1)
+                                              : Colors.transparent,
+                                          borderRadius:
+                                              BorderRadius.circular(s(8)),
+                                          border: Border.all(
                                             color: _dropdownMode == 0
                                                 ? colorPrimary
                                                 : colorTextPrimary
-                                                    .withOpacity(0.5),
+                                                    .withOpacity(0.2),
+                                            width: 1.5,
                                           ),
+                                        ),
+                                        child: Icon(
+                                          Icons.edit_location_alt,
+                                          size: s(20),
+                                          color: _dropdownMode == 0
+                                              ? colorPrimary
+                                              : colorTextPrimary
+                                                  .withOpacity(0.5),
                                         ),
                                       ),
                                     ),
-                                    SizedBox(width: s(10)),
-                                    // Icon 2: Mode Tempat Supabase
-                                    Tooltip(
-                                      message: 'Tempat Tersimpan',
-                                      child: InkWell(
-                                        onTap: () {
-                                          if (_dropdownMode != 1) {
-                                            setState(() {
-                                              _dropdownMode = 1;
-                                              _selectedLocation =
-                                                  'Pilih Tempat';
-                                              _coordinateText = '';
-                                              _coordinateController.text = '';
-                                            });
-                                          }
-                                          // Buka dropdown otomatis
-                                          if (!_dropdownOpen) {
-                                            _openDropdown(s, colorWhite,
-                                                colorTextPrimary);
-                                          }
-                                        },
-                                        borderRadius:
-                                            BorderRadius.circular(s(8)),
-                                        child: Container(
-                                          padding: EdgeInsets.all(s(8)),
-                                          decoration: BoxDecoration(
-                                            color: _dropdownMode == 1
-                                                ? colorPrimary.withOpacity(0.1)
-                                                : Colors.transparent,
-                                            borderRadius:
-                                                BorderRadius.circular(s(8)),
-                                            border: Border.all(
-                                              color: _dropdownMode == 1
-                                                  ? colorPrimary
-                                                  : colorTextPrimary
-                                                      .withOpacity(0.2),
-                                              width: 1.5,
-                                            ),
-                                          ),
-                                          child: Icon(
-                                            Icons.business,
-                                            size: s(20),
+                                  ),
+                                  SizedBox(width: s(10)),
+                                  // Icon 2: Mode Tempat Supabase
+                                  Tooltip(
+                                    message: 'Tempat Tersimpan',
+                                    child: InkWell(
+                                      onTap: () {
+                                        if (_dropdownMode != 1) {
+                                          setState(() {
+                                            _dropdownMode = 1;
+                                            _selectedLocation = 'Pilih Tempat';
+                                            _coordinateText = '';
+                                            _coordinateController.text = '';
+                                          });
+                                        }
+                                        // Buka dropdown otomatis
+                                        if (!_dropdownOpen) {
+                                          _openDropdown(
+                                              s, colorWhite, colorTextPrimary);
+                                        }
+                                      },
+                                      borderRadius: BorderRadius.circular(s(8)),
+                                      child: Container(
+                                        padding: EdgeInsets.all(s(8)),
+                                        decoration: BoxDecoration(
+                                          color: _dropdownMode == 1
+                                              ? colorPrimary.withOpacity(0.1)
+                                              : Colors.transparent,
+                                          borderRadius:
+                                              BorderRadius.circular(s(8)),
+                                          border: Border.all(
                                             color: _dropdownMode == 1
                                                 ? colorPrimary
                                                 : colorTextPrimary
-                                                    .withOpacity(0.5),
+                                                    .withOpacity(0.2),
+                                            width: 1.5,
                                           ),
+                                        ),
+                                        child: Icon(
+                                          Icons.business,
+                                          size: s(20),
+                                          color: _dropdownMode == 1
+                                              ? colorPrimary
+                                              : colorTextPrimary
+                                                  .withOpacity(0.5),
                                         ),
                                       ),
                                     ),
-                                  ],
-                                ),
-                                SizedBox(height: s(8)),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: s(8)),
 
-                                // Dropdown
-                                CompositedTransformTarget(
-                                  link: _dropdownLink,
-                                  child: GestureDetector(
-                                    key: _fieldKey,
-                                    onTap: () {
-                                      if (_dropdownOpen) {
-                                        _closeDropdown();
-                                      } else {
-                                        _openDropdown(
-                                          s,
-                                          colorWhite,
-                                          colorTextPrimary,
-                                        );
-                                      }
-                                    },
-                                    child: Container(
-                                      height: s(52),
-                                      padding: EdgeInsets.symmetric(
-                                          horizontal: s(14)),
-                                      decoration: BoxDecoration(
-                                        color: colorBackground,
-                                        borderRadius:
-                                            BorderRadius.circular(s(12)),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          // Icon berdasarkan mode
-                                          Icon(
-                                            _dropdownMode == 0
-                                                ? Icons.edit_location_alt
-                                                : Icons.business,
-                                            size: s(20),
-                                            color: colorPrimary,
-                                          ),
-                                          SizedBox(width: s(10)),
-                                          Expanded(
-                                            child: Text(
-                                              _selectedLocation,
-                                              style: TextStyle(
-                                                fontSize: s(14),
-                                                color: colorTextPrimary
-                                                    .withOpacity(0.6),
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                              overflow: TextOverflow.ellipsis,
+                              // Dropdown
+                              CompositedTransformTarget(
+                                link: _dropdownLink,
+                                child: GestureDetector(
+                                  key: _fieldKey,
+                                  onTap: () {
+                                    if (_dropdownOpen) {
+                                      _closeDropdown();
+                                    } else {
+                                      _openDropdown(
+                                        s,
+                                        colorWhite,
+                                        colorTextPrimary,
+                                      );
+                                    }
+                                  },
+                                  child: Container(
+                                    height: s(52),
+                                    padding:
+                                        EdgeInsets.symmetric(horizontal: s(14)),
+                                    decoration: BoxDecoration(
+                                      color: colorBackground,
+                                      borderRadius:
+                                          BorderRadius.circular(s(12)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        // Icon berdasarkan mode
+                                        Icon(
+                                          _dropdownMode == 0
+                                              ? Icons.edit_location_alt
+                                              : Icons.business,
+                                          size: s(20),
+                                          color: colorPrimary,
+                                        ),
+                                        SizedBox(width: s(10)),
+                                        Expanded(
+                                          child: Text(
+                                            _selectedLocation,
+                                            style: TextStyle(
+                                              fontSize: s(14),
+                                              color: colorTextPrimary
+                                                  .withOpacity(0.6),
+                                              fontWeight: FontWeight.w500,
                                             ),
+                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                          Icon(
-                                            _dropdownOpen
-                                                ? Icons.keyboard_arrow_up
-                                                : Icons.keyboard_arrow_down,
-                                            size: s(22),
+                                        ),
+                                        Icon(
+                                          _dropdownOpen
+                                              ? Icons.keyboard_arrow_up
+                                              : Icons.keyboard_arrow_down,
+                                          size: s(22),
+                                          color:
+                                              colorTextPrimary.withOpacity(0.6),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              SizedBox(height: s(14)),
+                              Text(
+                                isCariTempatMode
+                                    ? 'Cari Tempat'
+                                    : 'Titik Koordinat',
+                                style: TextStyle(
+                                  fontSize: s(12),
+                                  fontWeight: FontWeight.w500,
+                                  color: colorTextPrimary.withOpacity(0.85),
+                                ),
+                              ),
+                              SizedBox(height: s(8)),
+
+                              if (isCariTempatMode) ...[
+                                Container(
+                                  height: s(52),
+                                  padding:
+                                      EdgeInsets.symmetric(horizontal: s(12)),
+                                  decoration: BoxDecoration(
+                                    color: colorBackground,
+                                    borderRadius: BorderRadius.circular(s(12)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.search,
+                                        size: s(20),
+                                        color: colorPrimary,
+                                      ),
+                                      SizedBox(width: s(10)),
+                                      Expanded(
+                                        child: TextField(
+                                          controller: _placeSearchController,
+                                          focusNode: _placeSearchFocusNode,
+                                          style: TextStyle(
+                                            fontSize: s(14),
                                             color: colorTextPrimary
-                                                .withOpacity(0.6),
+                                                .withOpacity(0.8),
                                           ),
-                                        ],
+                                          decoration: InputDecoration(
+                                            isCollapsed: true,
+                                            border: InputBorder.none,
+                                            hintText:
+                                                'Contoh: Mall Panakkukang, Unhas, bandara',
+                                            hintStyle: TextStyle(
+                                              fontSize: s(14),
+                                              color: colorTextPrimary
+                                                  .withOpacity(0.4),
+                                            ),
+                                          ),
+                                          onChanged: _fetchPlaceSuggestions,
+                                          textInputAction:
+                                              TextInputAction.search,
+                                        ),
                                       ),
+                                      if (_isLoadingPlaceSuggestions)
+                                        SizedBox(
+                                          width: s(18),
+                                          height: s(18),
+                                          child:
+                                              const CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      else
+                                        InkWell(
+                                          onTap: () {
+                                            _placeSearchController.clear();
+                                            _clearPlaceSearchUi();
+                                            FocusScope.of(context).unfocus();
+                                          },
+                                          child: Padding(
+                                            padding: EdgeInsets.all(s(6)),
+                                            child: Icon(
+                                              Icons.close,
+                                              size: s(18),
+                                              color: colorTextPrimary
+                                                  .withOpacity(0.55),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                if (_placeSuggestions.isNotEmpty) ...[
+                                  SizedBox(height: s(10)),
+                                  Container(
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: colorBackground,
+                                      borderRadius:
+                                          BorderRadius.circular(s(12)),
+                                    ),
+                                    child: Column(
+                                      children: _placeSuggestions
+                                          .map(
+                                            (place) => InkWell(
+                                              onTap: () =>
+                                                  _selectPlaceSuggestion(place),
+                                              child: Padding(
+                                                padding: EdgeInsets.symmetric(
+                                                  horizontal: s(12),
+                                                  vertical: s(10),
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      place.displayName,
+                                                      maxLines: 2,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                        fontSize: s(13),
+                                                        color: colorTextPrimary,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                    SizedBox(height: s(4)),
+                                                    Text(
+                                                      '${place.lat}, ${place.lng}',
+                                                      style: TextStyle(
+                                                        fontSize: s(12),
+                                                        color: colorTextPrimary
+                                                            .withOpacity(0.6),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          )
+                                          .toList(),
                                     ),
                                   ),
-                                ),
-
-                                SizedBox(height: s(14)),
-
-                                Text(
-                                  'Titik Koordinat',
-                                  style: TextStyle(
-                                    fontSize: s(12),
-                                    fontWeight: FontWeight.w500,
-                                    color: colorTextPrimary.withOpacity(0.85),
+                                ],
+                                if (_coordinateText.trim().isNotEmpty) ...[
+                                  SizedBox(height: s(10)),
+                                  Text(
+                                    'Koordinat terpilih: ${_coordinateText.trim()}',
+                                    style: TextStyle(
+                                      fontSize: s(12),
+                                      color: colorTextPrimary.withOpacity(0.6),
+                                    ),
                                   ),
-                                ),
-                                SizedBox(height: s(8)),
-
+                                ],
+                              ] else
                                 Container(
                                   height: s(52),
                                   padding:
@@ -1033,284 +1318,282 @@ class _UserRecommendationPageState extends State<UserRecommendationPage>
                                   ),
                                 ),
 
-                                SizedBox(height: s(14)),
+                              SizedBox(height: s(14)),
 
-                                // MAP (fix height agar tidak bentrok scroll)
-                                SizedBox(
-                                  height: s(340),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(s(14)),
-                                    child: Stack(
-                                      children: [
-                                        WebViewWidget(
-                                          controller: _mapController,
-                                          gestureRecognizers: {
-                                            Factory<
-                                                OneSequenceGestureRecognizer>(
-                                              () => EagerGestureRecognizer(),
-                                            ),
-                                          },
-                                        ),
-                                        if (!_mapLoaded)
-                                          Positioned.fill(
-                                            child: Container(
-                                              color: Colors.white,
-                                              child: const Center(
-                                                  child:
-                                                      CircularProgressIndicator()),
-                                            ),
+                              // MAP (fix height agar tidak bentrok scroll)
+                              SizedBox(
+                                height: s(340),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(s(14)),
+                                  child: Stack(
+                                    children: [
+                                      WebViewWidget(
+                                        controller: _mapController,
+                                        gestureRecognizers: {
+                                          Factory<OneSequenceGestureRecognizer>(
+                                            () => EagerGestureRecognizer(),
                                           ),
-                                      ],
-                                    ),
+                                        },
+                                      ),
+                                      if (!_mapLoaded)
+                                        Positioned.fill(
+                                          child: Container(
+                                            color: Colors.white,
+                                            child: const Center(
+                                                child:
+                                                    CircularProgressIndicator()),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ),
+                              ),
 
-                                SizedBox(height: s(18)),
+                              SizedBox(height: s(18)),
 
-                                SizedBox(
-                                  height: s(56),
-                                  child: ElevatedButton(
-                                    onPressed: _isLoading
-                                        ? null
-                                        : () async {
-                                            // Validasi koordinat tujuan (format & range)
-                                            final input =
-                                                _coordinateText.trim();
-                                            if (input.isEmpty ||
-                                                input == 'Klik 2x pada peta' ||
-                                                !input.contains(',')) {
+                              SizedBox(
+                                height: s(56),
+                                child: ElevatedButton(
+                                  onPressed: _isLoading
+                                      ? null
+                                      : () async {
+                                          // Validasi koordinat tujuan (format & range)
+                                          final input = _coordinateText.trim();
+                                          if (input.isEmpty ||
+                                              input == 'Klik 2x pada peta' ||
+                                              !input.contains(',')) {
+                                            final bool isCariTempatMode =
+                                                _dropdownMode == 0 &&
+                                                    _selectedLocation ==
+                                                        _optCariTempat;
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  isCariTempatMode
+                                                      ? 'Silakan cari tempat terlebih dahulu (pilih dari hasil pencarian).'
+                                                      : 'Silakan isi titik koordinat tujuan (klik 2x di peta atau masukkan manual).',
+                                                ),
+                                              ),
+                                            );
+                                            return;
+                                          }
+
+                                          final parsed = _tryParseLatLng(input);
+                                          if (parsed == null) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                    'Koordinat tidak valid. Gunakan format "lat, lng" dengan lat -90..90 dan lng -180..180.'),
+                                              ),
+                                            );
+                                            return;
+                                          }
+
+                                          final destLat = parsed.lat;
+                                          final destLng = parsed.lng;
+
+                                          // Update marker dan tampilan peta
+                                          await _applyDestinationToMap(
+                                              destLat, destLng);
+
+                                          if (!mounted) return;
+
+                                          setState(() {
+                                            _isLoading = true;
+                                          });
+
+                                          try {
+                                            if (!mounted) return;
+                                            final kostProvider =
+                                                Provider.of<KostProvider>(
+                                              context,
+                                              listen: false,
+                                            );
+
+                                            final allKost = kostProvider
+                                                    .kostpenyewa.isNotEmpty
+                                                ? kostProvider.kostpenyewa
+                                                : kostProvider.kost;
+
+                                            final List<Map<String, dynamic>>
+                                                dataKost = [];
+
+                                            // Kumpulkan semua kost yang punya koordinat
+                                            final destinations = <({
+                                              int id,
+                                              double lat,
+                                              double lng
+                                            })>[];
+                                            for (final k in allKost) {
+                                              final lat = k.garis_lintang;
+                                              final lng = k.garis_bujur;
+                                              final id = k.id_kost;
+                                              if (id == null ||
+                                                  lat == null ||
+                                                  lng == null) {
+                                                continue;
+                                              }
+                                              destinations.add(
+                                                  (id: id, lat: lat, lng: lng));
+                                            }
+
+                                            if (destinations.isEmpty) {
                                               ScaffoldMessenger.of(context)
                                                   .showSnackBar(
                                                 const SnackBar(
                                                   content: Text(
-                                                      'Silakan isi titik koordinat tujuan (klik 2x di peta atau masukkan manual).'),
+                                                      'Belum ada kost dengan koordinat lokasi.'),
                                                 ),
                                               );
                                               return;
                                             }
 
-                                            final parsed =
-                                                _tryParseLatLng(input);
-                                            if (parsed == null) {
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                      'Koordinat tidak valid. Gunakan format "lat, lng" dengan lat -90..90 dan lng -180..180.'),
-                                                ),
-                                              );
-                                              return;
+                                            // Hitung jarak tujuan→kost secara batching (lebih cepat)
+                                            final distanceById =
+                                                await _osrmTableDistancesKm(
+                                              sourceLat: destLat,
+                                              sourceLng: destLng,
+                                              destinations: destinations,
+                                            );
+
+                                            // Fallback: untuk yang belum dapat jarak dari table,
+                                            // coba OSRM route satu-per-satu (masih akurat, cuma lebih lambat)
+                                            if (distanceById.length <
+                                                destinations.length) {
+                                              for (final s in destinations) {
+                                                if (distanceById.containsKey(
+                                                    s.id)) continue;
+                                                final dKm =
+                                                    await _osrmRouteOneWayKm(
+                                                  fromLat: destLat,
+                                                  fromLng: destLng,
+                                                  toLat: s.lat,
+                                                  toLng: s.lng,
+                                                );
+                                                if (dKm != null) {
+                                                  distanceById[s.id] = dKm;
+                                                }
+                                              }
                                             }
 
-                                            final destLat = parsed.lat;
-                                            final destLng = parsed.lng;
+                                            // Bentuk dataKost untuk halaman SAW (skip yang tetap gagal)
+                                            for (final k in allKost) {
+                                              final id = k.id_kost;
+                                              if (id == null) continue;
+                                              final dKm = distanceById[id];
+                                              if (dKm == null) {
+                                                debugPrint(
+                                                    '⚠️ Skip kost ${k.nama_kost} - OSRM tidak mengembalikan jarak');
+                                                continue;
+                                              }
 
-                                            // Update marker dan tampilan peta
-                                            await _applyDestinationToMap(
-                                                destLat, destLng);
+                                              dataKost.add({
+                                                'id_kost': id,
+                                                'name': k.nama_kost ?? 'Kost',
+                                                'address': k.alamat_kost ?? '',
+                                                'pricePerMonth':
+                                                    k.harga_kost ?? 0,
+                                                'distanceKm': dKm,
+                                                'imageUrl': k.gambar_kost ?? '',
+                                              });
+                                            }
 
                                             if (!mounted) return;
 
-                                            setState(() {
-                                              _isLoading = true;
-                                            });
-
-                                            try {
-                                              if (!mounted) return;
-                                              final kostProvider =
-                                                  Provider.of<KostProvider>(
-                                                context,
-                                                listen: false,
-                                              );
-
-                                              final allKost = kostProvider
-                                                      .kostpenyewa.isNotEmpty
-                                                  ? kostProvider.kostpenyewa
-                                                  : kostProvider.kost;
-
-                                              final List<Map<String, dynamic>>
-                                                  dataKost = [];
-
-                                              // Kumpulkan semua kost yang punya koordinat
-                                              final destinations = <({
-                                                int id,
-                                                double lat,
-                                                double lng
-                                              })>[];
-                                              for (final k in allKost) {
-                                                final lat = k.garis_lintang;
-                                                final lng = k.garis_bujur;
-                                                final id = k.id_kost;
-                                                if (id == null ||
-                                                    lat == null ||
-                                                    lng == null) {
-                                                  continue;
-                                                }
-                                                destinations.add((
-                                                  id: id,
-                                                  lat: lat,
-                                                  lng: lng
-                                                ));
-                                              }
-
-                                              if (destinations.isEmpty) {
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                        'Belum ada kost dengan koordinat lokasi.'),
-                                                  ),
-                                                );
-                                                return;
-                                              }
-
-                                              // Hitung jarak tujuan→kost secara batching (lebih cepat)
-                                              final distanceById =
-                                                  await _osrmTableDistancesKm(
-                                                sourceLat: destLat,
-                                                sourceLng: destLng,
-                                                destinations: destinations,
-                                              );
-
-                                              // Fallback: untuk yang belum dapat jarak dari table,
-                                              // coba OSRM route satu-per-satu (masih akurat, cuma lebih lambat)
-                                              if (distanceById.length <
-                                                  destinations.length) {
-                                                for (final s in destinations) {
-                                                  if (distanceById.containsKey(
-                                                      s.id)) continue;
-                                                  final dKm =
-                                                      await _osrmRouteOneWayKm(
-                                                    fromLat: destLat,
-                                                    fromLng: destLng,
-                                                    toLat: s.lat,
-                                                    toLng: s.lng,
-                                                  );
-                                                  if (dKm != null) {
-                                                    distanceById[s.id] = dKm;
-                                                  }
-                                                }
-                                              }
-
-                                              // Bentuk dataKost untuk halaman SAW (skip yang tetap gagal)
-                                              for (final k in allKost) {
-                                                final id = k.id_kost;
-                                                if (id == null) continue;
-                                                final dKm = distanceById[id];
-                                                if (dKm == null) {
-                                                  debugPrint(
-                                                      '⚠️ Skip kost ${k.nama_kost} - OSRM tidak mengembalikan jarak');
-                                                  continue;
-                                                }
-
-                                                dataKost.add({
-                                                  'id_kost': id,
-                                                  'name': k.nama_kost ?? 'Kost',
-                                                  'address':
-                                                      k.alamat_kost ?? '',
-                                                  'pricePerMonth':
-                                                      k.harga_kost ?? 0,
-                                                  'distanceKm': dKm,
-                                                  'imageUrl':
-                                                      k.gambar_kost ?? '',
-                                                });
-                                              }
-
-                                              if (!mounted) return;
-
-                                              if (dataKost.isEmpty) {
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                        'Tidak ada kost yang berhasil dihitung jaraknya oleh OSRM.'),
-                                                  ),
-                                                );
-                                                return;
-                                              }
-
-                                              // urutkan berdasarkan jarak terdekat
-                                              dataKost.sort((a, b) =>
-                                                  (a['distanceKm'] as double)
-                                                      .compareTo(b['distanceKm']
-                                                          as double));
-
-                                              // Simpan jarakKostMap ke provider untuk digunakan di SAW
-                                              final jarakMap = <int, double>{};
-                                              for (final k in dataKost) {
-                                                jarakMap[k['id_kost'] as int] =
-                                                    k['distanceKm'] as double;
-                                              }
-                                              kostProvider
-                                                  .setJarakKostMap(jarakMap);
-
-                                              if (!mounted) return;
-
-                                              await Navigator.of(context).push(
-                                                MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      RecommendationSawPage(
-                                                    destinationLat: destLat,
-                                                    destinationLng: destLng,
-                                                    kostData: dataKost,
-                                                  ),
+                                            if (dataKost.isEmpty) {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                      'Tidak ada kost yang berhasil dihitung jaraknya oleh OSRM.'),
                                                 ),
                                               );
-                                            } finally {
-                                              if (!mounted) return;
-                                              setState(() {
-                                                _isLoading = false;
-                                              });
+                                              return;
                                             }
-                                          },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: colorPrimary,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(s(14)),
-                                      ),
-                                    ),
-                                    child: _isLoading
-                                        ? Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              SizedBox(
-                                                width: s(20),
-                                                height: s(20),
-                                                child:
-                                                    const CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  valueColor:
-                                                      AlwaysStoppedAnimation<
-                                                          Color>(Colors.white),
-                                                ),
-                                              ),
-                                              SizedBox(width: s(10)),
-                                              Text(
-                                                'Harap menunggu...',
-                                                style: TextStyle(
-                                                  fontSize: s(16),
-                                                  fontWeight: FontWeight.w600,
-                                                  color: colorWhite,
-                                                ),
-                                              ),
-                                            ],
-                                          )
-                                        : Text(
-                                            'Tampilkan Hasil',
-                                            style: TextStyle(
-                                              fontSize: s(16),
-                                              fontWeight: FontWeight.w600,
-                                              color: colorWhite,
-                                            ),
-                                          ),
-                                  ),
-                                ),
 
-                                SizedBox(height: s(18)),
-                              ],
-                            ),
+                                            // urutkan berdasarkan jarak terdekat
+                                            dataKost.sort((a, b) =>
+                                                (a['distanceKm'] as double)
+                                                    .compareTo(b['distanceKm']
+                                                        as double));
+
+                                            // Simpan jarakKostMap ke provider untuk digunakan di SAW
+                                            final jarakMap = <int, double>{};
+                                            for (final k in dataKost) {
+                                              jarakMap[k['id_kost'] as int] =
+                                                  k['distanceKm'] as double;
+                                            }
+                                            kostProvider
+                                                .setJarakKostMap(jarakMap);
+
+                                            if (!mounted) return;
+
+                                            await Navigator.of(context).push(
+                                              MaterialPageRoute(
+                                                builder: (_) =>
+                                                    RecommendationSawPage(
+                                                  destinationLat: destLat,
+                                                  destinationLng: destLng,
+                                                  kostData: dataKost,
+                                                ),
+                                              ),
+                                            );
+                                          } finally {
+                                            if (!mounted) return;
+                                            setState(() {
+                                              _isLoading = false;
+                                            });
+                                          }
+                                        },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: colorPrimary,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(s(14)),
+                                    ),
+                                  ),
+                                  child: _isLoading
+                                      ? Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            SizedBox(
+                                              width: s(20),
+                                              height: s(20),
+                                              child:
+                                                  const CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                valueColor:
+                                                    AlwaysStoppedAnimation<
+                                                        Color>(Colors.white),
+                                              ),
+                                            ),
+                                            SizedBox(width: s(10)),
+                                            Text(
+                                              'Harap menunggu...',
+                                              style: TextStyle(
+                                                fontSize: s(16),
+                                                fontWeight: FontWeight.w600,
+                                                color: colorWhite,
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : Text(
+                                          'Tampilkan Hasil',
+                                          style: TextStyle(
+                                            fontSize: s(16),
+                                            fontWeight: FontWeight.w600,
+                                            color: colorWhite,
+                                          ),
+                                        ),
+                                ),
+                              ),
+
+                              SizedBox(height: s(18)),
+                            ],
                           ),
                         ),
                       ),

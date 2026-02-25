@@ -42,7 +42,7 @@ class Textfield1barisFull extends StatelessWidget {
         readOnly: tulis,
         obscureText: kelihatan,
         onSubmitted: (value) {
-          if (value != null && fungsienter != null) {
+          if (fungsienter != null) {
             print("value $value");
             fungsienter?.call();
           }
